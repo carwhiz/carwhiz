@@ -735,7 +735,12 @@
       <div class="desktop-main">
         <!-- Centered Logo -->
         <div class="desktop-logo-center">
-          <img src="/logo.jpeg" alt="CarWhizz" class="center-logo" />
+          <div class="logo-liquid-container">
+            <div class="liquid-wave wave1"></div>
+            <div class="liquid-wave wave2"></div>
+            <div class="liquid-wave wave3"></div>
+            <img src="/logo.jpeg" alt="CarWhizz" class="center-logo" />
+          </div>
           <!-- QR Attendance Widget -->
           <div class="qr-widget">
             <div class="qr-widget-label">Attendance QR</div>
@@ -1305,9 +1310,77 @@
   }
 
   .center-logo {
-    max-width: 60%;
-    max-height: 50%;
+    max-width: 70%;
+    max-height: 70%;
     object-fit: contain;
+    position: relative;
+    z-index: 2;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));
+  }
+
+  .logo-liquid-container {
+    position: relative;
+    width: 320px;
+    height: 320px;
+    border-radius: 28px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1.5px solid rgba(255, 255, 255, 0.5);
+    box-shadow:
+      0 16px 48px rgba(234, 88, 12, 0.18),
+      0 4px 16px rgba(234, 88, 12, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+
+  .liquid-wave {
+    position: absolute;
+    bottom: -40%;
+    left: -20%;
+    width: 140%;
+    height: 100%;
+    border-radius: 40%;
+    opacity: 0.45;
+  }
+
+  .wave1 {
+    background: linear-gradient(180deg, transparent 40%, rgba(249, 115, 22, 0.5) 70%, rgba(234, 88, 12, 0.7) 100%);
+    animation: liquidWave1 4s ease-in-out infinite;
+  }
+
+  .wave2 {
+    background: linear-gradient(180deg, transparent 40%, rgba(251, 146, 60, 0.4) 70%, rgba(249, 115, 22, 0.6) 100%);
+    animation: liquidWave2 5s ease-in-out infinite;
+    opacity: 0.35;
+  }
+
+  .wave3 {
+    background: linear-gradient(180deg, transparent 40%, rgba(253, 186, 116, 0.3) 70%, rgba(251, 146, 60, 0.5) 100%);
+    animation: liquidWave3 6s ease-in-out infinite;
+    opacity: 0.3;
+  }
+
+  @keyframes liquidWave1 {
+    0%, 100% { transform: translateY(10%) rotate(0deg); }
+    25% { transform: translateY(5%) rotate(3deg); }
+    50% { transform: translateY(0%) rotate(-2deg); }
+    75% { transform: translateY(8%) rotate(2deg); }
+  }
+
+  @keyframes liquidWave2 {
+    0%, 100% { transform: translateY(5%) rotate(2deg); }
+    33% { transform: translateY(12%) rotate(-3deg); }
+    66% { transform: translateY(2%) rotate(4deg); }
+  }
+
+  @keyframes liquidWave3 {
+    0%, 100% { transform: translateY(8%) rotate(-1deg); }
+    30% { transform: translateY(0%) rotate(3deg); }
+    60% { transform: translateY(15%) rotate(-2deg); }
   }
 
   .desktop-content {
