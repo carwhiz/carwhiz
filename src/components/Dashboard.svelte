@@ -199,6 +199,8 @@
   let bankBalance = 0;
   let salesBalanceTotal = 0;
   let purchaseBalanceTotal = 0;
+  let attendanceCheckIn: string | null = null;
+  let attendanceCheckOut: string | null = null;
   let mobileLoading = true;
 
   function formatMobileAmt(val: number): string {
@@ -212,6 +214,12 @@
     const dd = String(d.getDate()).padStart(2, '0');
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     return `${dd}/${mm}/${d.getFullYear()}`;
+  }
+
+  function formatTime(ts: string | null): string {
+    if (!ts) return '--:--';
+    const d = new Date(ts);
+    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
   }
 
   function changeDate(offset: number) {
@@ -236,6 +244,23 @@
       bankBalance = data.bank_balance || 0;
       salesBalanceTotal = data.sales_balance || 0;
       purchaseBalanceTotal = data.purchase_balance || 0;
+    }
+
+    // Load attendance for today
+    attendanceCheckIn = null;
+    attendanceCheckOut = null;
+    const userId = $authStore.user?.id;
+    if (userId) {
+      const { data: att } = await supabase
+        .from('attendance')
+        .select('check_in, check_out')
+        .eq('user_id', userId)
+        .eq('date', mobileDate)
+        .maybeSingle();
+      if (att) {
+        attendanceCheckIn = att.check_in;
+        attendanceCheckOut = att.check_out;
+      }
     }
 
     mobileLoading = false;
@@ -355,6 +380,19 @@
               <div class="m-card-label">Purchase Balance</div>
               <div class="m-card-amount">{formatMobileAmt(purchaseBalanceTotal)}</div>
               <div class="m-card-sub">Total payable</div>
+            </div>
+
+            <!-- Attendance Card -->
+            <div class="m-card attendance">
+              <div class="m-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>
+              </div>
+              <div class="m-card-label">Attendance</div>
+              <div class="m-card-attend-row">
+                <span class="attend-in">In: {formatTime(attendanceCheckIn)}</span>
+                <span class="attend-out">Out: {formatTime(attendanceCheckOut)}</span>
+              </div>
+              <div class="m-card-sub">{attendanceCheckIn ? (attendanceCheckOut ? 'Completed' : 'Checked in') : 'Not checked in'}</div>
             </div>
           </div>
         {/if}
@@ -1056,6 +1094,7 @@
   .m-card.bank { border-left-color: #8b5cf6; background: rgba(245, 243, 255, 0.65); }
   .m-card.sales-bal { border-left-color: #06b6d4; background: rgba(236, 254, 255, 0.65); }
   .m-card.purchase-bal { border-left-color: #e11d48; background: rgba(255, 241, 242, 0.65); }
+  .m-card.attendance { border-left-color: #f97316; background: rgba(255, 247, 237, 0.65); }
   .m-card-icon {
     width: 40px;
     height: 40px;
@@ -1073,6 +1112,16 @@
   .m-card.bank .m-card-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
   .m-card.sales-bal .m-card-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
   .m-card.purchase-bal .m-card-icon { background: linear-gradient(135deg, #e11d48, #be123c); color: white; }
+  .m-card.attendance .m-card-icon { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
+  .m-card-attend-row {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+  }
+  .attend-in { color: #16a34a; }
+  .attend-out { color: #2563eb; }
   .m-card-label {
     font-size: 11px;
     font-weight: 600;
