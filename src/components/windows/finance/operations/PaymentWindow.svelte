@@ -405,7 +405,7 @@
 </div>
 
 <style>
-  .entry-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; }
+  .entry-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; box-sizing:border-box; }
 
   .form-header { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; }
   .header-left { display:flex; align-items:center; gap:10px; }
@@ -419,7 +419,7 @@
   .msg-error { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
   .msg-success { background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; }
 
-  .form-card { background:white; border:1px solid #e5e7eb; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:18px; max-width:700px; }
+  .form-card { background:white; border:1px solid #e5e7eb; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:18px; width:100%; box-sizing:border-box; overflow-y:auto; }
   .form-row { display:flex; gap:16px; }
   .two-col > .field { flex:1; }
   .field { display:flex; flex-direction:column; position:relative; }

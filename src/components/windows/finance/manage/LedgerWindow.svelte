@@ -182,7 +182,7 @@
 </div>
 
 <style>
-  .window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; }
+  .window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; box-sizing:border-box; }
   .top-controls { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; flex-wrap:wrap; gap:10px; }
   .title-area { display:flex; align-items:baseline; gap:10px; }
   .title-area h2 { margin:0; font-size:18px; font-weight:700; color:#111827; }
@@ -200,13 +200,13 @@
   .btn-employee { background:#7c3aed; }
   .btn-employee:hover { background:#6d28d9; }
 
-  .table-container { flex:1; overflow:auto; }
+  .table-container { flex:1; overflow:auto; width:100%; box-sizing:border-box; }
   .table-status { display:flex; align-items:center; justify-content:center; height:200px; color:#9ca3af; font-size:14px; }
   .table-status.error { color:#ef4444; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
   thead { position:sticky; top:0; z-index:2; }
-  th { background:#f9fafb; padding:10px; text-align:left; font-weight:600; color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:.03em; border-bottom:1px solid #e5e7eb; white-space:nowrap; }
-  td { padding:9px 10px; color:#374151; border-bottom:1px solid #f3f4f6; white-space:nowrap; }
+  th { background:#f9fafb; padding:10px; text-align:left; font-weight:600; color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:.03em; border-bottom:1px solid #e5e7eb; border-right:1px solid #e5e7eb; white-space:nowrap; }
+  td { padding:9px 10px; color:#374151; border-bottom:1px solid #f3f4f6; border-right:1px solid #e5e7eb; white-space:nowrap; }
   tr:hover td { background:#fffbf5; }
   .num { color:#9ca3af; width:36px; }
   .name-col { font-weight:600; color:#111827; }

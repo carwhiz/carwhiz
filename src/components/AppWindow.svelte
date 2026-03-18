@@ -111,7 +111,7 @@
   .app-window.maximized {
     position: fixed;
     top: 0;
-    left: 170px;
+    left: 260px;
     right: 0;
     bottom: 48px;
     width: auto;
@@ -182,5 +182,7 @@
     flex: 1;
     overflow: auto;
     background: #fafafa;
+    width: 100%;
+    box-sizing: border-box;
   }
 </style>

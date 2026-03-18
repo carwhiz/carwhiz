@@ -313,7 +313,7 @@
   .back-btn:hover { background:#fff7ed; border-color:#C41E3A; color:#C41E3A; }
   .form-header h2 { margin:0; font-size:17px; font-weight:700; color:#111827; }
 
-  .form-body { flex:1; overflow-y:auto; padding:24px; }
+  .form-body { flex:1; overflow-y:auto; padding:24px; width:100%; box-sizing:border-box; }
   .msg { padding:10px 14px; border-radius:6px; font-size:13px; font-weight:500; margin-bottom:16px; }
   .msg-error { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
   .msg-success { background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; }

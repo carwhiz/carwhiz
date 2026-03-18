@@ -191,7 +191,7 @@
 </div>
 
 <style>
-  .report-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; }
+  .report-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; box-sizing:border-box; }
   .report-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; }
   .header-left { display:flex; align-items:center; gap:10px; }
   .header-right { display:flex; align-items:center; gap:8px; }
@@ -202,10 +202,10 @@
   .report-header h2 { margin:0; font-size:17px; font-weight:700; color:#111827; }
   .subtitle { font-size:11px; color:#9ca3af; }
 
-  .table-wrap { flex:1; overflow:auto; padding:12px 18px; }
+  .table-wrap { flex:1; overflow:auto; padding:12px 18px; width:100%; box-sizing:border-box; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
-  thead th { background:#f9fafb; padding:10px 12px; text-align:left; font-weight:600; color:#374151; border-bottom:2px solid #e5e7eb; position:sticky; top:0; z-index:1; }
-  tbody td { padding:8px 12px; border-bottom:1px solid #f3f4f6; color:#111827; }
+  thead th { background:#f9fafb; padding:10px 12px; text-align:left; font-weight:600; color:#374151; border-bottom:2px solid #e5e7eb; border-right:1px solid #e5e7eb; position:sticky; top:0; z-index:1; }
+  tbody td { padding:8px 12px; border-bottom:1px solid #f3f4f6; border-right:1px solid #e5e7eb; color:#111827; }
   tbody tr:hover { background:#fffbeb; }
   tfoot td { padding:10px 12px; font-weight:700; border-top:2px solid #374151; }
   .num { width:30px; color:#9ca3af; }

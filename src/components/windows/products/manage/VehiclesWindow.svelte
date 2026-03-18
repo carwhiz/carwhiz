@@ -164,6 +164,7 @@
     display: flex;
     flex-direction: column;
     background: #fafafa;
+    box-sizing: border-box;
   }
 
   /* ---- Top Controls ---- */
@@ -175,6 +176,7 @@
     background: white;
     border-bottom: 1px solid #e5e7eb;
     flex-shrink: 0;
+    box-sizing: border-box;
   }
 
   .title-area {
@@ -251,6 +253,8 @@
     flex: 1;
     overflow: auto;
     padding: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .table-status {
@@ -270,6 +274,7 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    box-sizing: border-box;
   }
 
   thead {
@@ -288,6 +293,7 @@
     text-transform: uppercase;
     letter-spacing: 0.03em;
     border-bottom: 1px solid #e5e7eb;
+    border-right: 1px solid #e5e7eb;
     white-space: nowrap;
   }
 
@@ -295,6 +301,7 @@
     padding: 10px 12px;
     color: #374151;
     border-bottom: 1px solid #f3f4f6;
+    border-right: 1px solid #e5e7eb;
     white-space: nowrap;
   }
 

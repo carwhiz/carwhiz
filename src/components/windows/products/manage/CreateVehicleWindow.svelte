@@ -354,6 +354,7 @@
     display: flex;
     flex-direction: column;
     background: #fafafa;
+    box-sizing: border-box;
   }
 
   /* ---- Header ---- */
@@ -425,6 +426,8 @@
     flex: 1;
     overflow-y: auto;
     padding: 20px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .msg {

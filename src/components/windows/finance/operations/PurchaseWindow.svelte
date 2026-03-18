@@ -549,7 +549,7 @@
 </div>
 
 <style>
-  .pos-window { width:100%; height:100%; display:flex; flex-direction:column; background:#f8f9fb; font-family:inherit; }
+  .pos-window { width:100%; height:100%; display:flex; flex-direction:column; background:#f8f9fb; font-family:inherit; box-sizing:border-box; }
 
   .pos-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; }
   .header-left { display:flex; align-items:center; gap:16px; }
@@ -572,7 +572,7 @@
 
   .pos-body { display:flex; flex:1; overflow:hidden; }
   .pos-main { flex:1; display:flex; flex-direction:column; overflow:hidden; padding:14px 18px; gap:12px; }
-  .pos-sidebar { width:260px; flex-shrink:0; padding:14px 18px 14px 0; display:flex; flex-direction:column; gap:12px; }
+  .pos-sidebar { flex:1; min-width:200px; max-width:300px; flex-shrink:0; padding:14px 18px 14px 0; display:flex; flex-direction:column; gap:12px; box-sizing:border-box; overflow-y:auto; }
 
   .search-row { display:flex; gap:10px; flex-shrink:0; }
   .search-group { display:flex; flex-direction:column; flex:1; position:relative; }

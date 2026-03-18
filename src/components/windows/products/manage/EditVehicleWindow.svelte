@@ -261,13 +261,7 @@
 {/if}
 
 <style>
-  .edit-vehicle-window {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: #fafafa;
-  }
+  .edit-vehicle-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; box-sizing:border-box; }
 
   .form-header {
     display: flex;
@@ -315,8 +309,8 @@
   .form-body {
     flex: 1;
     overflow-y: auto;
-    padding: 24px;
-  }
+    padding: 24px;    width: 100%;
+    box-sizing: border-box;  }
 
   .loading-msg {
     text-align: center;

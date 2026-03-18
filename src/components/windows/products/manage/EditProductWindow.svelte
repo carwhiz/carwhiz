@@ -350,13 +350,13 @@
 {/if}
 
 <style>
-  .edit-product-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; }
+  .edit-product-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; box-sizing:border-box; }
   .form-header { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; }
   .header-left { display:flex; align-items:center; gap:10px; }
   .back-btn { display:flex; align-items:center; justify-content:center; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; color:#374151; transition:all .15s; }
   .back-btn:hover { background:#fff7ed; border-color:#C41E3A; color:#C41E3A; }
   .form-header h2 { margin:0; font-size:17px; font-weight:700; color:#111827; }
-  .form-body { flex:1; overflow-y:auto; padding:24px; }
+  .form-body { flex:1; overflow-y:auto; padding:24px; width:100%; box-sizing:border-box; }
   .status-msg { text-align:center; padding:40px 20px; color:#9ca3af; font-size:14px; }
   .msg { padding:10px 14px; border-radius:6px; font-size:13px; font-weight:500; margin-bottom:16px; }
   .msg-error { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }

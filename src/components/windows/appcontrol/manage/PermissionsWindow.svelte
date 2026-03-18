@@ -296,7 +296,7 @@
 </div>
 
 <style>
-  .window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; }
+  .window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; box-sizing:border-box; }
   .top-controls { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; }
   .title-area { display:flex; align-items:baseline; gap:10px; }
   .title-area h2 { margin:0; font-size:18px; font-weight:700; color:#111827; }
@@ -306,7 +306,7 @@
   .msg-success { background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; }
 
   /* Layout */
-  .perm-layout { flex:1; display:flex; overflow:hidden; }
+  .perm-layout { flex:1; display:flex; overflow:hidden; width:100%; box-sizing:border-box; }
 
   /* User list */
   .user-list { width:200px; background:#fff; border-right:1px solid #e5e7eb; display:flex; flex-direction:column; overflow-y:auto; flex-shrink:0; }
@@ -332,7 +332,8 @@
   .table-status { display:flex; align-items:center; justify-content:center; height:200px; color:#9ca3af; font-size:14px; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
   thead { position:sticky; top:0; z-index:2; }
-  th { background:#f9fafb; padding:10px; text-align:center; font-weight:600; color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:.03em; border-bottom:1px solid #e5e7eb; }
+  th { background:#f9fafb; padding:10px; text-align:center; font-weight:600; color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:.03em; border-bottom:1px solid #e5e7eb; border-right:1px solid #e5e7eb; }
+  td { border-right:1px solid #e5e7eb; }
   th.res-col { text-align:left; width:220px; }
   th.perm-col { width:70px; }
   .group-row td { background:#f3f4f6; padding:8px 14px; font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; }

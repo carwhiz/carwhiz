@@ -673,7 +673,7 @@
   .msg-error { background:#fee2e2; color:#dc2626; }
   .msg-success { background:#dcfce7; color:#16a34a; }
 
-  .form-body { flex:1; overflow:auto; padding:16px 18px; }
+  .form-body { flex:1; overflow:auto; padding:16px 18px; width:100%; box-sizing:border-box; }
   .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; }
   .section-title { grid-column:1/-1; font-size:13px; font-weight:700; color:#374151; padding:10px 0 2px; border-bottom:2px solid #e5e7eb; margin-top:6px; text-transform:uppercase; letter-spacing:0.5px; }
   .field { display:flex; flex-direction:column; gap:4px; }

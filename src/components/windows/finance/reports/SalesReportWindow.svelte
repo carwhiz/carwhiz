@@ -155,7 +155,7 @@
 </div>
 
 <style>
-  .report-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; }
+  .report-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; box-sizing:border-box; }
   .report-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; }
   .header-left { display:flex; align-items:center; gap:10px; }
   .back-btn { display:flex; align-items:center; justify-content:center; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; color:#374151; transition:all .15s; }
@@ -182,11 +182,11 @@
   .s-card.green .s-val { color:#16a34a; }
   .s-card.red .s-val { color:#dc2626; }
 
-  .table-wrap { flex:1; overflow:auto; padding:0 18px 18px; }
+  .table-wrap { flex:1; overflow:auto; padding:0 18px 18px; width:100%; box-sizing:border-box; }
   table { width:100%; border-collapse:collapse; font-size:13px; background:white; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; }
   thead { position:sticky; top:0; z-index:2; }
-  th { padding:9px 10px; background:#f9fafb; font-weight:600; color:#6b7280; text-align:left; border-bottom:1px solid #e5e7eb; font-size:11px; text-transform:uppercase; }
-  td { padding:8px 10px; border-bottom:1px solid #f3f4f6; color:#374151; }
+  th { padding:9px 10px; background:#f9fafb; font-weight:600; color:#6b7280; text-align:left; border-bottom:1px solid #e5e7eb; border-right:1px solid #e5e7eb; font-size:11px; text-transform:uppercase; }
+  td { padding:8px 10px; border-bottom:1px solid #f3f4f6; border-right:1px solid #e5e7eb; color:#374151; }
   .num { text-align:right; font-family:'Courier New',monospace; font-weight:600; }
   th.num { text-align:right; }
   .mono { font-family:'Courier New',monospace; font-weight:600; color:#C41E3A; }

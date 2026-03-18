@@ -204,7 +204,7 @@
 </div>
 
 <style>
-  .report-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; }
+  .report-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; box-sizing:border-box; }
   .report-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; }
   .header-left { display:flex; align-items:center; gap:10px; }
   .header-right { display:flex; align-items:center; gap:10px; }
@@ -220,12 +220,12 @@
   .filter-group input { padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; outline:none; }
   .filter-group input:focus { border-color:#f59e0b; }
 
-  .table-wrap { flex:1; overflow:auto; padding:0 18px 12px; }
+  .table-wrap { flex:1; overflow:auto; padding:0 18px 12px; width:100%; box-sizing:border-box; }
   .date-group { margin-top:16px; }
   .date-header { font-size:13px; font-weight:700; color:#1e40af; background:#eff6ff; padding:6px 12px; border-radius:6px 6px 0 0; border:1px solid #bfdbfe; border-bottom:none; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
-  thead th { background:#f9fafb; padding:8px 12px; text-align:left; font-weight:600; color:#374151; border-bottom:2px solid #e5e7eb; }
-  tbody td { padding:7px 12px; border-bottom:1px solid #f3f4f6; color:#111827; }
+  thead th { background:#f9fafb; padding:8px 12px; text-align:left; font-weight:600; color:#374151; border-bottom:2px solid #e5e7eb; border-right:1px solid #e5e7eb; }
+  tbody td { padding:7px 12px; border-bottom:1px solid #f3f4f6; border-right:1px solid #e5e7eb; color:#111827; }
   tbody tr:hover { background:#fffbeb; }
   tfoot td { padding:8px 12px; font-weight:700; background:#f9fafb; border-top:2px solid #e5e7eb; }
   .ledger-name { font-weight:600; }

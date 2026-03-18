@@ -235,6 +235,7 @@
     display: flex;
     flex-direction: column;
     background: #fafafa;
+    box-sizing: border-box;
   }
 
   .top-controls {
@@ -245,6 +246,7 @@
     background: white;
     border-bottom: 1px solid #e5e7eb;
     flex-shrink: 0;
+    box-sizing: border-box;
   }
 
   .title-area {
@@ -319,6 +321,8 @@
   .table-container {
     flex: 1;
     overflow: auto;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .table-status {
@@ -338,6 +342,7 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    box-sizing: border-box;
   }
 
   thead {
@@ -356,6 +361,7 @@
     text-transform: uppercase;
     letter-spacing: 0.03em;
     border-bottom: 1px solid #e5e7eb;
+    border-right: 1px solid #e5e7eb;
     white-space: nowrap;
   }
 
@@ -363,6 +369,7 @@
     padding: 9px 10px;
     color: #374151;
     border-bottom: 1px solid #f3f4f6;
+    border-right: 1px solid #e5e7eb;
     white-space: nowrap;
   }
 

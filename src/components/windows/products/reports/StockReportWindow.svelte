@@ -241,14 +241,14 @@
   .sales-val { border-left:3px solid #3b82f6; }
   .sales-val .card-value { color:#1d4ed8; }
 
-  .table-container { flex:1; overflow:auto; }
+  .table-container { flex:1; overflow:auto; width:100%; box-sizing:border-box; }
   .status-msg { text-align:center; padding:40px 20px; color:#9ca3af; font-size:14px; }
 
   table { width:100%; border-collapse:collapse; font-size:13px; }
   thead { position:sticky; top:0; z-index:2; }
-  th { background:#f9fafb; padding:10px 10px; text-align:left; font-weight:600; color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.03em; border-bottom:1px solid #e5e7eb; white-space:nowrap; }
+  th { background:#f9fafb; padding:10px 10px; text-align:left; font-weight:600; color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.03em; border-bottom:1px solid #e5e7eb; border-right:1px solid #e5e7eb; white-space:nowrap; }
   th.r { text-align:right; }
-  td { padding:9px 10px; color:#374151; border-bottom:1px solid #f3f4f6; white-space:nowrap; }
+  td { padding:9px 10px; color:#374151; border-bottom:1px solid #f3f4f6; border-right:1px solid #e5e7eb; white-space:nowrap; }
   td.r { text-align:right; font-family:'Courier New',monospace; }
   td.val { font-weight:600; color:#d97706; }
   tr:hover td { background:#fffbf5; }

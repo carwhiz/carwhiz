@@ -191,8 +191,8 @@
   .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #e5e7eb; background: white; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   thead { background: #f9fafb; }
-  th { text-align: left; padding: 10px 14px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
-  td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; color: #111827; white-space: nowrap; }
+  th { text-align: left; padding: 10px 14px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; border-right: 1px solid #e5e7eb; color: #111827; white-space: nowrap; }
   .num { font-variant-numeric: tabular-nums; }
 
   .badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }

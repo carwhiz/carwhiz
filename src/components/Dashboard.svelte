@@ -1245,7 +1245,7 @@
     left: 0;
     bottom: 48px;
     z-index: 100;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    box-shadow: none;
     overflow-y: auto;
   }
 
