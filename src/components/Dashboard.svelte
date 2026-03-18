@@ -1202,7 +1202,7 @@
     left: 50%;
     transform: translate(-50%, -50%);
     pointer-events: none;
-    opacity: 0.35;
+    opacity: 1;
     z-index: 0;
   }
 
