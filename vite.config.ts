@@ -8,7 +8,7 @@ export default defineConfig({
     svelte(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'logo.jpeg'],
+      includeAssets: ['logo.jpeg'],
       manifest: {
         name: 'CarWhizz',
         short_name: 'CarWhizz',

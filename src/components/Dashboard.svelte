@@ -73,6 +73,8 @@
 
   // ---- QR Attendance (Mobile) ----
   let showScanner = false;
+  let showPunchChoice = false;
+  let scannedToken = '';
   let scanResult = '';
   let scanError = '';
   let scanLoading = false;
@@ -81,6 +83,8 @@
   async function startScanner() {
     scanResult = '';
     scanError = '';
+    showPunchChoice = false;
+    scannedToken = '';
     showScanner = true;
     // Wait for Svelte DOM update
     await tick();
@@ -130,18 +134,41 @@
     await stopScanner();
     try {
       const payload = JSON.parse(decodedText);
-      const token = payload.t;
-      const userId = $authStore.user?.id;
-      if (!userId) { scanError = 'Not logged in.'; scanLoading = false; return; }
-
-      const { data, error } = await supabase.rpc('fn_attendance_punch', { p_token: token, p_user_id: userId });
-      if (error) { scanError = error.message; }
-      else if (data?.success) { scanResult = data.message; }
-      else { scanError = data?.message || 'Punch failed.'; }
+      scannedToken = payload.t;
+      if (!$authStore.user?.id) { scanError = 'Not logged in.'; scanLoading = false; return; }
+      // Show check-in / check-out choice popup
+      showPunchChoice = true;
     } catch {
       scanError = 'Invalid QR code.';
     }
     scanLoading = false;
+  }
+
+  async function doPunch(action: 'check_in' | 'check_out') {
+    showPunchChoice = false;
+    scanLoading = true;
+    try {
+      const userId = $authStore.user?.id;
+      if (!userId) { scanError = 'Not logged in.'; scanLoading = false; return; }
+
+      const { data, error } = await supabase.rpc('fn_attendance_punch', {
+        p_token: scannedToken,
+        p_user_id: userId,
+        p_action: action
+      });
+      if (error) { scanError = error.message; }
+      else if (data?.success) { scanResult = data.message; }
+      else { scanError = data?.message || 'Punch failed.'; }
+    } catch {
+      scanError = 'Something went wrong.';
+    }
+    scannedToken = '';
+    scanLoading = false;
+  }
+
+  function cancelPunch() {
+    showPunchChoice = false;
+    scannedToken = '';
   }
 
   function toggleSection(key: string) {
@@ -173,6 +200,10 @@
   let bankBalance = 0;
   let salesBalanceTotal = 0;
   let purchaseBalanceTotal = 0;
+  let attendanceCheckIn: string | null = null;
+  let attendanceCheckOut: string | null = null;
+  let totalPresent = 0;
+  let totalEmployees = 0;
   let mobileLoading = true;
 
   // ---- Mobile Dashboard Card Permissions ----
@@ -212,6 +243,12 @@
     return `${dd}/${mm}/${d.getFullYear()}`;
   }
 
+  function formatTime(ts: string | null): string {
+    if (!ts) return '--:--';
+    const d = new Date(ts);
+    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  }
+
   function changeDate(offset: number) {
     const d = new Date(mobileDate + 'T00:00:00');
     d.setDate(d.getDate() + offset);
@@ -235,6 +272,36 @@
       salesBalanceTotal = data.sales_balance || 0;
       purchaseBalanceTotal = data.purchase_balance || 0;
     }
+
+    // Load attendance for today
+    attendanceCheckIn = null;
+    attendanceCheckOut = null;
+    const userId = $authStore.user?.id;
+    if (userId) {
+      const { data: att } = await supabase
+        .from('attendance')
+        .select('check_in, check_out')
+        .eq('user_id', userId)
+        .eq('date', mobileDate)
+        .maybeSingle();
+      if (att) {
+        attendanceCheckIn = att.check_in;
+        attendanceCheckOut = att.check_out;
+      }
+    }
+
+    // Load total present employees
+    const { count: presentCount } = await supabase
+      .from('attendance')
+      .select('id', { count: 'exact', head: true })
+      .eq('date', mobileDate)
+      .not('check_in', 'is', null);
+    totalPresent = presentCount || 0;
+
+    const { count: empCount } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true });
+    totalEmployees = empCount || 0;
 
     mobileLoading = false;
   }
@@ -374,6 +441,29 @@
                 <div class="m-card-amount">{formatMobileAmt(purchaseBalanceTotal)}</div>
                 <div class="m-card-sub">Total payable</div>
               </div>
+<<<<<<< HEAD
+              <!-- Attendance Card -->
+            <div class="m-card attendance">
+              <div class="m-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>
+              </div>
+              <div class="m-card-label">Attendance</div>
+              <div class="m-card-attend-row">
+                <span class="attend-in">In: {formatTime(attendanceCheckIn)}</span>
+                <span class="attend-out">Out: {formatTime(attendanceCheckOut)}</span>
+              </div>
+              <div class="m-card-sub">{attendanceCheckIn ? (attendanceCheckOut ? 'Completed' : 'Checked in') : 'Not checked in'}</div>
+            </div>
+
+            <!-- Staff Present Card -->
+            <div class="m-card staff-present">
+              <div class="m-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div class="m-card-label">Staff Present</div>
+              <div class="m-card-amount">{totalPresent} / {totalEmployees}</div>
+              <div class="m-card-sub">{totalEmployees - totalPresent} absent</div>
+            </div>
             {/if}
           </div>
         {/if}
@@ -388,6 +478,28 @@
               </div>
               <div id="qr-reader" style="width:100%;min-height:260px;"></div>
               {#if scanLoading}<p class="qr-msg">Processing...</p>{/if}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Check-in / Check-out Choice Popup -->
+        {#if showPunchChoice}
+          <div class="qr-overlay">
+            <div class="punch-choice-box">
+              <h3 class="punch-title">Mark Attendance</h3>
+              <p class="punch-subtitle">QR scanned successfully! Choose your action:</p>
+              <div class="punch-buttons">
+                <button class="punch-btn checkin" on:click={() => doPunch('check_in')} disabled={scanLoading}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28"><polyline points="20 6 9 17 4 12"/></svg>
+                  Check In
+                </button>
+                <button class="punch-btn checkout" on:click={() => doPunch('check_out')} disabled={scanLoading}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  Check Out
+                </button>
+              </div>
+              {#if scanLoading}<p class="qr-msg">Processing...</p>{/if}
+              <button class="punch-cancel" on:click={cancelPunch}>Cancel</button>
             </div>
           </div>
         {/if}
@@ -429,9 +541,6 @@
            SIDEBAR NAVIGATION
            ======================================================== -->
       <div class="desktop-sidebar">
-        <img src="/logo.jpeg" alt="CarWhizz" class="sidebar-logo" />
-        <hr class="sidebar-divider" />
-
         <nav class="sidebar-nav">
           <!-- ====================================================
                MAIN SECTION: FINANCE
@@ -733,15 +842,24 @@
            MAIN CONTENT AREA + WINDOW MANAGER
            ======================================================== -->
       <div class="desktop-main">
-        <!-- QR Attendance Widget -->
-        <div class="qr-widget">
-          <div class="qr-widget-label">Attendance QR</div>
-          {#if qrDataUrl}
-            <img src={qrDataUrl} alt="Attendance QR" class="qr-img" />
-          {:else}
-            <div class="qr-placeholder">Loading...</div>
-          {/if}
-          <div class="qr-widget-hint">Auto-refreshes every 10s</div>
+        <!-- Centered Logo -->
+        <div class="desktop-logo-center">
+          <div class="logo-liquid-container">
+            <div class="liquid-wave wave1"></div>
+            <div class="liquid-wave wave2"></div>
+            <div class="liquid-wave wave3"></div>
+            <img src="/logo.jpeg" alt="CarWhizz" class="center-logo" />
+          </div>
+          <!-- QR Attendance Widget -->
+          <div class="qr-widget">
+            <div class="qr-widget-label">Attendance QR</div>
+            {#if qrDataUrl}
+              <img src={qrDataUrl} alt="Attendance QR" class="qr-img" />
+            {:else}
+              <div class="qr-placeholder">Loading...</div>
+            {/if}
+            <div class="qr-widget-hint">Auto-refreshes every 10s</div>
+          </div>
         </div>
 
         <div class="desktop-content">
@@ -868,25 +986,30 @@
 <style>
   .dashboard {
     min-height: 100vh;
-    background: #f5f5f5;
+    background: linear-gradient(135deg, #fff7ed 0%, #f0f9ff 50%, #f0fdf4 100%);
     position: relative;
   }
 
   /* ========== LOGOUT BUTTON ========== */
   .logout-btn {
-    background: #EA580C;
+    background: linear-gradient(135deg, #ea580c, #dc2626);
     color: white;
     border: none;
-    padding: 6px 16px;
-    border-radius: 8px;
+    padding: 10px 16px;
+    border-radius: 12px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.25s;
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   .logout-btn:hover {
-    background: #C2410C;
+    background: linear-gradient(135deg, #c2410c, #b91c1c);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(234, 88, 12, 0.45);
   }
 
   /* ========== MOBILE LAYOUT ========== */
@@ -898,8 +1021,8 @@
 
   .mobile-top-bar {
     height: 56px;
-    background: white;
-    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #ea580c, #f97316);
+    border-bottom: none;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -909,13 +1032,15 @@
     left: 0;
     right: 0;
     z-index: 100;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 20px rgba(234, 88, 12, 0.3);
   }
 
   .top-bar-logo {
     height: 36px;
     width: auto;
     object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
 
   .mobile-content {
@@ -927,8 +1052,10 @@
 
   .mobile-bottom-bar {
     height: 64px;
-    background: white;
-    border-top: 1px solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(234, 88, 12, 0.15);
     display: flex;
     align-items: center;
     justify-content: space-around;
@@ -937,7 +1064,7 @@
     left: 0;
     right: 0;
     z-index: 100;
-    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
   }
 
   .bottom-bar-item {
@@ -946,16 +1073,19 @@
     align-items: center;
     gap: 2px;
     font-size: 11px;
-    color: #9ca3af;
+    color: #6b7280;
     cursor: pointer;
-    padding: 4px 12px;
+    padding: 6px 14px;
     background: none;
     border: none;
+    border-radius: 12px;
+    transition: all 0.2s;
     -webkit-tap-highlight-color: transparent;
   }
 
   .bottom-bar-item.active {
-    color: #EA580C;
+    color: #ea580c;
+    background: rgba(234, 88, 12, 0.1);
   }
 
   .bottom-bar-item svg {
@@ -967,7 +1097,7 @@
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    background: #e5e7eb;
+    background: rgba(234, 88, 12, 0.1);
   }
 
   /* ========== MOBILE DASHBOARD CARDS ========== */
@@ -980,16 +1110,19 @@
     margin-bottom: 16px;
   }
   .m-date-btn {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(234, 88, 12, 0.2);
+    border-radius: 10px;
     padding: 6px 10px;
     cursor: pointer;
-    color: #374151;
+    color: #ea580c;
     display: flex;
     align-items: center;
+    transition: all 0.2s;
   }
-  .m-date-btn:hover { background: #f9fafb; }
+  .m-date-btn:hover { background: rgba(255, 255, 255, 0.9); }
   .m-date-label {
     font-size: 15px;
     font-weight: 700;
@@ -1011,42 +1144,61 @@
     gap: 12px;
   }
   .m-card {
-    background: white;
-    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
     padding: 16px 14px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8);
     display: flex;
     flex-direction: column;
     gap: 4px;
+    border: 1px solid rgba(255,255,255,0.5);
     border-left: 4px solid transparent;
+    transition: transform 0.2s, box-shadow 0.2s;
   }
-  .m-card.sales { border-left-color: #22c55e; }
-  .m-card.purchase { border-left-color: #3b82f6; }
-  .m-card.expense { border-left-color: #ef4444; }
-  .m-card.cash { border-left-color: #f59e0b; }
-  .m-card.bank { border-left-color: #8b5cf6; }
-  .m-card.sales-bal { border-left-color: #06b6d4; }
-  .m-card.purchase-bal { border-left-color: #e11d48; }
+  .m-card:active { transform: scale(0.97); }
+  .m-card.sales { border-left-color: #22c55e; background: rgba(240, 253, 244, 0.65); }
+  .m-card.purchase { border-left-color: #3b82f6; background: rgba(239, 246, 255, 0.65); }
+  .m-card.expense { border-left-color: #ef4444; background: rgba(254, 242, 242, 0.65); }
+  .m-card.cash { border-left-color: #f59e0b; background: rgba(255, 251, 235, 0.65); }
+  .m-card.bank { border-left-color: #8b5cf6; background: rgba(245, 243, 255, 0.65); }
+  .m-card.sales-bal { border-left-color: #06b6d4; background: rgba(236, 254, 255, 0.65); }
+  .m-card.purchase-bal { border-left-color: #e11d48; background: rgba(255, 241, 242, 0.65); }
+  .m-card.attendance { border-left-color: #f97316; background: rgba(255, 247, 237, 0.65); }
+  .m-card.staff-present { border-left-color: #10b981; background: rgba(236, 253, 245, 0.65); }
   .m-card-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
-  .m-card.sales .m-card-icon { background: #f0fdf4; color: #22c55e; }
-  .m-card.purchase .m-card-icon { background: #eff6ff; color: #3b82f6; }
-  .m-card.expense .m-card-icon { background: #fef2f2; color: #ef4444; }
-  .m-card.cash .m-card-icon { background: #fffbeb; color: #f59e0b; }
-  .m-card.bank .m-card-icon { background: #f5f3ff; color: #8b5cf6; }
-  .m-card.sales-bal .m-card-icon { background: #ecfeff; color: #06b6d4; }
-  .m-card.purchase-bal .m-card-icon { background: #fff1f2; color: #e11d48; }
+  .m-card.sales .m-card-icon { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+  .m-card.purchase .m-card-icon { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+  .m-card.expense .m-card-icon { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+  .m-card.cash .m-card-icon { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+  .m-card.bank .m-card-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+  .m-card.sales-bal .m-card-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
+  .m-card.purchase-bal .m-card-icon { background: linear-gradient(135deg, #e11d48, #be123c); color: white; }
+  .m-card.attendance .m-card-icon { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
+  .m-card.staff-present .m-card-icon { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+  .m-card-attend-row {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+  }
+  .attend-in { color: #16a34a; }
+  .attend-out { color: #2563eb; }
   .m-card-label {
     font-size: 11px;
     font-weight: 600;
-    color: #9ca3af;
+    color: #6b7280;
     text-transform: uppercase;
     letter-spacing: 0.03em;
   }
@@ -1068,35 +1220,25 @@
   }
 
   .desktop-sidebar {
-    width: 240px;
-    background: white;
-    border-right: 1px solid #e5e7eb;
+    width: 170px;
+    background: linear-gradient(180deg, #ea580c 0%, #c2410c 60%, #9a3412 100%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 20px 16px;
+    padding: 20px 14px;
     position: fixed;
     top: 0;
     left: 0;
     bottom: 48px;
     z-index: 100;
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
-  }
-
-  .sidebar-logo {
-    width: 100%;
-    max-width: 180px;
-    height: auto;
-    object-fit: contain;
-    border: 2px solid #F97316;
-    border-radius: 12px;
-    margin-bottom: 0;
+    box-shadow: 4px 0 24px rgba(234, 88, 12, 0.25);
+    overflow-y: auto;
   }
 
   .sidebar-divider {
     width: 100%;
     border: none;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
     margin: 12px 0;
   }
 
@@ -1112,25 +1254,32 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 10px 12px;
-    background: none;
-    border: none;
-    border-radius: 8px;
+    padding: 11px 14px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
     cursor: pointer;
     font-size: 14px;
-    font-weight: 600;
-    color: #374151;
-    transition: background 0.15s;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.95);
+    transition: all 0.2s;
     text-align: left;
+    margin-bottom: 4px;
   }
 
   .nav-section:hover {
-    background: #f3f4f6;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
   .nav-section.expanded {
-    background: #fff7ed;
-    color: #EA580C;
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: white;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.3);
   }
 
   .nav-section > svg:first-child {
@@ -1157,7 +1306,8 @@
   .sub-sections {
     display: flex;
     flex-direction: column;
-    padding-left: 12px;
+    padding-left: 10px;
+    margin-bottom: 4px;
   }
 
   .nav-sub {
@@ -1165,25 +1315,28 @@
     align-items: center;
     gap: 6px;
     width: 100%;
-    padding: 8px 10px;
-    background: none;
-    border: none;
-    border-radius: 6px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid transparent;
+    border-radius: 10px;
     cursor: pointer;
     font-size: 13px;
-    font-weight: 500;
-    color: #6b7280;
-    transition: background 0.15s;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.75);
+    transition: all 0.2s;
     text-align: left;
+    margin-bottom: 2px;
   }
 
   .nav-sub:hover {
-    background: #f9fafb;
-    color: #374151;
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
   }
 
   .nav-sub.expanded {
-    color: #EA580C;
+    color: white;
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.15);
   }
 
   .chevron-sm {
@@ -1200,7 +1353,7 @@
   .sub-items {
     display: flex;
     flex-direction: column;
-    padding-left: 20px;
+    padding-left: 16px;
   }
 
   .nav-item {
@@ -1208,21 +1361,24 @@
     align-items: center;
     gap: 8px;
     width: 100%;
-    padding: 7px 10px;
+    padding: 8px 12px;
     background: none;
-    border: none;
-    border-radius: 6px;
+    border: 1px solid transparent;
+    border-radius: 10px;
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
-    color: #6b7280;
-    transition: all 0.15s;
+    color: rgba(255, 255, 255, 0.7);
+    transition: all 0.2s;
     text-align: left;
+    margin-bottom: 1px;
   }
 
   .nav-item:hover {
-    background: #fff7ed;
-    color: #EA580C;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(3px);
   }
 
   .nav-item svg {
@@ -1237,16 +1393,115 @@
 
   .sidebar-logout {
     width: 100%;
-    padding: 10px;
-    border-radius: 10px;
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .sidebar-logout:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
   }
 
   .desktop-main {
     flex: 1;
-    margin-left: 240px;
+    margin-left: 170px;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    position: relative;
+  }
+
+  .desktop-logo-center {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    pointer-events: none;
+    opacity: 1;
+    z-index: 0;
+  }
+
+  .center-logo {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    position: relative;
+    z-index: 2;
+    display: block;
+  }
+
+  .logo-liquid-container {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 2.5px solid rgba(234, 88, 12, 0.5);
+    box-shadow:
+      0 12px 40px rgba(234, 88, 12, 0.2),
+      0 0 0 1px rgba(249, 115, 22, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    padding: 0;
+  }
+
+  .liquid-wave {
+    position: absolute;
+    bottom: -40%;
+    left: -20%;
+    width: 140%;
+    height: 100%;
+    border-radius: 40%;
+    opacity: 0.45;
+  }
+
+  .wave1 {
+    background: linear-gradient(180deg, transparent 40%, rgba(249, 115, 22, 0.5) 70%, rgba(234, 88, 12, 0.7) 100%);
+    animation: liquidWave1 4s ease-in-out infinite;
+  }
+
+  .wave2 {
+    background: linear-gradient(180deg, transparent 40%, rgba(251, 146, 60, 0.4) 70%, rgba(249, 115, 22, 0.6) 100%);
+    animation: liquidWave2 5s ease-in-out infinite;
+    opacity: 0.35;
+  }
+
+  .wave3 {
+    background: linear-gradient(180deg, transparent 40%, rgba(253, 186, 116, 0.3) 70%, rgba(251, 146, 60, 0.5) 100%);
+    animation: liquidWave3 6s ease-in-out infinite;
+    opacity: 0.3;
+  }
+
+  @keyframes liquidWave1 {
+    0%, 100% { transform: translateY(10%) rotate(0deg); }
+    25% { transform: translateY(5%) rotate(3deg); }
+    50% { transform: translateY(0%) rotate(-2deg); }
+    75% { transform: translateY(8%) rotate(2deg); }
+  }
+
+  @keyframes liquidWave2 {
+    0%, 100% { transform: translateY(5%) rotate(2deg); }
+    33% { transform: translateY(12%) rotate(-3deg); }
+    66% { transform: translateY(2%) rotate(4deg); }
+  }
+
+  @keyframes liquidWave3 {
+    0%, 100% { transform: translateY(8%) rotate(-1deg); }
+    30% { transform: translateY(0%) rotate(3deg); }
+    60% { transform: translateY(15%) rotate(-2deg); }
   }
 
   .desktop-content {
@@ -1259,9 +1514,11 @@
 
   .desktop-bottom-bar {
     height: 48px;
-    background: white;
-    border-top: 1px solid #e5e7eb;
-    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.04);
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(234, 88, 12, 0.12);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
     position: fixed;
     bottom: 0;
     left: 0;
@@ -1282,52 +1539,56 @@
 
   .taskbar-item {
     padding: 6px 14px;
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(234, 88, 12, 0.15);
+    border-radius: 10px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
     color: #374151;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.15s;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
   }
 
   .taskbar-item:hover {
-    background: #fff7ed;
-    border-color: #F97316;
-    color: #EA580C;
+    background: linear-gradient(135deg, rgba(234, 88, 12, 0.1), rgba(249, 115, 22, 0.1));
+    border-color: #f97316;
+    color: #ea580c;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(234, 88, 12, 0.15);
   }
 
   .taskbar-item.minimized {
-    opacity: 0.6;
+    opacity: 0.5;
     border-style: dashed;
   }
 
   /* ========== QR WIDGET (DESKTOP) ========== */
   .qr-widget {
-    position: fixed;
-    bottom: 60px;
-    right: 16px;
-    z-index: 50;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 10px;
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(234, 88, 12, 0.15);
+    border-radius: 18px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    box-shadow: 0 8px 32px rgba(234, 88, 12, 0.12), inset 0 1px 0 rgba(255,255,255,0.8);
   }
   .qr-widget-label {
     font-size: 11px;
     font-weight: 700;
-    color: #374151;
+    color: #ea580c;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 6px;
   }
-  .qr-img { width: 140px; height: 140px; border-radius: 6px; }
+  .qr-img { width: 140px; height: 140px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
   .qr-placeholder { width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 12px; }
   .qr-widget-hint { font-size: 9px; color: #9ca3af; margin-top: 4px; }
 
@@ -1335,18 +1596,24 @@
   .qr-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 999;
     display: flex;
     align-items: center;
     justify-content: center;
   }
   .qr-scanner-box {
-    background: white;
-    border-radius: 16px;
-    padding: 16px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 20px;
+    padding: 20px;
     width: 300px;
     max-width: 90vw;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.8);
   }
   .qr-scanner-header {
     display: flex;
@@ -1354,16 +1621,104 @@
     align-items: center;
     margin-bottom: 10px;
   }
-  .qr-scanner-header h3 { font-size: 16px; font-weight: 700; color: #111827; margin: 0; }
+  .qr-scanner-header h3 { font-size: 16px; font-weight: 700; color: #ea580c; margin: 0; }
   .qr-close-btn {
+    background: rgba(234, 88, 12, 0.1);
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #ea580c;
+    line-height: 1;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .qr-close-btn:hover { background: rgba(234, 88, 12, 0.2); }
+  .qr-msg { text-align: center; color: #6b7280; font-size: 13px; margin-top: 8px; }
+
+  /* ========== PUNCH CHOICE POPUP ========== */
+  .punch-choice-box {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 28px 24px;
+    width: 320px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.8);
+    text-align: center;
+  }
+  .punch-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #111827;
+    margin: 0 0 6px 0;
+  }
+  .punch-subtitle {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0 0 20px 0;
+  }
+  .punch-buttons {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .punch-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px 12px;
+    border: none;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s;
+    color: white;
+  }
+  .punch-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .punch-btn.checkin {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35);
+  }
+  .punch-btn.checkin:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.45);
+  }
+  .punch-btn.checkout {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+  }
+  .punch-btn.checkout:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.45);
+  }
+  .punch-cancel {
     background: none;
     border: none;
-    font-size: 24px;
+    color: #9ca3af;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    color: #6b7280;
-    line-height: 1;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.2s;
   }
-  .qr-msg { text-align: center; color: #6b7280; font-size: 13px; margin-top: 8px; }
+  .punch-cancel:hover {
+    color: #6b7280;
+    background: rgba(0,0,0,0.04);
+  }
 
   /* ========== SCAN TOAST ========== */
   .scan-toast {
@@ -1372,15 +1727,17 @@
     left: 50%;
     transform: translateX(-50%);
     padding: 12px 24px;
-    border-radius: 12px;
+    border-radius: 14px;
     font-size: 14px;
     font-weight: 600;
     z-index: 200;
     cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     animation: toastSlide 0.3s ease;
   }
-  .scan-toast.success { background: #dcfce7; color: #166534; }
-  .scan-toast.error { background: #fee2e2; color: #991b1b; }
+  .scan-toast.success { background: rgba(220, 252, 231, 0.9); color: #166534; border: 1px solid rgba(34, 197, 94, 0.3); }
+  .scan-toast.error { background: rgba(254, 226, 226, 0.9); color: #991b1b; border: 1px solid rgba(239, 68, 68, 0.3); }
   @keyframes toastSlide { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 </style>
