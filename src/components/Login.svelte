@@ -4,8 +4,11 @@
   import { login, validatePassword } from '../lib/services/authService';
   import { interfaceStore } from '../stores/interfaceStore';
   import { createEventDispatcher } from 'svelte';
+  import PrivacyPolicy from './PrivacyPolicy.svelte';
 
   const dispatch = createEventDispatcher();
+
+  let showPrivacy = false;
 
   let password = '';
   let touched = { password: false };
@@ -115,9 +118,14 @@
 
     <div class="footer-text">
       <p>© 2026 CarWhizz. All rights reserved.</p>
+      <button class="privacy-link" on:click={() => showPrivacy = true} type="button">Privacy Policy</button>
     </div>
   </div>
 </div>
+
+{#if showPrivacy}
+  <PrivacyPolicy on:close={() => showPrivacy = false} />
+{/if}
 
 <style>
   .login-container {
@@ -358,6 +366,21 @@
 
   .footer-text p {
     margin: 0;
+  }
+
+  .privacy-link {
+    background: none;
+    border: none;
+    color: #EA580C;
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: underline;
+    margin-top: 8px;
+    padding: 0;
+  }
+
+  .privacy-link:hover {
+    color: #c2410c;
   }
 
   /* Mobile Responsive */
