@@ -350,15 +350,13 @@
   }
 
   // ---- Navigation ----
-  function canGoNext(): boolean {
-    if (step === 1) return !!selectedCustomer;
-    if (step === 2) return !!selectedVehicle;
-    if (step === 3) return items.length > 0;
-    return false;
-  }
+  $: canNext = step === 1 ? !!selectedCustomer
+             : step === 2 ? !!selectedVehicle
+             : step === 3 ? items.length > 0
+             : false;
 
   function nextStep() {
-    if (canGoNext() && step < 4) step++;
+    if (canNext && step < 4) step++;
   }
 
   function prevStep() {
@@ -875,7 +873,7 @@
       </button>
       <div class="step-info">Step {step} of 4</div>
       {#if step < 4}
-        <button class="btn-primary" on:click={nextStep} disabled={!canGoNext()}>
+        <button class="btn-primary" on:click={nextStep} disabled={!canNext}>
           Next
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
