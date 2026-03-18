@@ -383,9 +383,6 @@
            SIDEBAR NAVIGATION
            ======================================================== -->
       <div class="desktop-sidebar">
-        <img src="/logo.jpeg" alt="CarWhizz" class="sidebar-logo" />
-        <hr class="sidebar-divider" />
-
         <nav class="sidebar-nav">
           <!-- ====================================================
                MAIN SECTION: FINANCE
@@ -687,6 +684,11 @@
            MAIN CONTENT AREA + WINDOW MANAGER
            ======================================================== -->
       <div class="desktop-main">
+        <!-- Centered Logo -->
+        <div class="desktop-logo-center">
+          <img src="/logo.jpeg" alt="CarWhizz" class="center-logo" />
+        </div>
+
         <!-- QR Attendance Widget -->
         <div class="qr-widget">
           <div class="qr-widget-label">Attendance QR</div>
@@ -1037,16 +1039,6 @@
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
   }
 
-  .sidebar-logo {
-    width: 100%;
-    max-width: 180px;
-    height: auto;
-    object-fit: contain;
-    border: 2px solid #F97316;
-    border-radius: 12px;
-    margin-bottom: 0;
-  }
-
   .sidebar-divider {
     width: 100%;
     border: none;
@@ -1201,6 +1193,23 @@
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    position: relative;
+  }
+
+  .desktop-logo-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 0.12;
+    z-index: 0;
+  }
+
+  .center-logo {
+    width: 320px;
+    height: auto;
+    object-fit: contain;
   }
 
   .desktop-content {
