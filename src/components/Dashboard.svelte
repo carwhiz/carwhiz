@@ -441,7 +441,7 @@
                 <div class="m-card-amount">{formatMobileAmt(purchaseBalanceTotal)}</div>
                 <div class="m-card-sub">Total payable</div>
               </div>
-<<<<<<< HEAD
+
               <!-- Attendance Card -->
             <div class="m-card attendance">
               <div class="m-card-icon">
