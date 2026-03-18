@@ -162,12 +162,17 @@
 
   .logo-section {
     text-align: center;
-    margin-bottom: 24px;
+    margin: 0 auto 32px;
     border: 3px solid #F97316;
     border-radius: 16px;
-    padding: 0;
+    padding: 12px;
     overflow: hidden;
     width: 100%;
+    background: #fafafa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
   }
 
   .logo {
@@ -175,6 +180,8 @@
     height: auto;
     display: block;
     object-fit: contain;
+    max-width: 250px;
+    max-height: 160px;
   }
 
   .interface-switch {
@@ -229,14 +236,6 @@
   .switch-track.toggled .switch-thumb {
     transform: translateX(20px);
     margin: 0;
-  }
-
-  h1 {
-    font-size: 28px;
-    font-weight: 700;
-    margin: 0;
-    color: #1a202c;
-    letter-spacing: -0.5px;
   }
 
   .subtitle {

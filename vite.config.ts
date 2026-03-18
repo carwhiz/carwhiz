@@ -9,8 +9,10 @@ export default defineConfig({
     // Optimize chunk splitting for better module loading
     rollupOptions: {
       output: {
-        manualChunks: {
-          qrcode: ['html5-qrcode', 'qrcode'],
+        manualChunks: (id) => {
+          if (id.includes('html5-qrcode') || id.includes('qrcode')) {
+            return 'qrcode';
+          }
         },
       },
     },
