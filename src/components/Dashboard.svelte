@@ -1310,31 +1310,30 @@
   }
 
   .center-logo {
-    max-width: 70%;
-    max-height: 70%;
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
     position: relative;
     z-index: 2;
-    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));
+    display: block;
   }
 
   .logo-liquid-container {
     position: relative;
-    width: 320px;
-    height: 320px;
-    border-radius: 28px;
+    border-radius: 20px;
     overflow: hidden;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.25);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1.5px solid rgba(255, 255, 255, 0.5);
+    border: 2.5px solid rgba(234, 88, 12, 0.5);
     box-shadow:
-      0 16px 48px rgba(234, 88, 12, 0.18),
-      0 4px 16px rgba(234, 88, 12, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      0 12px 40px rgba(234, 88, 12, 0.2),
+      0 0 0 1px rgba(249, 115, 22, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    padding: 0;
   }
 
   .liquid-wave {
