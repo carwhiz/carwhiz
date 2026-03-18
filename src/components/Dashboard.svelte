@@ -1269,7 +1269,7 @@
     border-radius: 6px;
     background: transparent;
     border: 1px solid rgba(196, 30, 58, 0.4);
-    color: #C41E3A;
+    color: #000000;
     font-weight: 600;
     transition: all 0.2s;
     box-shadow: 0 4px 10px rgba(196, 30, 58, 0.1);
@@ -1340,7 +1340,7 @@
     background: transparent;
     border-radius: 6px;
     border: 1px solid rgba(196, 30, 58, 0.4);
-    color: #C41E3A;
+    color: #000000;
     font-size: 13px;
     font-weight: 600;
 
@@ -1398,7 +1398,7 @@
     background: transparent;
     border: 1px solid rgba(196, 30, 58, 0.4);
     border-radius: 6px;
-    color: #C41E3A;
+    color: #000000;
     font-size: 13px;
     font-weight: 600;
 
