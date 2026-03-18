@@ -12,6 +12,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '../../../../lib/supabaseClient';
   import { windowStore } from '../../../../stores/windowStore';
+  import { authStore } from '../../../../stores/authStore';
 
   // ---- Form state ----
   let employee_name = '';
@@ -111,6 +112,7 @@
         reference_type: 'employee',
         opening_balance: 0,
         status: 'active',
+        created_by: $authStore.user?.id || null,
       }).select('id').single();
 
       if (ledgerErr || !ledgerData) {
@@ -140,6 +142,7 @@
         aadhaar_number: aadhaar_number.trim() || null,
         aadhaar_file_path,
         cv_file_path,
+        created_by: $authStore.user?.id || null,
       }).select('id').single();
 
       if (empErr || !empData) {
@@ -149,7 +152,7 @@
       }
 
       // 5. Update ledger reference_id
-      await supabase.from('ledger').update({ reference_id: empData.id }).eq('id', ledgerData.id);
+      await supabase.from('ledger').update({ reference_id: empData.id, updated_by: $authStore.user?.id || null }).eq('id', ledgerData.id);
 
       // 6. Upload other documents
       for (const doc of otherDocs) {

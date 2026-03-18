@@ -113,12 +113,6 @@
       </button>
     </form>
 
-    <div class="divider">OR</div>
-
-    <div class="signup-link">
-      <p>Don't have an account? <a href="/signup">Sign Up</a></p>
-    </div>
-
     <div class="footer-text">
       <p>© 2026 CarWhizz. All rights reserved.</p>
     </div>
@@ -340,30 +334,6 @@
     to {
       transform: rotate(360deg);
     }
-  }
-
-  .divider {
-    text-align: center;
-    color: #a0aec0;
-    margin: 24px 0;
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .signup-link {
-    text-align: center;
-  }
-
-  .signup-link a {
-    color: #F97316;
-    text-decoration: none;
-    font-weight: 600;
-    transition: color 0.3s ease;
-  }
-
-  .signup-link a:hover {
-    color: #EA580C;
-    text-decoration: underline;
   }
 
   .alert {

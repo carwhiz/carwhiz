@@ -8,6 +8,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '../../../../lib/supabaseClient';
   import { windowStore } from '../../../../stores/windowStore';
+  import { authStore } from '../../../../stores/authStore';
 
   // ---- Header ----
   let receipt_no = '';
@@ -154,12 +155,13 @@
     if (receiptType === 'customer' && !selectedCustomer) { saveError = 'Please select a customer'; return; }
     if (receiptType === 'income' && !selectedIncomeLedger) { saveError = 'Please select an income ledger'; return; }
     if (!amount || parseFloat(amount) <= 0) { saveError = 'Enter a valid amount'; return; }
+    if (!cash_bank_ledger_id) { saveError = 'Please select a Cash / Bank Ledger'; return; }
 
     saving = true;
     saveError = '';
     saveSuccess = '';
 
-    const { error: recErr } = await supabase.from('receipts').insert({
+    const { data: rec, error: recErr } = await supabase.from('receipts').insert({
       receipt_no,
       receipt_date,
       ledger_id: receiptType === 'customer' ? (selectedCustomer?.ledger_id || null) : (selectedIncomeLedger?.id || null),
@@ -169,12 +171,50 @@
       payment_mode_id: payment_mode_id || null,
       cash_bank_ledger_id: cash_bank_ledger_id || null,
       notes: notes.trim() || null,
-    });
+      created_by: $authStore.user?.id || null,
+    }).select('id').single();
 
     if (recErr) {
       saving = false;
       saveError = recErr.message;
       return;
+    }
+
+    // ---- Ledger entries (double-entry posting) ----
+    const recAmt = parseFloat(amount);
+    const ledgerEntries: any[] = [];
+    const sourceLedgerId = receiptType === 'customer' ? (selectedCustomer?.ledger_id || null) : (selectedIncomeLedger?.id || null);
+
+    // Debit Cash/Bank ledger (money received)
+    if (cash_bank_ledger_id && recAmt > 0) {
+      ledgerEntries.push({
+        entry_date: receipt_date,
+        ledger_id: cash_bank_ledger_id,
+        debit: recAmt,
+        credit: 0,
+        narration: `Receipt - ${receipt_no}`,
+        reference_type: 'receipts',
+        reference_id: rec.id,
+        created_by: $authStore.user?.id || null,
+      });
+    }
+
+    // Credit Customer/Income ledger
+    if (sourceLedgerId && recAmt > 0) {
+      ledgerEntries.push({
+        entry_date: receipt_date,
+        ledger_id: sourceLedgerId,
+        debit: 0,
+        credit: recAmt,
+        narration: `Receipt - ${receipt_no}`,
+        reference_type: 'receipts',
+        reference_id: rec.id,
+        created_by: $authStore.user?.id || null,
+      });
+    }
+
+    if (ledgerEntries.length > 0) {
+      await supabase.from('ledger_entries').insert(ledgerEntries);
     }
 
     // If linked to a sales bill, reduce balance_due
@@ -187,6 +227,7 @@
           paid_amount: newPaid,
           balance_due: newBalance,
           status: newBalance <= 0 ? 'paid' : 'posted',
+          updated_by: $authStore.user?.id || null,
         }).eq('id', sales_id);
       }
     }

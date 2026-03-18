@@ -9,6 +9,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '../../../../lib/supabaseClient';
   import { windowStore } from '../../../../stores/windowStore';
+  import { authStore } from '../../../../stores/authStore';
 
   // ---- Invoice header ----
   let invoice_no = '';
@@ -38,6 +39,7 @@
     barcode: string;
     unit_id: string;
     unit_name: string;
+    unit_qty: number;
     qty: number;
     rate: number;
     discount: number;
@@ -53,13 +55,14 @@
   $: balanceDue = netTotal - (parseFloat(paidAmount) || 0);
 
   // When purchase type changes, auto-set paid amount
-  $: if (purchaseType === 'cash') { paidAmount = String(netTotal || ''); } else { paidAmount = '0'; }
+  $: if (purchaseType === 'cash') { paidAmount = String(netTotal || ''); } else { paidAmount = '0'; payment_mode_id = ''; cash_bank_ledger_id = ''; }
 
   // ---- Payment ----
   let paymentModes: any[] = [];
   let payment_mode_id = '';
   let cashBankLedgers: any[] = [];
   let cash_bank_ledger_id = '';
+  let purchaseLedgerId = ''; // Purchase Account (Expense) - auto-fetched
 
   // ---- Save state ----
   let saving = false;
@@ -72,6 +75,7 @@
       loadProducts(),
       loadPaymentModes(),
       loadCashBankLedgers(),
+      loadPurchaseLedger(),
       generateInvoiceNo(),
     ]);
   });
@@ -92,10 +96,11 @@
   async function loadProducts() {
     const { data } = await supabase
       .from('products')
-      .select('id, product_name, barcode, unit_id, current_cost, sales_price, units(name)')
+      .select('id, product_name, barcode, unit_id, unit_qty, current_cost, sales_price, units(name)')
       .order('product_name');
     allProducts = (data || []).map((p: any) => ({
       ...p,
+      unit_qty: p.unit_qty || 1,
       unit_name: p.units?.name || '',
     }));
   }
@@ -110,6 +115,26 @@
     const typeIds = (types || []).map((t: any) => t.id);
     const { data } = await supabase.from('ledger').select('id, ledger_name, ledger_type_id').order('ledger_name');
     cashBankLedgers = (data || []).filter((l: any) => typeIds.includes(l.ledger_type_id));
+  }
+
+  async function loadPurchaseLedger() {
+    // Ind AS: Purchases must debit an Expense ledger ("Purchase Account")
+    const { data } = await supabase.from('ledger').select('id, ledger_name').eq('ledger_name', 'Purchase Account').maybeSingle();
+    if (data) { purchaseLedgerId = data.id; return; }
+    // Auto-create if not exists
+    const { data: expType } = await supabase.from('ledger_types').select('id').eq('name', 'Expense').maybeSingle();
+    const { data: expCat } = await supabase.from('ledger_categories').select('id').eq('name', 'Expense').maybeSingle();
+    if (expType) {
+      const { data: created } = await supabase.from('ledger').insert({
+        ledger_name: 'Purchase Account',
+        ledger_type_id: expType.id,
+        ledger_category_id: expCat?.id || null,
+        opening_balance: 0,
+        status: 'active',
+        created_by: $authStore.user?.id || null,
+      }).select('id').single();
+      if (created) purchaseLedgerId = created.id;
+    }
   }
 
   // ---- Vendor search ----
@@ -160,6 +185,7 @@
         barcode: p.barcode || '',
         unit_id: p.unit_id || '',
         unit_name: p.unit_name || '',
+        unit_qty: p.unit_qty || 1,
         qty: 1,
         rate: p.current_cost || 0,
         discount: 0,
@@ -212,12 +238,13 @@
   async function handlePost() {
     if (!selectedVendor) { saveError = 'Please select a vendor'; return; }
     if (lines.length === 0) { saveError = 'Add at least one product'; return; }
+    const paidAmt = parseFloat(paidAmount) || 0;
+    if (purchaseType === 'cash' && !payment_mode_id) { saveError = 'Please select a Payment Mode for cash purchase'; return; }
+    if (purchaseType === 'cash' && !cash_bank_ledger_id) { saveError = 'Please select a Cash / Bank Ledger for cash purchase'; return; }
 
     saving = true;
     saveError = '';
     saveSuccess = '';
-
-    const paidAmt = parseFloat(paidAmount) || 0;
 
     const { data: purchase, error: purchErr } = await supabase.from('purchases').insert({
       invoice_no,
@@ -232,6 +259,7 @@
       payment_mode_id: payment_mode_id || null,
       cash_bank_ledger_id: cash_bank_ledger_id || null,
       status: (netTotal - paidAmt) <= 0 ? 'paid' : 'posted',
+      created_by: $authStore.user?.id || null,
     }).select('id').single();
 
     if (purchErr || !purchase) {
@@ -249,6 +277,7 @@
       rate: l.rate,
       discount: l.discount,
       line_total: l.line_total,
+      created_by: $authStore.user?.id || null,
     }));
 
     const { error: itemsErr } = await supabase.from('purchase_items').insert(items);
@@ -258,15 +287,78 @@
       return;
     }
 
-    // Stock movements (inward)
+    // Stock movements (inward) — DB trigger multiplies by unit_qty automatically
     const movements = lines.map(l => ({
       product_id: l.product_id,
       movement_type: 'purchase',
       reference_type: 'purchases',
       reference_id: purchase.id,
-      qty: l.qty, // positive = stock in
+      qty: l.qty,
+      created_by: $authStore.user?.id || null,
     }));
     await supabase.from('stock_movements').insert(movements);
+
+    // ---- Ledger entries (Ind AS double-entry posting) ----
+    const ledgerEntries: any[] = [];
+    const vendorLedgerId = selectedVendor.ledger_id;
+
+    // 1. Debit Purchase Account (Expense) for full purchase amount
+    if (purchaseLedgerId) {
+      ledgerEntries.push({
+        entry_date: invoice_date,
+        ledger_id: purchaseLedgerId,
+        debit: netTotal,
+        credit: 0,
+        narration: `Purchase - ${invoice_no}`,
+        reference_type: 'purchases',
+        reference_id: purchase.id,
+        created_by: $authStore.user?.id || null,
+      });
+    }
+
+    // 2. Credit Vendor ledger (Sundry Creditors) for full purchase amount
+    if (vendorLedgerId) {
+      ledgerEntries.push({
+        entry_date: invoice_date,
+        ledger_id: vendorLedgerId,
+        debit: 0,
+        credit: netTotal,
+        narration: `Purchase - ${invoice_no}`,
+        reference_type: 'purchases',
+        reference_id: purchase.id,
+        created_by: $authStore.user?.id || null,
+      });
+    }
+
+    // 3. If paid amount > 0: Debit Vendor (paid), Credit Cash/Bank (money out)
+    if (paidAmt > 0 && vendorLedgerId) {
+      ledgerEntries.push({
+        entry_date: invoice_date,
+        ledger_id: vendorLedgerId,
+        debit: paidAmt,
+        credit: 0,
+        narration: `Payment made - ${invoice_no}`,
+        reference_type: 'purchases',
+        reference_id: purchase.id,
+        created_by: $authStore.user?.id || null,
+      });
+    }
+    if (paidAmt > 0 && cash_bank_ledger_id) {
+      ledgerEntries.push({
+        entry_date: invoice_date,
+        ledger_id: cash_bank_ledger_id,
+        debit: 0,
+        credit: paidAmt,
+        narration: `Purchase payment - ${invoice_no}`,
+        reference_type: 'purchases',
+        reference_id: purchase.id,
+        created_by: $authStore.user?.id || null,
+      });
+    }
+
+    if (ledgerEntries.length > 0) {
+      await supabase.from('ledger_entries').insert(ledgerEntries);
+    }
 
     saving = false;
     saveSuccess = `Purchase Invoice ${invoice_no} posted successfully!`;
@@ -420,6 +512,7 @@
         <div class="total-row"><span>Discount</span><span class="num disc">-₹{discountTotal.toFixed(2)}</span></div>
         <div class="total-row net"><span>Net Total</span><span class="num">₹{netTotal.toFixed(2)}</span></div>
         <hr />
+        {#if purchaseType === 'cash'}
         <div class="pay-field">
           <label>Payment Mode</label>
           <select bind:value={payment_mode_id}>
@@ -442,6 +535,7 @@
           <label>Paid Amount</label>
           <input type="number" step="0.01" placeholder="0.00" bind:value={paidAmount} />
         </div>
+        {/if}
         <div class="total-row balance" class:overdue={balanceDue > 0}>
           <span>Outstanding</span><span class="num">₹{balanceDue.toFixed(2)}</span>
         </div>

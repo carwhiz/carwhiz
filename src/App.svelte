@@ -3,7 +3,6 @@
   import { authStore } from './stores/authStore';
   import { getCurrentUser } from './lib/services/authService';
   import Login from './components/Login.svelte';
-  import SignUp from './components/SignUp.svelte';
   import Dashboard from './components/Dashboard.svelte';
 
   let currentPage = 'login';
@@ -17,13 +16,7 @@
         authStore.setUser(user);
         currentPage = 'dashboard';
       } else {
-        // Check URL for page routing
-        const path = window.location.pathname;
-        if (path.includes('signup')) {
-          currentPage = 'signup';
-        } else {
-          currentPage = 'login';
-        }
+        currentPage = 'login';
       }
     } catch (error) {
       console.error('Auth check error:', error);
@@ -31,19 +24,7 @@
       isInitializing = false;
     }
 
-    // Listen for hash/path changes
-    window.addEventListener('hashchange', handleRouteChange);
-    window.addEventListener('popstate', handleRouteChange);
   });
-
-  function handleRouteChange() {
-    const path = window.location.pathname;
-    if (path.includes('signup')) {
-      currentPage = 'signup';
-    } else if (path.includes('login') || path === '/') {
-      currentPage = 'login';
-    }
-  }
 </script>
 
 <main>
@@ -54,8 +35,6 @@
     </div>
   {:else if currentPage === 'dashboard'}
     <Dashboard on:logout={() => { currentPage = 'login'; }} />
-  {:else if currentPage === 'signup'}
-    <SignUp />
   {:else}
     <Login on:login={() => { currentPage = 'dashboard'; }} />
   {/if}

@@ -20,13 +20,26 @@
 
   onMount(() => loadPurchases());
 
+  function formatDateTime(dt: string): string {
+    if (!dt) return '—';
+    const d = new Date(dt);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    let h = d.getHours();
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${dd}/${mm}/${yyyy} ${h}:${min} ${ampm}`;
+  }
+
   async function loadPurchases() {
     loading = true;
     const { data } = await supabase
       .from('purchases')
-      .select('id, invoice_no, invoice_date, vendor_id, net_total, paid_amount, balance_due, status, vendors(name)')
-      .order('invoice_date', { ascending: false });
-    purchases = (data || []).map((p: any) => ({ ...p, vendor_name: p.vendors?.name || '—' }));
+      .select('id, invoice_no, invoice_date, created_at, vendor_id, net_total, paid_amount, balance_due, status, created_by, vendors(name), users:created_by(email)')
+      .order('created_at', { ascending: false });
+    purchases = (data || []).map((p: any) => ({ ...p, vendor_name: p.vendors?.name || '—', created_by_email: p.users?.email || '—' }));
     loading = false;
   }
 
@@ -112,12 +125,13 @@
           <tr>
             <th>#</th>
             <th>Invoice No</th>
-            <th>Date</th>
+            <th>Date & Time</th>
             <th>Vendor</th>
             <th class="num">Net Total</th>
             <th class="num">Paid</th>
             <th class="num">Balance</th>
             <th>Status</th>
+            <th>Created By</th>
           </tr>
         </thead>
         <tbody>
@@ -125,12 +139,13 @@
             <tr>
               <td>{idx + 1}</td>
               <td class="mono">{row.invoice_no}</td>
-              <td>{row.invoice_date}</td>
+              <td>{formatDateTime(row.created_at)}</td>
               <td>{row.vendor_name}</td>
               <td class="num">₹{(row.net_total || 0).toFixed(2)}</td>
               <td class="num green-text">₹{(row.paid_amount || 0).toFixed(2)}</td>
               <td class="num" class:red-text={row.balance_due > 0}>₹{(row.balance_due || 0).toFixed(2)}</td>
               <td><span class="status-badge" class:paid={row.status === 'paid'} class:posted={row.status === 'posted'}>{row.status}</span></td>
+              <td>{row.created_by_email}</td>
             </tr>
           {/each}
         </tbody>

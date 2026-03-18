@@ -9,6 +9,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '../../../../lib/supabaseClient';
   import { windowStore } from '../../../../stores/windowStore';
+  import { authStore } from '../../../../stores/authStore';
   import SearchableDropdown from '../../../shared/SearchableDropdown.svelte';
   import AddMasterDataPopup from '../../../shared/AddMasterDataPopup.svelte';
   import EditMasterDataPopup from '../../../shared/EditMasterDataPopup.svelte';
@@ -155,6 +156,7 @@
         fuel_type_id: fuel_type_id || null,
         body_side_id: body_side_id || null,
         updated_at: new Date().toISOString(),
+        updated_by: $authStore.user?.id || null,
       })
       .eq('id', vehicleId);
 

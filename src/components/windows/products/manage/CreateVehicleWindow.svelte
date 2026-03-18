@@ -10,6 +10,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '../../../../lib/supabaseClient';
   import { windowStore } from '../../../../stores/windowStore';
+  import { authStore } from '../../../../stores/authStore';
   import SearchableDropdown from '../../../shared/SearchableDropdown.svelte';
   import AddMasterDataPopup from '../../../shared/AddMasterDataPopup.svelte';
   import EditMasterDataPopup from '../../../shared/EditMasterDataPopup.svelte';
@@ -158,6 +159,7 @@
       gearbox_id: e.gearbox_id || null,
       fuel_type_id: e.fuel_type_id || null,
       body_side_id: e.body_side_id || null,
+      created_by: $authStore.user?.id || null,
     }));
 
     const { error } = await supabase.from('vehicles').insert(rows);

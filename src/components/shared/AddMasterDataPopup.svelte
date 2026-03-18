@@ -7,6 +7,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '../../lib/supabaseClient';
+  import { authStore } from '../../stores/authStore';
 
   export let title: string = 'Add New';
   export let tableName: string = '';
@@ -28,7 +29,7 @@
 
     const { data, error: dbError } = await supabase
       .from(tableName)
-      .insert({ name: name.trim() })
+      .insert({ name: name.trim(), created_by: $authStore.user?.id || null })
       .select()
       .single();
 

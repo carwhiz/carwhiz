@@ -6,12 +6,6 @@ export interface User {
   created_at: string;
 }
 
-export interface SignUpPayload {
-  email: string;
-  phone_number: string;
-  password: string;
-}
-
 export interface LoginPayload {
   password: string;
 }

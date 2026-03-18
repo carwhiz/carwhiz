@@ -8,13 +8,14 @@
          - Specific → show vehicle dropdown
          - Universal → no vehicle
        - Product Type = consumable → show unit/pricing directly
-       - Product Type = service → reserved for later
+       - Product Type = service → add consumable components + labor/additional charges
      ============================================================ -->
 
 <script lang="ts">
   import { onMount } from 'svelte';
   import { supabase } from '../../../../lib/supabaseClient';
   import { windowStore } from '../../../../stores/windowStore';
+  import { authStore } from '../../../../stores/authStore';
   import SearchableDropdown from '../../../shared/SearchableDropdown.svelte';
   import AddMasterDataPopup from '../../../shared/AddMasterDataPopup.svelte';
   import EditMasterDataPopup from '../../../shared/EditMasterDataPopup.svelte';
@@ -35,8 +36,27 @@
   let part_number: string = '';
   let brand_id = '';
   let expiry_date: string = '';
+  let opening_stock: string = '';
+  let minimum_stock: string = '';
+  let maximum_stock: string = '';
+  let reorder_level: string = '';
   let selectedFile: File | null = null;
   let fileInputEl: HTMLInputElement;
+
+  // ---- Service-specific state ----
+  let labor_charge: string = '';
+  let additional_charges: string = '';
+  interface ServiceComponent {
+    component_product_id: string;
+    product_name: string;
+    qty: number;
+    cost: number; // per-piece cost of the component
+  }
+  let serviceComponents: ServiceComponent[] = [];
+  let consumableProducts: any[] = [];
+  let componentSearch = '';
+  let filteredComponents: any[] = [];
+  let showComponentDropdown = false;
 
   // ---- Master data ----
   let units: { id: string; name: string }[] = [];
@@ -64,7 +84,21 @@
   $: showApplicability = product_type === 'product';
   $: showVehicle = product_type === 'product' && applicability === 'specific';
   $: showPricingFields = product_type === 'product' || product_type === 'consumable';
-  $: showServiceMsg = product_type === 'service';
+  $: showServiceFields = product_type === 'service';
+
+  // Service auto-calculated total cost
+  $: componentsCost = serviceComponents.reduce((sum, c) => sum + (c.qty * c.cost), 0);
+  $: serviceTotalCost = componentsCost + (parseFloat(labor_charge) || 0) + (parseFloat(additional_charges) || 0);
+
+  // Discount & profit calculations
+  $: baseSalesPrice = parseFloat(sales_price) || 0;
+  $: baseCost = showServiceFields ? serviceTotalCost : (parseFloat(current_cost) || 0);
+  $: afterD1 = baseSalesPrice * (1 - (parseFloat(first_level_discount) || 0) / 100);
+  $: afterD2 = afterD1 * (1 - (parseFloat(second_level_discount) || 0) / 100);
+  $: afterD3 = afterD2 * (1 - (parseFloat(third_level_discount) || 0) / 100);
+  $: profitD1 = afterD1 - baseCost;
+  $: profitD2 = afterD2 - baseCost;
+  $: profitD3 = afterD3 - baseCost;
 
   // Reset dependent fields when product_type changes
   $: if (product_type !== 'product') {
@@ -79,6 +113,7 @@
     loadUnits();
     loadVehicles();
     loadBrands();
+    loadConsumableProducts();
   });
 
   async function loadUnits() {
@@ -94,6 +129,48 @@
   async function loadBrands() {
     const { data } = await supabase.from('brands').select('id, name').order('name');
     brands = (data as { id: string; name: string }[]) || [];
+  }
+
+  async function loadConsumableProducts() {
+    const { data } = await supabase
+      .from('products')
+      .select('id, product_name, current_cost, unit_qty')
+      .in('product_type', ['consumable', 'product'])
+      .order('product_name');
+    consumableProducts = (data || []).map((p: any) => ({
+      ...p,
+      unit_qty: p.unit_qty || 1,
+    }));
+  }
+
+  function searchComponents() {
+    const q = componentSearch.toLowerCase().trim();
+    if (!q) { filteredComponents = []; showComponentDropdown = false; return; }
+    filteredComponents = consumableProducts.filter(p =>
+      p.product_name.toLowerCase().includes(q) &&
+      !serviceComponents.some(c => c.component_product_id === p.id)
+    ).slice(0, 10);
+    showComponentDropdown = filteredComponents.length > 0;
+  }
+
+  function addComponent(p: any) {
+    const perPieceCost = (p.current_cost || 0) / (p.unit_qty || 1);
+    serviceComponents = [...serviceComponents, {
+      component_product_id: p.id,
+      product_name: p.product_name,
+      qty: 1,
+      cost: perPieceCost,
+    }];
+    componentSearch = '';
+    showComponentDropdown = false;
+  }
+
+  function removeComponent(idx: number) {
+    serviceComponents = serviceComponents.filter((_, i) => i !== idx);
+  }
+
+  function recalcComponentLine(idx: number) {
+    serviceComponents = serviceComponents;
   }
 
   function handleAddUnit() {
@@ -158,8 +235,8 @@
       saveError = 'Product Type is required';
       return;
     }
-    if (product_type === 'service') {
-      saveError = 'Service type is reserved for future use';
+    if (product_type === 'service' && serviceComponents.length === 0) {
+      saveError = 'Add at least one consumable product for the service';
       return;
     }
 
@@ -184,34 +261,58 @@
       file_path = fileName;
     }
 
-    // Insert product
-    const row: Record<string, any> = {
-      product_name: product_name.trim(),
-      product_type,
-      applicability: product_type === 'product' ? applicability || null : null,
-      vehicle_id: showVehicle && vehicle_id ? vehicle_id : null,
-      unit_id: unit_id || null,
-      unit_qty: unit_qty ? parseFloat(unit_qty) : null,
-      current_cost: current_cost ? parseFloat(current_cost) : null,
-      sales_price: sales_price ? parseFloat(sales_price) : null,
-      first_level_discount: first_level_discount ? parseFloat(first_level_discount) : null,
-      second_level_discount: second_level_discount ? parseFloat(second_level_discount) : null,
-      third_level_discount: third_level_discount ? parseFloat(third_level_discount) : null,
-      barcode: barcode.trim() || null,
-      part_number: part_number.trim() || null,
-      brand_id: brand_id || null,
-      expiry_date: expiry_date || null,
-      file_path,
-    };
+    const isService = product_type === 'service';
 
-    const { error } = await supabase.from('products').insert(row);
-    saving = false;
+    // Insert product via RPC
+    const { data: rpcResult, error } = await supabase.rpc('create_product', {
+      p_product_name: product_name.trim(),
+      p_product_type: product_type,
+      p_applicability: product_type === 'product' ? applicability || null : null,
+      p_vehicle_id: showVehicle && vehicle_id ? vehicle_id : null,
+      p_unit_id: isService ? null : (unit_id || null),
+      p_unit_qty: isService ? null : (unit_qty ? parseFloat(unit_qty) : null),
+      p_current_cost: isService ? serviceTotalCost : (current_cost ? parseFloat(current_cost) : null),
+      p_sales_price: sales_price ? parseFloat(sales_price) : null,
+      p_first_level_discount: first_level_discount ? parseFloat(first_level_discount) : null,
+      p_second_level_discount: second_level_discount ? parseFloat(second_level_discount) : null,
+      p_third_level_discount: third_level_discount ? parseFloat(third_level_discount) : null,
+      p_barcode: isService ? null : (barcode.trim() || null),
+      p_part_number: isService ? null : (part_number.trim() || null),
+      p_brand_id: isService ? null : (brand_id || null),
+      p_expiry_date: isService ? null : (expiry_date || null),
+      p_file_path: file_path,
+      p_created_by: $authStore.user?.id || null,
+      p_current_stock: isService ? 0 : (opening_stock ? parseFloat(opening_stock) : 0),
+      p_minimum_stock: isService ? 0 : (minimum_stock ? parseFloat(minimum_stock) : 0),
+      p_maximum_stock: isService ? 0 : (maximum_stock ? parseFloat(maximum_stock) : 0),
+      p_reorder_level: isService ? 0 : (reorder_level ? parseFloat(reorder_level) : 0),
+      p_labor_charge: isService ? (parseFloat(labor_charge) || 0) : 0,
+      p_additional_charges: isService ? (parseFloat(additional_charges) || 0) : 0,
+    });
 
     if (error) {
+      saving = false;
       saveError = error.message;
       return;
     }
 
+    // Insert service components if service type
+    if (isService && rpcResult?.id) {
+      const comps = serviceComponents.map(c => ({
+        product_id: rpcResult.id,
+        component_product_id: c.component_product_id,
+        qty: c.qty,
+        created_by: $authStore.user?.id || null,
+      }));
+      const { error: compErr } = await supabase.from('product_components').insert(comps);
+      if (compErr) {
+        saving = false;
+        saveError = 'Product saved but failed to save components: ' + compErr.message;
+        return;
+      }
+    }
+
+    saving = false;
     saveSuccess = 'Product saved successfully!';
     // Reset form
     product_name = '';
@@ -229,8 +330,15 @@
     part_number = '';
     brand_id = '';
     expiry_date = '';
+    opening_stock = '';
+    minimum_stock = '';
+    maximum_stock = '';
+    reorder_level = '';
     selectedFile = null;
     if (fileInputEl) fileInputEl.value = '';
+    labor_charge = '';
+    additional_charges = '';
+    serviceComponents = [];
 
     setTimeout(() => (saveSuccess = ''), 3000);
   }
@@ -280,13 +388,137 @@
         </div>
       </div>
 
-      <!-- Service message -->
-      {#if showServiceMsg}
-        <div class="service-notice">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <span>Service type is reserved for future use. Select Product or Consumable to continue.</span>
+      <!-- ======== SERVICE FIELDS ======== -->
+      {#if showServiceFields}
+        <!-- Service Name already captured in product_name -->
+
+        <!-- Components section: Add consumable products -->
+        <div class="service-section">
+          <div class="section-label">Consumable Products</div>
+
+          <div class="component-search-wrap">
+            <input
+              type="text"
+              bind:value={componentSearch}
+              on:input={searchComponents}
+              on:focus={searchComponents}
+              placeholder="Search consumable products..."
+              class="component-search"
+            />
+            {#if showComponentDropdown}
+              <div class="component-dropdown">
+                {#each filteredComponents as p (p.id)}
+                  <button class="dd-item" on:click={() => addComponent(p)}>
+                    <span>{p.product_name}</span>
+                    <span class="dd-cost">₹{((p.current_cost || 0) / (p.unit_qty || 1)).toFixed(2)}/pc</span>
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+
+          {#if serviceComponents.length > 0}
+            <table class="comp-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Cost/pc</th>
+                  <th>Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each serviceComponents as comp, idx (comp.component_product_id)}
+                  <tr>
+                    <td>{idx + 1}</td>
+                    <td>{comp.product_name}</td>
+                    <td>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        bind:value={comp.qty}
+                        on:input={() => recalcComponentLine(idx)}
+                        class="comp-qty-input"
+                      />
+                    </td>
+                    <td>₹{comp.cost.toFixed(2)}</td>
+                    <td>₹{(comp.qty * comp.cost).toFixed(2)}</td>
+                    <td>
+                      <button class="comp-remove" on:click={() => removeComponent(idx)} title="Remove">&times;</button>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          {:else}
+            <div class="comp-empty">No consumable products added yet</div>
+          {/if}
+
+          <div class="comp-subtotal">
+            <span>Components Cost:</span>
+            <span>₹{componentsCost.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <!-- Labor + Additional Charges -->
+        <div class="form-row two-col">
+          <div class="field">
+            <label for="labor-charge">Labor Charge</label>
+            <input id="labor-charge" type="number" step="0.01" bind:value={labor_charge} placeholder="0.00" />
+          </div>
+          <div class="field">
+            <label for="additional-charges">Additional Charges</label>
+            <input id="additional-charges" type="number" step="0.01" bind:value={additional_charges} placeholder="0.00" />
+          </div>
+        </div>
+
+        <!-- Total Cost (auto-calculated) + Sales Price -->
+        <div class="form-row two-col">
+          <div class="field">
+            <label>Total Cost (Auto)</label>
+            <div class="auto-cost">₹{serviceTotalCost.toFixed(2)}</div>
+          </div>
+          <div class="field">
+            <label for="svc-sales-price">Sales Price</label>
+            <input id="svc-sales-price" type="number" step="0.01" bind:value={sales_price} placeholder="0.00" />
+          </div>
+        </div>
+
+        <!-- Discount fields -->
+        <div class="form-row three-col">
+          <div class="field">
+            <label for="svc-d1">First Level Discount %</label>
+            <input id="svc-d1" type="number" step="0.01" bind:value={first_level_discount} placeholder="0" />
+            {#if baseSalesPrice > 0}
+              <div class="discount-info">
+                <span>Price: ₹{afterD1.toFixed(2)}</span>
+                <span class="profit-tag" class:loss={profitD1 < 0}>Profit: ₹{profitD1.toFixed(2)}</span>
+              </div>
+            {/if}
+          </div>
+          <div class="field">
+            <label for="svc-d2">Second Level Discount %</label>
+            <input id="svc-d2" type="number" step="0.01" bind:value={second_level_discount} placeholder="0" />
+            {#if baseSalesPrice > 0 && parseFloat(second_level_discount) > 0}
+              <div class="discount-info">
+                <span>Price: ₹{afterD2.toFixed(2)}</span>
+                <span class="profit-tag" class:loss={profitD2 < 0}>Profit: ₹{profitD2.toFixed(2)}</span>
+              </div>
+            {/if}
+          </div>
+          <div class="field">
+            <label for="svc-d3">Third Level Discount %</label>
+            <input id="svc-d3" type="number" step="0.01" bind:value={third_level_discount} placeholder="0" />
+            {#if baseSalesPrice > 0 && parseFloat(third_level_discount) > 0}
+              <div class="discount-info">
+                <span>Price: ₹{afterD3.toFixed(2)}</span>
+                <span class="profit-tag" class:loss={profitD3 < 0}>Profit: ₹{profitD3.toFixed(2)}</span>
+              </div>
+            {/if}
+          </div>
         </div>
       {/if}
 
@@ -387,14 +619,55 @@
           <div class="field">
             <label for="d1">First Level Discount %</label>
             <input id="d1" type="number" step="0.01" bind:value={first_level_discount} placeholder="0" />
+            {#if baseSalesPrice > 0}
+              <div class="discount-info">
+                <span>Price: ₹{afterD1.toFixed(2)}</span>
+                <span class="profit-tag" class:loss={profitD1 < 0}>Profit: ₹{profitD1.toFixed(2)}</span>
+              </div>
+            {/if}
           </div>
           <div class="field">
             <label for="d2">Second Level Discount %</label>
             <input id="d2" type="number" step="0.01" bind:value={second_level_discount} placeholder="0" />
+            {#if baseSalesPrice > 0 && parseFloat(second_level_discount) > 0}
+              <div class="discount-info">
+                <span>Price: ₹{afterD2.toFixed(2)}</span>
+                <span class="profit-tag" class:loss={profitD2 < 0}>Profit: ₹{profitD2.toFixed(2)}</span>
+              </div>
+            {/if}
           </div>
           <div class="field">
             <label for="d3">Third Level Discount %</label>
             <input id="d3" type="number" step="0.01" bind:value={third_level_discount} placeholder="0" />
+            {#if baseSalesPrice > 0 && parseFloat(third_level_discount) > 0}
+              <div class="discount-info">
+                <span>Price: ₹{afterD3.toFixed(2)}</span>
+                <span class="profit-tag" class:loss={profitD3 < 0}>Profit: ₹{profitD3.toFixed(2)}</span>
+              </div>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Stock Levels -->
+        <div class="form-row two-col">
+          <div class="field">
+            <label for="opening-stock">Opening Stock</label>
+            <input id="opening-stock" type="number" step="0.01" bind:value={opening_stock} placeholder="0" />
+          </div>
+          <div class="field">
+            <label for="reorder-level">Reorder Level</label>
+            <input id="reorder-level" type="number" step="0.01" bind:value={reorder_level} placeholder="0" />
+          </div>
+        </div>
+
+        <div class="form-row two-col">
+          <div class="field">
+            <label for="min-stock">Minimum Stock</label>
+            <input id="min-stock" type="number" step="0.01" bind:value={minimum_stock} placeholder="0" />
+          </div>
+          <div class="field">
+            <label for="max-stock">Maximum Stock</label>
+            <input id="max-stock" type="number" step="0.01" bind:value={maximum_stock} placeholder="0" />
           </div>
         </div>
 
@@ -437,7 +710,7 @@
   <!-- ---- Footer ---- -->
   <div class="form-footer">
     <button class="btn-cancel" on:click={handleCancel}>Cancel</button>
-    {#if showPricingFields}
+    {#if showPricingFields || showServiceFields}
       <button class="btn-save" on:click={handleSave} disabled={saving}>
         {saving ? 'Saving...' : 'Save'}
       </button>
@@ -601,19 +874,6 @@
     box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
   }
 
-  .service-notice {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 14px 16px;
-    background: #f3e8ff;
-    border: 1px solid #e9d5ff;
-    border-radius: 8px;
-    color: #7c3aed;
-    font-size: 13px;
-    font-weight: 500;
-  }
-
   /* ---- File Upload ---- */
   .file-field {
     flex: 1;
@@ -742,5 +1002,174 @@
     .three-col {
       flex-direction: column;
     }
+  }
+
+  /* ---- Service Section ---- */
+  .service-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .section-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+  }
+
+  .component-search-wrap {
+    position: relative;
+  }
+
+  .component-search {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+  }
+
+  .component-search:focus {
+    border-color: #F97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+  }
+
+  .component-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 20;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .dd-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    color: #374151;
+  }
+
+  .dd-item:hover {
+    background: #fff7ed;
+  }
+
+  .dd-cost {
+    font-size: 11px;
+    color: #9ca3af;
+  }
+
+  .comp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .comp-table th {
+    background: #f9fafb;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+    color: #6b7280;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+
+  .comp-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+  }
+
+  .comp-qty-input {
+    width: 60px;
+    padding: 5px 6px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+  }
+
+  .comp-qty-input:focus {
+    border-color: #F97316;
+  }
+
+  .comp-remove {
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+  }
+
+  .comp-empty {
+    padding: 16px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 13px;
+    background: #f9fafb;
+    border-radius: 6px;
+  }
+
+  .comp-subtotal {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: #fff7ed;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #EA580C;
+  }
+
+  .auto-cost {
+    padding: 9px 10px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #16a34a;
+  }
+
+  /* ---- Discount Info ---- */
+  .discount-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: #f9fafb;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #6b7280;
+  }
+
+  .profit-tag {
+    font-weight: 700;
+    color: #16a34a;
+  }
+
+  .profit-tag.loss {
+    color: #dc2626;
   }
 </style>

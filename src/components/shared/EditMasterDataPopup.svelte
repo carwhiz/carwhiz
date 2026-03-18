@@ -7,6 +7,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '../../lib/supabaseClient';
+  import { authStore } from '../../stores/authStore';
 
   export let title: string = 'Edit';
   export let tableName: string = '';
@@ -30,7 +31,7 @@
 
     const { data, error: dbError } = await supabase
       .from(tableName)
-      .update({ name: name.trim() })
+      .update({ name: name.trim(), updated_by: $authStore.user?.id || null })
       .eq('id', itemId)
       .select()
       .single();

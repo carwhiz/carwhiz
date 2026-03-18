@@ -12,6 +12,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '../../../../lib/supabaseClient';
   import { windowStore } from '../../../../stores/windowStore';
+  import { authStore } from '../../../../stores/authStore';
 
   // ---- Form state ----
   let name = '';
@@ -63,6 +64,7 @@
         reference_type: 'customer',
         opening_balance: 0,
         status: 'active',
+        created_by: $authStore.user?.id || null,
       })
       .select('id')
       .single();
@@ -81,6 +83,7 @@
         place: place.trim() || null,
         gender: gender || null,
         ledger_id: ledgerData.id,
+        created_by: $authStore.user?.id || null,
       })
       .select('id')
       .single();
@@ -92,7 +95,7 @@
     }
 
     // 4. Update ledger reference_id
-    await supabase.from('ledger').update({ reference_id: custData.id }).eq('id', ledgerData.id);
+    await supabase.from('ledger').update({ reference_id: custData.id, updated_by: $authStore.user?.id || null }).eq('id', ledgerData.id);
 
     // 5. Save phones
     if (validPhones.length > 0) {

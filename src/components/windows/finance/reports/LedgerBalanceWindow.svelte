@@ -11,6 +11,25 @@
   let typeFilter = '';
   let ledgerTypes: any[] = [];
 
+  // Indian accounting: show Dr/Cr suffix
+  function formatBal(val: number): string {
+    if (val === 0) return '₹0.00';
+    return val > 0 ? `₹${val.toFixed(2)} Dr` : `₹${Math.abs(val).toFixed(2)} Cr`;
+  }
+
+  function formatDateTime(dt: string): string {
+    if (!dt) return '—';
+    const d = new Date(dt);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    let h = d.getHours();
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${dd}/${mm}/${yyyy} ${h}:${min} ${ampm}`;
+  }
+
   // Selected ledger for detail view
   let selectedLedger: any = null;
   let ledgerTransactions: any[] = [];
@@ -34,43 +53,22 @@
       .select('id, ledger_name, opening_balance, ledger_type_id, status, ledger_types(name)')
       .order('ledger_name');
 
-    // For each ledger, compute running balance from sales/purchases/receipts/payments
     const rows = (data || []).map((l: any) => ({
       ...l,
       type_name: l.ledger_types?.name || '—',
       balance: l.opening_balance || 0,
     }));
 
-    // Fetch all financial movements to compute balances
-    const [salesRes, purchasesRes, receiptsRes, paymentsRes] = await Promise.all([
-      supabase.from('sales').select('ledger_id, net_total, paid_amount'),
-      supabase.from('purchases').select('ledger_id, net_total, paid_amount'),
-      supabase.from('receipts').select('ledger_id, cash_bank_ledger_id, amount'),
-      supabase.from('payments').select('ledger_id, cash_bank_ledger_id, amount'),
-    ]);
+    // Fetch all ledger entries to compute balances
+    const { data: entries } = await supabase
+      .from('ledger_entries')
+      .select('ledger_id, debit, credit');
 
-    const salesData = salesRes.data || [];
-    const purchasesData = purchasesRes.data || [];
-    const receiptsData = receiptsRes.data || [];
-    const paymentsData = paymentsRes.data || [];
-
-    // Build balance map: ledger_id -> net movement
     const balMap: Record<string, number> = {};
-    const addBal = (id: string, amt: number) => { if (id) { balMap[id] = (balMap[id] || 0) + amt; } };
-
-    // Sales: customer ledger gets debited (balance_due increases receivable)
-    for (const s of salesData) { addBal(s.ledger_id, s.net_total || 0); }
-    // Purchases: vendor ledger gets credited (balance_due increases payable)
-    for (const p of purchasesData) { addBal(p.ledger_id, p.net_total || 0); }
-    // Receipts: reduces customer receivable, increases cash/bank
-    for (const r of receiptsData) {
-      addBal(r.ledger_id, -(r.amount || 0));
-      addBal(r.cash_bank_ledger_id, r.amount || 0);
-    }
-    // Payments: reduces vendor payable, decreases cash/bank
-    for (const p of paymentsData) {
-      addBal(p.ledger_id, -(p.amount || 0));
-      addBal(p.cash_bank_ledger_id, -(p.amount || 0));
+    for (const e of (entries || [])) {
+      if (e.ledger_id) {
+        balMap[e.ledger_id] = (balMap[e.ledger_id] || 0) + (e.debit || 0) - (e.credit || 0);
+      }
     }
 
     for (const row of rows) {
@@ -96,61 +94,33 @@
     loadingDetail = true;
     ledgerTransactions = [];
 
-    // Gather all transactions for this ledger
-    const txns: any[] = [];
-
-    // Sales where this is the customer ledger
-    const { data: salesData } = await supabase
-      .from('sales')
-      .select('id, bill_no, bill_date, net_total, paid_amount, balance_due')
+    // Fetch all ledger entries for this ledger
+    const { data: entries } = await supabase
+      .from('ledger_entries')
+      .select('id, entry_date, created_at, debit, credit, narration, reference_type, reference_id')
       .eq('ledger_id', ledger.id)
-      .order('bill_date', { ascending: false });
-    for (const s of (salesData || [])) {
-      txns.push({ date: s.bill_date, ref: s.bill_no, type: 'Sale', debit: s.net_total || 0, credit: 0 });
-    }
+      .order('entry_date', { ascending: true })
+      .order('id', { ascending: true });
 
-    // Purchases where this is the vendor ledger
-    const { data: purchData } = await supabase
-      .from('purchases')
-      .select('id, invoice_no, invoice_date, net_total, paid_amount, balance_due')
-      .eq('ledger_id', ledger.id)
-      .order('invoice_date', { ascending: false });
-    for (const p of (purchData || [])) {
-      txns.push({ date: p.invoice_date, ref: p.invoice_no, type: 'Purchase', debit: 0, credit: p.net_total || 0 });
-    }
+    let runBal = ledger.opening_balance || 0;
+    const txns = (entries || []).map((e: any) => {
+      let type = 'Entry';
+      if (e.reference_type === 'sales') type = 'Sale';
+      else if (e.reference_type === 'purchases') type = 'Purchase';
+      else if (e.reference_type === 'receipts') type = 'Receipt';
+      else if (e.reference_type === 'payments') type = 'Payment';
 
-    // Receipts where this is the customer ledger (credit) or cash/bank ledger (debit)
-    const { data: recData } = await supabase
-      .from('receipts')
-      .select('id, receipt_no, receipt_date, amount, ledger_id, cash_bank_ledger_id')
-      .or(`ledger_id.eq.${ledger.id},cash_bank_ledger_id.eq.${ledger.id}`)
-      .order('receipt_date', { ascending: false });
-    for (const r of (recData || [])) {
-      if (r.ledger_id === ledger.id) {
-        txns.push({ date: r.receipt_date, ref: r.receipt_no, type: 'Receipt', debit: 0, credit: r.amount || 0 });
-      }
-      if (r.cash_bank_ledger_id === ledger.id) {
-        txns.push({ date: r.receipt_date, ref: r.receipt_no, type: 'Receipt', debit: r.amount || 0, credit: 0 });
-      }
-    }
+      runBal += (e.debit || 0) - (e.credit || 0);
 
-    // Payments where this is the vendor ledger (debit) or cash/bank ledger (credit)
-    const { data: payData } = await supabase
-      .from('payments')
-      .select('id, payment_no, payment_date, amount, ledger_id, cash_bank_ledger_id')
-      .or(`ledger_id.eq.${ledger.id},cash_bank_ledger_id.eq.${ledger.id}`)
-      .order('payment_date', { ascending: false });
-    for (const p of (payData || [])) {
-      if (p.ledger_id === ledger.id) {
-        txns.push({ date: p.payment_date, ref: p.payment_no, type: 'Payment', debit: p.amount || 0, credit: 0 });
-      }
-      if (p.cash_bank_ledger_id === ledger.id) {
-        txns.push({ date: p.payment_date, ref: p.payment_no, type: 'Payment', debit: 0, credit: p.amount || 0 });
-      }
-    }
-
-    // Sort by date desc
-    txns.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      return {
+        date: e.created_at || e.entry_date,
+        ref: e.narration || '—',
+        type,
+        debit: e.debit || 0,
+        credit: e.credit || 0,
+        balance: runBal,
+      };
+    });
 
     ledgerTransactions = txns;
     loadingDetail = false;
@@ -191,11 +161,11 @@
     <div class="detail-summary">
       <div class="ds-item">
         <span class="ds-label">Opening Balance</span>
-        <span class="ds-val">₹{(selectedLedger.opening_balance || 0).toFixed(2)}</span>
+        <span class="ds-val">{formatBal(selectedLedger.opening_balance || 0)}</span>
       </div>
       <div class="ds-item">
         <span class="ds-label">Current Balance</span>
-        <span class="ds-val" class:positive={selectedLedger.balance >= 0} class:negative={selectedLedger.balance < 0}>₹{(selectedLedger.balance || 0).toFixed(2)}</span>
+        <span class="ds-val" class:positive={selectedLedger.balance >= 0} class:negative={selectedLedger.balance < 0}>{formatBal(selectedLedger.balance || 0)}</span>
       </div>
       <div class="ds-item">
         <span class="ds-label">Transactions</span>
@@ -213,22 +183,33 @@
           <thead>
             <tr>
               <th>#</th>
-              <th>Date</th>
+              <th>Date & Time</th>
               <th>Reference</th>
               <th>Type</th>
               <th class="num">Debit</th>
               <th class="num">Credit</th>
+              <th class="num">Balance</th>
             </tr>
           </thead>
           <tbody>
+            <tr class="opening-row">
+              <td></td>
+              <td></td>
+              <td class="mono">Opening Balance</td>
+              <td></td>
+              <td class="num">—</td>
+              <td class="num">—</td>
+              <td class="num" class:positive={(selectedLedger.opening_balance||0)>0} class:negative={(selectedLedger.opening_balance||0)<0}>{formatBal(selectedLedger.opening_balance || 0)}</td>
+            </tr>
             {#each ledgerTransactions as txn, idx (idx)}
               <tr>
                 <td>{idx + 1}</td>
-                <td>{txn.date}</td>
+                <td>{formatDateTime(txn.date)}</td>
                 <td class="mono">{txn.ref}</td>
                 <td><span class="txn-type" class:sale={txn.type==='Sale'} class:purchase={txn.type==='Purchase'} class:receipt={txn.type==='Receipt'} class:payment={txn.type==='Payment'}>{txn.type}</span></td>
                 <td class="num">{txn.debit ? '₹' + txn.debit.toFixed(2) : '—'}</td>
                 <td class="num">{txn.credit ? '₹' + txn.credit.toFixed(2) : '—'}</td>
+                <td class="num" class:positive={txn.balance > 0} class:negative={txn.balance < 0}>{formatBal(txn.balance)}</td>
               </tr>
             {/each}
           </tbody>
@@ -277,8 +258,8 @@
                 <td>{idx + 1}</td>
                 <td class="ledger-name">{ledger.ledger_name}</td>
                 <td><span class="type-badge">{ledger.type_name}</span></td>
-                <td class="num">₹{(ledger.opening_balance || 0).toFixed(2)}</td>
-                <td class="num" class:positive={ledger.balance > 0} class:negative={ledger.balance < 0}>₹{(ledger.balance || 0).toFixed(2)}</td>
+                <td class="num">{formatBal(ledger.opening_balance || 0)}</td>
+                <td class="num" class:positive={ledger.balance > 0} class:negative={ledger.balance < 0}>{formatBal(ledger.balance)}</td>
                 <td><button class="view-btn" on:click={() => viewLedgerDetail(ledger)}>View</button></td>
               </tr>
             {/each}
@@ -332,6 +313,7 @@
   .txn-type.receipt { background:#f0fdf4; color:#16a34a; }
   .txn-type.payment { background:#fef2f2; color:#dc2626; }
   .view-btn { padding:4px 12px; background:#fff7ed; border:1px solid #fed7aa; border-radius:5px; font-size:12px; font-weight:600; color:#EA580C; cursor:pointer; }
+  .opening-row td { background:#f9fafb; font-style:italic; color:#6b7280; }
   .view-btn:hover { background:#fed7aa; }
   .loading-msg, .empty-msg { text-align:center; color:#9ca3af; padding:40px 0; font-size:14px; }
 </style>

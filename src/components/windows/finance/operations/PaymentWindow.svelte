@@ -8,6 +8,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '../../../../lib/supabaseClient';
   import { windowStore } from '../../../../stores/windowStore';
+  import { authStore } from '../../../../stores/authStore';
 
   // ---- Header ----
   let payment_no = '';
@@ -154,12 +155,13 @@
     if (paymentType === 'vendor' && !selectedVendor) { saveError = 'Please select a vendor'; return; }
     if (paymentType === 'expense' && !selectedExpenseLedger) { saveError = 'Please select an expense ledger'; return; }
     if (!amount || parseFloat(amount) <= 0) { saveError = 'Enter a valid amount'; return; }
+    if (!cash_bank_ledger_id) { saveError = 'Please select a Cash / Bank Ledger'; return; }
 
     saving = true;
     saveError = '';
     saveSuccess = '';
 
-    const { error: payErr } = await supabase.from('payments').insert({
+    const { data: pay, error: payErr } = await supabase.from('payments').insert({
       payment_no,
       payment_date,
       ledger_id: paymentType === 'vendor' ? (selectedVendor?.ledger_id || null) : (selectedExpenseLedger?.id || null),
@@ -169,12 +171,50 @@
       payment_mode_id: payment_mode_id || null,
       cash_bank_ledger_id: cash_bank_ledger_id || null,
       notes: notes.trim() || null,
-    });
+      created_by: $authStore.user?.id || null,
+    }).select('id').single();
 
     if (payErr) {
       saving = false;
       saveError = payErr.message;
       return;
+    }
+
+    // ---- Ledger entries (double-entry posting) ----
+    const payAmt = parseFloat(amount);
+    const ledgerEntries: any[] = [];
+    const targetLedgerId = paymentType === 'vendor' ? (selectedVendor?.ledger_id || null) : (selectedExpenseLedger?.id || null);
+
+    // Credit Cash/Bank ledger (money going out)
+    if (cash_bank_ledger_id && payAmt > 0) {
+      ledgerEntries.push({
+        entry_date: payment_date,
+        ledger_id: cash_bank_ledger_id,
+        debit: 0,
+        credit: payAmt,
+        narration: `Payment - ${payment_no}`,
+        reference_type: 'payments',
+        reference_id: pay.id,
+        created_by: $authStore.user?.id || null,
+      });
+    }
+
+    // Debit Vendor/Expense ledger
+    if (targetLedgerId && payAmt > 0) {
+      ledgerEntries.push({
+        entry_date: payment_date,
+        ledger_id: targetLedgerId,
+        debit: payAmt,
+        credit: 0,
+        narration: `Payment - ${payment_no}`,
+        reference_type: 'payments',
+        reference_id: pay.id,
+        created_by: $authStore.user?.id || null,
+      });
+    }
+
+    if (ledgerEntries.length > 0) {
+      await supabase.from('ledger_entries').insert(ledgerEntries);
     }
 
     // If linked to a purchase invoice, reduce balance_due
@@ -187,6 +227,7 @@
           paid_amount: newPaid,
           balance_due: newBalance,
           status: newBalance <= 0 ? 'paid' : 'posted',
+          updated_by: $authStore.user?.id || null,
         }).eq('id', purchase_id);
       }
     }

@@ -25,6 +25,10 @@
     part_number: string | null;
     expiry_date: string | null;
     file_path: string | null;
+    current_stock: number | null;
+    minimum_stock: number | null;
+    maximum_stock: number | null;
+    reorder_level: number | null;
     created_at: string;
     vehicles: { model_name: string } | null;
     units: { name: string } | null;
@@ -32,6 +36,7 @@
   }
 
   let products: ProductRow[] = [];
+  let avgCostMap: Record<string, number> = {};
   let loading = true;
   let error = '';
   let searchQuery = '';
@@ -58,6 +63,7 @@
         unit_qty, current_cost, sales_price,
         first_level_discount, second_level_discount, third_level_discount,
         barcode, part_number, expiry_date, file_path, created_at,
+        current_stock, minimum_stock, maximum_stock, reorder_level,
         vehicles ( model_name ),
         units ( name ),
         brands ( name )
@@ -72,10 +78,32 @@
     }
 
     products = (data as unknown as ProductRow[]) || [];
+
+    // Calculate average purchase cost per product from purchase_items
+    const { data: purchaseItems } = await supabase
+      .from('purchase_items')
+      .select('product_id, qty, rate');
+
+    const costAgg: Record<string, { totalVal: number; totalQty: number }> = {};
+    for (const pi of (purchaseItems || [])) {
+      if (!pi.product_id) continue;
+      if (!costAgg[pi.product_id]) costAgg[pi.product_id] = { totalVal: 0, totalQty: 0 };
+      costAgg[pi.product_id].totalVal += (pi.rate || 0) * (pi.qty || 0);
+      costAgg[pi.product_id].totalQty += (pi.qty || 0);
+    }
+    const map: Record<string, number> = {};
+    for (const [pid, agg] of Object.entries(costAgg)) {
+      map[pid] = agg.totalQty > 0 ? Math.round((agg.totalVal / agg.totalQty) * 100) / 100 : 0;
+    }
+    avgCostMap = map;
   }
 
   function openCreateProduct() {
     windowStore.open('products-create-product', 'Create Product');
+  }
+
+  function openEditProduct(id: string, name: string) {
+    windowStore.open('products-edit-product-' + id, 'Edit: ' + name);
   }
 
   function formatPrice(val: number | null) {
@@ -134,7 +162,12 @@
             <th>Vehicle</th>
             <th>Unit</th>
             <th>Qty</th>
+            <th>Stock</th>
+            <th>Min</th>
+            <th>Max</th>
+            <th>Reorder</th>
             <th>Cost</th>
+            <th>Avg Cost</th>
             <th>Price</th>
             <th>D1%</th>
             <th>D2%</th>
@@ -157,7 +190,12 @@
               <td>{product.vehicles?.model_name || '—'}</td>
               <td>{product.units?.name || '—'}</td>
               <td>{product.unit_qty ?? '—'}</td>
+              <td class:low-stock={product.current_stock !== null && product.reorder_level !== null && product.current_stock <= product.reorder_level}>{product.current_stock ?? 0}</td>
+              <td>{product.minimum_stock ?? 0}</td>
+              <td>{product.maximum_stock ?? 0}</td>
+              <td>{product.reorder_level ?? 0}</td>
               <td>{formatPrice(product.current_cost)}</td>
+              <td>{formatPrice(avgCostMap[product.id] ?? null)}</td>
               <td>{formatPrice(product.sales_price)}</td>
               <td>{product.first_level_discount ?? '—'}</td>
               <td>{product.second_level_discount ?? '—'}</td>
@@ -174,7 +212,7 @@
                 {/if}
               </td>
               <td class="actions">
-                <button class="btn-edit" title="Edit">
+                <button class="btn-edit" title="Edit" on:click={() => openEditProduct(product.id, product.product_name)}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -365,6 +403,11 @@
   .type-badge.consumable {
     background: #dcfce7;
     color: #16a34a;
+  }
+
+  .low-stock {
+    color: #dc2626;
+    font-weight: 700;
   }
 
   .file-indicator {
