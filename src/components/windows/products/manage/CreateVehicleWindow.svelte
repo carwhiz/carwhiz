@@ -389,8 +389,8 @@
 
   .back-btn:hover {
     background: #fff7ed;
-    border-color: #F97316;
-    color: #EA580C;
+    border-color: #C41E3A;
+    color: #C41E3A;
   }
 
   .form-header h2 {
@@ -406,9 +406,9 @@
     gap: 5px;
     padding: 7px 14px;
     background: white;
-    border: 1px solid #F97316;
+    border: 1px solid #C41E3A;
     border-radius: 6px;
-    color: #F97316;
+    color: #C41E3A;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
@@ -416,7 +416,7 @@
   }
 
   .add-entry-btn:hover {
-    background: #F97316;
+    background: #C41E3A;
     color: white;
   }
 
@@ -477,7 +477,7 @@
   .entry-num {
     font-size: 13px;
     font-weight: 700;
-    color: #F97316;
+    color: #C41E3A;
   }
 
   .remove-entry {
@@ -524,7 +524,7 @@
   }
 
   .field input[type="text"]:focus {
-    border-color: #F97316;
+    border-color: #C41E3A;
     box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
   }
 
@@ -556,7 +556,7 @@
 
   .btn-save {
     padding: 9px 28px;
-    background: #F97316;
+    background: #C41E3A;
     border: none;
     border-radius: 8px;
     font-size: 14px;
@@ -567,7 +567,7 @@
   }
 
   .btn-save:hover {
-    background: #EA580C;
+    background: #C41E3A;
   }
 
   .btn-save:disabled {

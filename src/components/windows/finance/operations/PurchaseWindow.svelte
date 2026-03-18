@@ -582,7 +582,7 @@
   .search-group label { font-size:11px; font-weight:600; color:#6b7280; margin-bottom:3px; }
   .search-input-wrap { position:relative; }
   .search-input-wrap input { width:100%; padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; outline:none; box-sizing:border-box; }
-  .search-input-wrap input:focus { border-color:#F97316; box-shadow:0 0 0 2px rgba(249,115,22,.1); }
+  .search-input-wrap input:focus { border-color:#C41E3A; box-shadow:0 0 0 2px rgba(249,115,22,.1); }
 
   .selected-chip { display:flex; align-items:center; gap:6px; padding:5px 10px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:6px; font-size:13px; color:#3730a3; }
   .chip-clear { background:none; border:none; font-size:16px; color:#dc2626; cursor:pointer; padding:0 2px; }

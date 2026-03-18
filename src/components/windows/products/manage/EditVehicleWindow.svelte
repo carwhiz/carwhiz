@@ -301,8 +301,8 @@
 
   .back-btn:hover {
     background: #fff7ed;
-    border-color: #F97316;
-    color: #EA580C;
+    border-color: #C41E3A;
+    color: #C41E3A;
   }
 
   .form-header h2 {
@@ -370,7 +370,7 @@
   }
 
   .field input[type="text"]:focus {
-    border-color: #F97316;
+    border-color: #C41E3A;
     box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
   }
 
@@ -401,7 +401,7 @@
 
   .btn-save {
     padding: 9px 28px;
-    background: #F97316;
+    background: #C41E3A;
     border: none;
     border-radius: 8px;
     font-size: 14px;
@@ -412,7 +412,7 @@
   }
 
   .btn-save:hover {
-    background: #EA580C;
+    background: #C41E3A;
   }
 
   .btn-save:disabled {

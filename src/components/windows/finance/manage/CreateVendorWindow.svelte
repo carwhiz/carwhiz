@@ -222,7 +222,7 @@
   .form-header { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; }
   .header-left { display:flex; align-items:center; gap:10px; }
   .back-btn { display:flex; align-items:center; justify-content:center; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; color:#374151; transition:all .15s; }
-  .back-btn:hover { background:#fff7ed; border-color:#F97316; color:#EA580C; }
+  .back-btn:hover { background:#fff7ed; border-color:#C41E3A; color:#C41E3A; }
   .form-header h2 { margin:0; font-size:17px; font-weight:700; color:#111827; }
 
   .form-body { flex:1; overflow-y:auto; padding:24px; }
@@ -236,25 +236,25 @@
   .field { display:flex; flex-direction:column; }
   .field label { font-size:12px; font-weight:600; color:#374151; margin-bottom:4px; }
   .field input[type="text"], .field textarea { padding:9px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; outline:none; transition:border-color .15s; background:white; font-family:inherit; }
-  .field input:focus, .field textarea:focus { border-color:#F97316; box-shadow:0 0 0 3px rgba(249,115,22,.1); }
+  .field input:focus, .field textarea:focus { border-color:#C41E3A; box-shadow:0 0 0 3px rgba(249,115,22,.1); }
   .field textarea { resize:vertical; }
 
   .multi-section { display:flex; flex-direction:column; gap:8px; }
   .multi-header { display:flex; align-items:center; justify-content:space-between; }
   .multi-header label { font-size:12px; font-weight:600; color:#374151; }
-  .add-btn { display:inline-flex; align-items:center; gap:4px; padding:5px 12px; background:white; border:1px solid #F97316; border-radius:6px; color:#F97316; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; }
-  .add-btn:hover { background:#F97316; color:white; }
+  .add-btn { display:inline-flex; align-items:center; gap:4px; padding:5px 12px; background:white; border:1px solid #C41E3A; border-radius:6px; color:#C41E3A; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; }
+  .add-btn:hover { background:#C41E3A; color:white; }
   .multi-row { display:flex; align-items:center; gap:8px; }
   .multi-row input { flex:1; padding:9px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; outline:none; transition:border-color .15s; }
-  .multi-row input:focus { border-color:#F97316; box-shadow:0 0 0 3px rgba(249,115,22,.1); }
+  .multi-row input:focus { border-color:#C41E3A; box-shadow:0 0 0 3px rgba(249,115,22,.1); }
   .remove-btn { display:flex; align-items:center; justify-content:center; width:30px; height:30px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; color:#ef4444; font-size:18px; cursor:pointer; line-height:1; transition:all .15s; }
   .remove-btn:hover { background:#ef4444; color:white; border-color:#ef4444; }
 
   .form-footer { display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; background:white; border-top:1px solid #e5e7eb; flex-shrink:0; }
   .btn-cancel { padding:9px 20px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; font-weight:500; color:#6b7280; cursor:pointer; }
   .btn-cancel:hover { background:#e5e7eb; }
-  .btn-save { padding:9px 28px; background:#F97316; border:none; border-radius:8px; font-size:14px; font-weight:600; color:white; cursor:pointer; transition:background .15s; }
-  .btn-save:hover { background:#EA580C; }
+  .btn-save { padding:9px 28px; background:#C41E3A; border:none; border-radius:8px; font-size:14px; font-weight:600; color:white; cursor:pointer; transition:background .15s; }
+  .btn-save:hover { background:#C41E3A; }
   .btn-save:disabled { opacity:.6; cursor:not-allowed; }
 
   @media (max-width:700px) { .two-col { flex-direction:column; } }

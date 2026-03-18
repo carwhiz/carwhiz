@@ -231,7 +231,7 @@
   .pp-content h2 {
     font-size: 16px;
     font-weight: 700;
-    color: #EA580C;
+    color: #C41E3A;
     margin: 24px 0 8px;
   }
 

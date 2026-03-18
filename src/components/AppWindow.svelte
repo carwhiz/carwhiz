@@ -121,7 +121,7 @@
 
   .window-titlebar {
     height: 38px;
-    background: linear-gradient(135deg, #FB923C 0%, #EA580C 100%);
+    background: #0f172a;
     display: flex;
     align-items: center;
     justify-content: space-between;

@@ -252,7 +252,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #FB923C 0%, #EA580C 100%);
+    background: linear-gradient(135deg, #C41E3A 0%, #C41E3A 100%);
     padding: 20px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
       Ubuntu, Cantarell, sans-serif;
@@ -282,7 +282,7 @@
   .logo-section {
     text-align: center;
     margin-bottom: 24px;
-    border: 3px solid #F97316;
+    border: 3px solid #C41E3A;
     border-radius: 16px;
     padding: 0;
     overflow: hidden;
@@ -347,7 +347,7 @@
   input[type='tel']:focus {
     outline: none;
     background: white;
-    border-color: #F97316;
+    border-color: #C41E3A;
     box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
   }
 
@@ -391,7 +391,7 @@
     height: 20px;
     margin-top: 2px;
     cursor: pointer;
-    accent-color: #F97316;
+    accent-color: #C41E3A;
   }
 
   .checkbox-label {
@@ -405,13 +405,13 @@
   }
 
   .checkbox-label a {
-    color: #F97316;
+    color: #C41E3A;
     text-decoration: underline;
   }
 
   .btn-primary {
     padding: 12px 16px;
-    background: linear-gradient(135deg, #FB923C 0%, #EA580C 100%);
+    background: linear-gradient(135deg, #C41E3A 0%, #C41E3A 100%);
     color: white;
     border: none;
     border-radius: 8px;
@@ -465,14 +465,14 @@
   }
 
   .login-link a {
-    color: #F97316;
+    color: #C41E3A;
     text-decoration: none;
     font-weight: 600;
     transition: color 0.3s ease;
   }
 
   .login-link a:hover {
-    color: #EA580C;
+    color: #C41E3A;
     text-decoration: underline;
   }
 

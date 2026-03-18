@@ -595,7 +595,7 @@
 
   .sale-type-toggle { display:flex; gap:0; border:1px solid #e5e7eb; border-radius:6px; overflow:hidden; }
   .type-btn { display:flex; align-items:center; gap:4px; padding:5px 12px; border:none; background:#f9fafb; font-size:12px; font-weight:600; color:#6b7280; cursor:pointer; transition:all .15s; }
-  .type-btn.active { background:#F97316; color:white; }
+  .type-btn.active { background:#C41E3A; color:white; }
   .type-btn.credit.active { background:#7c3aed; color:white; }
 
   .msg { padding:8px 14px; font-size:12px; font-weight:500; margin:0 18px; }
@@ -614,9 +614,9 @@
   .search-group label { font-size:11px; font-weight:600; color:#6b7280; margin-bottom:3px; }
   .search-input-wrap { position:relative; }
   .search-input-wrap input { width:100%; padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; outline:none; box-sizing:border-box; }
-  .search-input-wrap input:focus { border-color:#F97316; box-shadow:0 0 0 2px rgba(249,115,22,.1); }
+  .search-input-wrap input:focus { border-color:#C41E3A; box-shadow:0 0 0 2px rgba(249,115,22,.1); }
 
-  .selected-chip { display:flex; align-items:center; gap:6px; padding:5px 10px; background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; font-size:13px; color:#9a3412; }
+  .selected-chip { display:flex; align-items:center; gap:6px; padding:5px 10px; background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; font-size:13px; color:#C41E3A; }
   .chip-clear { background:none; border:none; font-size:16px; color:#dc2626; cursor:pointer; padding:0 2px; }
 
   .search-dropdown { position:absolute; top:100%; left:0; right:0; max-height:200px; overflow-y:auto; background:white; border:1px solid #e5e7eb; border-radius:0 0 6px 6px; z-index:50; box-shadow:0 4px 12px rgba(0,0,0,.1); }
@@ -624,12 +624,12 @@
   .dd-item:hover { background:#fff7ed; }
   .dd-name { color:#111827; font-weight:500; }
   .dd-sub { color:#9ca3af; font-size:11px; }
-  .dd-price { color:#F97316; font-weight:600; font-size:12px; }
+  .dd-price { color:#C41E3A; font-weight:600; font-size:12px; }
 
   .barcode-wrap { display:flex; gap:0; }
   .barcode-wrap input { border-radius:6px 0 0 6px; flex:1; }
-  .barcode-go { display:flex; align-items:center; justify-content:center; padding:0 10px; background:#F97316; color:white; border:1px solid #F97316; border-radius:0 6px 6px 0; cursor:pointer; }
-  .barcode-go:hover { background:#EA580C; }
+  .barcode-go { display:flex; align-items:center; justify-content:center; padding:0 10px; background:#C41E3A; color:white; border:1px solid #C41E3A; border-radius:0 6px 6px 0; cursor:pointer; }
+  .barcode-go:hover { background:#C41E3A; }
 
   .lines-table-wrap { flex:1; overflow-y:auto; border:1px solid #e5e7eb; border-radius:8px; background:white; }
   .lines-table { width:100%; border-collapse:collapse; font-size:13px; }
@@ -645,7 +645,7 @@
   .col-total { width:90px; }
   .col-act { width:30px; text-align:center; }
   .lines-table td input { width:100%; padding:4px 6px; border:1px solid #e5e7eb; border-radius:4px; font-size:13px; text-align:right; outline:none; box-sizing:border-box; }
-  .lines-table td input:focus { border-color:#F97316; }
+  .lines-table td input:focus { border-color:#C41E3A; }
   .empty-row { text-align:center; color:#9ca3af; padding:30px 0 !important; font-style:italic; }
   .remove-btn { background:none; border:none; color:#dc2626; font-size:18px; cursor:pointer; padding:0; line-height:1; }
   .remove-btn:hover { color:#991b1b; }
@@ -663,10 +663,10 @@
   .pay-field { display:flex; flex-direction:column; gap:3px; }
   .pay-field label { font-size:11px; font-weight:600; color:#6b7280; }
   .pay-field select, .pay-field input { padding:6px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:13px; outline:none; }
-  .pay-field select:focus, .pay-field input:focus { border-color:#F97316; }
+  .pay-field select:focus, .pay-field input:focus { border-color:#C41E3A; }
 
-  .btn-post { padding:10px; background:#F97316; border:none; border-radius:8px; font-size:14px; font-weight:700; color:white; cursor:pointer; transition:background .15s; }
-  .btn-post:hover { background:#EA580C; }
+  .btn-post { padding:10px; background:#C41E3A; border:none; border-radius:8px; font-size:14px; font-weight:700; color:white; cursor:pointer; transition:background .15s; }
+  .btn-post:hover { background:#C41E3A; }
   .btn-post:disabled { opacity:.6; cursor:not-allowed; }
 
   @media (max-width:800px) {

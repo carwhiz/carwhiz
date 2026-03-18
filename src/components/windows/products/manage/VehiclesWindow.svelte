@@ -231,7 +231,7 @@
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
-    background: #F97316;
+    background: #C41E3A;
     color: white;
     border: none;
     border-radius: 8px;
@@ -243,7 +243,7 @@
   }
 
   .btn-create:hover {
-    background: #EA580C;
+    background: #C41E3A;
   }
 
   /* ---- Table ---- */
@@ -326,14 +326,14 @@
     border-radius: 5px;
     font-size: 12px;
     font-weight: 500;
-    color: #EA580C;
+    color: #C41E3A;
     cursor: pointer;
     transition: all 0.15s;
   }
 
   .btn-edit:hover {
-    background: #F97316;
+    background: #C41E3A;
     color: white;
-    border-color: #F97316;
+    border-color: #C41E3A;
   }
 </style>

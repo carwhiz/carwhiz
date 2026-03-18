@@ -190,13 +190,13 @@
   .actions-area { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 
   .category-filter { padding:7px 10px; border:1px solid #e5e7eb; border-radius:6px; font-size:13px; background:#f9fafb; color:#374151; outline:none; cursor:pointer; }
-  .category-filter:focus { border-color:#F97316; }
+  .category-filter:focus { border-color:#C41E3A; }
 
   .search-box { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; }
   .search-box svg { color:#9ca3af; flex-shrink:0; }
   .search-box input { border:none; background:none; outline:none; font-size:13px; width:160px; color:#374151; }
-  .btn-create { display:flex; align-items:center; gap:6px; padding:8px 16px; background:#F97316; color:white; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s; white-space:nowrap; }
-  .btn-create:hover { background:#EA580C; }
+  .btn-create { display:flex; align-items:center; gap:6px; padding:8px 16px; background:#C41E3A; color:white; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s; white-space:nowrap; }
+  .btn-create:hover { background:#C41E3A; }
   .btn-employee { background:#7c3aed; }
   .btn-employee:hover { background:#6d28d9; }
 
@@ -218,6 +218,6 @@
   .status-badge.inactive { background:#fef2f2; color:#dc2626; }
 
   .actions { width:80px; }
-  .btn-edit { display:inline-flex; align-items:center; gap:4px; padding:5px 10px; background:#fff7ed; border:1px solid #fed7aa; border-radius:5px; font-size:12px; font-weight:500; color:#EA580C; cursor:pointer; transition:all .15s; }
-  .btn-edit:hover { background:#F97316; color:white; border-color:#F97316; }
+  .btn-edit { display:inline-flex; align-items:center; gap:4px; padding:5px 10px; background:#fff7ed; border:1px solid #fed7aa; border-radius:5px; font-size:12px; font-weight:500; color:#C41E3A; cursor:pointer; transition:all .15s; }
+  .btn-edit:hover { background:#C41E3A; color:white; border-color:#C41E3A; }
 </style>

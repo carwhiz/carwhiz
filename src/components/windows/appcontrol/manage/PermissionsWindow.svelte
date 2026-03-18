@@ -313,7 +313,7 @@
   .user-list-header { padding:10px 14px; font-size:11px; font-weight:700; text-transform:uppercase; color:#9ca3af; letter-spacing:.04em; border-bottom:1px solid #f3f4f6; }
   .user-item { display:flex; align-items:center; gap:6px; padding:10px 14px; border:none; background:none; text-align:left; cursor:pointer; font-size:13px; color:#374151; border-bottom:1px solid #f3f4f6; transition:background .1s; }
   .user-item:hover { background:#fffbf5; }
-  .user-item.active { background:#fff7ed; border-left:3px solid #F97316; font-weight:600; color:#111827; }
+  .user-item.active { background:#fff7ed; border-left:3px solid #C41E3A; font-weight:600; color:#111827; }
   .user-email { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .admin-badge { font-size:9px; padding:2px 6px; background:#fef3c7; color:#d97706; border-radius:8px; font-weight:600; flex-shrink:0; }
 
@@ -344,6 +344,6 @@
   .toggle input { opacity:0; width:0; height:0; }
   .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#e5e7eb; border-radius:18px; transition:.2s; }
   .slider::before { content:''; position:absolute; height:14px; width:14px; left:2px; bottom:2px; background:white; border-radius:50%; transition:.2s; }
-  .toggle input:checked + .slider { background:#F97316; }
+  .toggle input:checked + .slider { background:#C41E3A; }
   .toggle input:checked + .slider::before { transform:translateX(16px); }
 </style>

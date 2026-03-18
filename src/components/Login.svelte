@@ -107,7 +107,7 @@
         class="btn-primary"
         disabled={isSubmitting || !!getPasswordError()}
       >
-        {#if $authStore.loading || isSubmitting}
+        {#if isSubmitting}
           <span class="spinner"></span>
           Logging in...
         {:else}
@@ -133,26 +133,31 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #FB923C 0%, #EA580C 100%);
+    background: #ffffff;
     padding: 20px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
       Ubuntu, Cantarell, sans-serif;
+    position: relative;
+    overflow: hidden;
   }
 
   .login-card {
     background: white;
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
     padding: 40px;
     width: 100%;
-    max-width: 500px;
-    animation: slideUp 0.5s ease-out;
+    max-width: 480px;
+    animation: slideUp 0.6s ease-out;
+    border: 1px solid #e2e8f0;
+    position: relative;
+    z-index: 1;
   }
 
   @keyframes slideUp {
     from {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(35px);
     }
     to {
       opacity: 1;
@@ -163,16 +168,17 @@
   .logo-section {
     text-align: center;
     margin: 0 auto 32px;
-    border: 3px solid #F97316;
-    border-radius: 16px;
-    padding: 12px;
+    border: none;
+    padding: 0;
     overflow: hidden;
     width: 100%;
-    background: #fafafa;
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 180px;
+    min-height: auto;
+    box-shadow: none;
+    margin-bottom: 40px;
   }
 
   .logo {
@@ -190,13 +196,14 @@
     justify-content: center;
     gap: 10px;
     margin-bottom: 24px;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
     color: #999;
   }
 
   .interface-switch span.active {
-    color: #EA580C;
+    color: #C41E3A;
+    text-shadow: 0 0 8px rgba(196, 30, 58, 0.2);
   }
 
   .switch-btn {
@@ -211,25 +218,27 @@
   .switch-track {
     width: 44px;
     height: 24px;
-    background: #e0e0e0;
+    background: #e5e7eb;
     border-radius: 12px;
     position: relative;
-    transition: background 0.3s;
+    transition: all 0.3s ease;
+    border: 2px solid #d1d5db;
   }
 
   .switch-track.toggled {
-    background: #F97316;
+    background: linear-gradient(135deg, #C41E3A 0%, #A01828 100%);
+    border-color: #C41E3A;
   }
 
   .switch-thumb {
     position: absolute;
-    top: 2px;
-    left: 2px;
+    top: 1px;
+    left: 1px;
     width: 20px;
     height: 20px;
     background: white;
     border-radius: 50%;
-    transition: transform 0.3s;
+    transition: all 0.3s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
@@ -260,6 +269,7 @@
     font-weight: 600;
     color: #2d3748;
     font-size: 14px;
+    letter-spacing: 0px;
   }
 
   input {
@@ -267,42 +277,50 @@
     border: 2px solid #e2e8f0;
     border-radius: 8px;
     font-size: 16px;
-    transition: all 0.3s ease;
-    background: #f7fafc;
+    transition: all 0.4s ease;
+    background: #f8fafc;
+    color: #1a202c;
+    font-weight: 500;
+  }
+
+  input::placeholder {
+    color: #cbd5e1;
+    font-weight: 400;
   }
 
   input:focus {
     outline: none;
     background: white;
-    border-color: #F97316;
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    border-color: #C41E3A;
+    box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.15);
   }
 
   input.error {
-    border-color: #f56565;
-    background: #fff5f5;
+    border-color: #ef4444;
+    background: #fef2f2;
   }
 
   input.valid {
-    border-color: #48bb78;
-    background: #f0fff4;
+    border-color: #10b981;
+    background: #f0fdf4;
   }
 
   input:disabled {
-    background: #edf2f7;
+    background: #f1f5f9;
     cursor: not-allowed;
     opacity: 0.6;
   }
 
   .error-message {
     font-size: 13px;
-    color: #f56565;
+    color: #C41E3A;
     margin-top: 4px;
+    font-weight: 500;
   }
 
   .btn-primary {
     padding: 12px 16px;
-    background: linear-gradient(135deg, #FB923C 0%, #EA580C 100%);
+    background: linear-gradient(135deg, #C41E3A 0%, #A01828 100%);
     color: white;
     border: none;
     border-radius: 8px;
@@ -315,11 +333,17 @@
     justify-content: center;
     gap: 8px;
     margin-top: 10px;
+    letter-spacing: 0.3px;
+    box-shadow: 0 8px 20px rgba(196, 30, 58, 0.3);
   }
 
   .btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(249, 115, 22, 0.4);
+    box-shadow: 0 12px 35px rgba(196, 30, 58, 0.4);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(-1px);
   }
 
   .btn-primary:disabled {
@@ -348,38 +372,46 @@
     border-radius: 8px;
     margin-bottom: 20px;
     font-size: 14px;
+    font-weight: 500;
   }
 
   .alert-error {
-    background: #fff5f5;
-    border: 1px solid #feb2b2;
-    color: #c53030;
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #C41E3A;
+    box-shadow: 0 4px 12px rgba(196, 30, 58, 0.15);
   }
 
   .footer-text {
     text-align: center;
     font-size: 12px;
-    color: #a0aec0;
+    color: #64748b;
     margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #e2e8f0;
   }
 
   .footer-text p {
     margin: 0;
+    font-weight: 500;
   }
 
   .privacy-link {
     background: none;
     border: none;
-    color: #EA580C;
+    color: #C41E3A;
     font-size: 12px;
     cursor: pointer;
-    text-decoration: underline;
+    text-decoration: none;
     margin-top: 8px;
     padding: 0;
+    font-weight: 600;
+    transition: all 0.3s ease;
   }
 
   .privacy-link:hover {
-    color: #c2410c;
+    color: #A01828;
+    text-decoration: underline;
   }
 
   /* Mobile Responsive */
@@ -392,16 +424,25 @@
       border-radius: 12px;
       padding: 24px 20px;
       margin: auto 0;
+      border: 2px solid #C41E3A;
     }
 
-    h1 {
-      font-size: 24px;
+    .logo-section {
+      margin-bottom: 24px;
+      min-height: 160px;
+      padding: 10px;
+      border-radius: 12px;
     }
 
     input,
     .btn-primary {
       font-size: 16px;
-      padding: 14px 12px;
+      padding: 12px 14px;
+    }
+
+    .logo {
+      max-width: 220px;
+      max-height: 140px;
     }
   }
 
@@ -411,13 +452,9 @@
       padding: 48px;
     }
 
-    h1 {
-      font-size: 32px;
-    }
-
     .logo {
       width: 220px;
-      height: 220px;
+      height: auto;
     }
   }
 </style>

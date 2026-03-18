@@ -997,13 +997,14 @@
 <style>
   .dashboard {
     min-height: 100vh;
-    background: linear-gradient(135deg, #fff7ed 0%, #f0f9ff 50%, #f0fdf4 100%);
+    background: #f8fafc; /* Professional light gray */
     position: relative;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   }
 
   /* ========== LOGOUT BUTTON ========== */
   .logout-btn {
-    background: linear-gradient(135deg, #ea580c, #dc2626);
+    background: #C41E3A;
     color: white;
     border: none;
     padding: 10px 16px;
@@ -1012,15 +1013,15 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.25s;
-    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
+    box-shadow: 0 4px 12px rgba(196, 30, 58, 0.35);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
 
   .logout-btn:hover {
-    background: linear-gradient(135deg, #c2410c, #b91c1c);
+    background: #9a152b;
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(234, 88, 12, 0.45);
+    box-shadow: 0 6px 16px rgba(196, 30, 58, 0.45);
   }
 
   /* ========== MOBILE LAYOUT ========== */
@@ -1032,7 +1033,7 @@
 
   .mobile-top-bar {
     height: 56px;
-    background: linear-gradient(135deg, #ea580c, #f97316);
+    background: #C41E3A;
     border-bottom: none;
     display: flex;
     align-items: center;
@@ -1043,7 +1044,7 @@
     left: 0;
     right: 0;
     z-index: 100;
-    box-shadow: 0 4px 20px rgba(234, 88, 12, 0.3);
+    box-shadow: 0 4px 20px rgba(196, 30, 58, 0.3);
   }
 
   .top-bar-logo {
@@ -1066,7 +1067,7 @@
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border-top: 1px solid rgba(234, 88, 12, 0.15);
+    border-top: 1px solid rgba(196, 30, 58, 0.15);
     display: flex;
     align-items: center;
     justify-content: space-around;
@@ -1088,6 +1089,7 @@
     cursor: pointer;
     padding: 6px 14px;
     background: none;
+      border: 1px solid transparent;
     border: none;
     border-radius: 12px;
     transition: all 0.2s;
@@ -1095,8 +1097,8 @@
   }
 
   .bottom-bar-item.active {
-    color: #ea580c;
-    background: rgba(234, 88, 12, 0.1);
+    color: #C41E3A;
+    background: rgba(196, 30, 58, 0.1);
   }
 
   .bottom-bar-item svg {
@@ -1108,7 +1110,7 @@
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    background: rgba(234, 88, 12, 0.1);
+    background: rgba(196, 30, 58, 0.1);
   }
 
   /* ========== MOBILE DASHBOARD CARDS ========== */
@@ -1124,11 +1126,11 @@
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(234, 88, 12, 0.2);
+    border: 1px solid rgba(196, 30, 58, 0.2);
     border-radius: 10px;
     padding: 6px 10px;
     cursor: pointer;
-    color: #ea580c;
+    color: #C41E3A;
     display: flex;
     align-items: center;
     transition: all 0.2s;
@@ -1176,7 +1178,7 @@
   .m-card.bank { border-left-color: #8b5cf6; background: rgba(245, 243, 255, 0.65); }
   .m-card.sales-bal { border-left-color: #06b6d4; background: rgba(236, 254, 255, 0.65); }
   .m-card.purchase-bal { border-left-color: #e11d48; background: rgba(255, 241, 242, 0.65); }
-  .m-card.attendance { border-left-color: #f97316; background: rgba(255, 247, 237, 0.65); }
+  .m-card.attendance { border-left-color: #C41E3A; background: rgba(255, 247, 237, 0.65); }
   .m-card.staff-present { border-left-color: #10b981; background: rgba(236, 253, 245, 0.65); }
   .m-card-icon {
     width: 40px;
@@ -1195,7 +1197,7 @@
   .m-card.bank .m-card-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
   .m-card.sales-bal .m-card-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
   .m-card.purchase-bal .m-card-icon { background: linear-gradient(135deg, #e11d48, #be123c); color: white; }
-  .m-card.attendance .m-card-icon { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
+  .m-card.attendance .m-card-icon { background: linear-gradient(135deg, #C41E3A, #C41E3A); color: white; }
   .m-card.staff-present .m-card-icon { background: linear-gradient(135deg, #10b981, #059669); color: white; }
   .m-card-attend-row {
     display: flex;
@@ -1231,25 +1233,26 @@
   }
 
   .desktop-sidebar {
-    width: 170px;
-    background: linear-gradient(180deg, #ea580c 0%, #c2410c 60%, #9a3412 100%);
+    width: 260px;
+    background: #ffffff; /* Deep professional slate/navy background */
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 20px 14px;
+    padding: 24px;
+      box-sizing: border-box;
     position: fixed;
     top: 0;
     left: 0;
     bottom: 48px;
     z-index: 100;
-    box-shadow: 4px 0 24px rgba(234, 88, 12, 0.25);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
     overflow-y: auto;
   }
 
   .sidebar-divider {
     width: 100%;
     border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
     margin: 12px 0;
   }
 
@@ -1261,36 +1264,36 @@
   }
 
   .nav-section {
+    width: 100%;
+    padding: 12px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid rgba(196, 30, 58, 0.4);
+    color: #C41E3A;
+    font-weight: 600;
+    transition: all 0.2s;
+    box-shadow: 0 4px 10px rgba(196, 30, 58, 0.1);
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: 10px;
-    width: 100%;
-    padding: 11px 14px;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.95);
-    transition: all 0.2s;
     text-align: left;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
   }
 
   .nav-section:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateX(2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: #C41E3A;
+    color: white;
+    border-color: #C41E3A;
+    box-shadow: 0 6px 16px rgba(196, 30, 58, 0.3);
   }
 
   .nav-section.expanded {
-    background: rgba(255, 255, 255, 0.25);
-    border-color: rgba(255, 255, 255, 0.3);
+    background: #C41E3A;
     color: white;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+    border-color: #C41E3A;
+    box-shadow: 0 6px 16px rgba(196, 30, 58, 0.3);
   }
 
   .nav-section > svg:first-child {
@@ -1317,37 +1320,49 @@
   .sub-sections {
     display: flex;
     flex-direction: column;
-    padding-left: 10px;
+    width: 100%;
+    /* Use padding for indentation to keep within container */
+    padding-left: 12px;
+    box-sizing: border-box;
     margin-bottom: 4px;
+    margin-left: 0;
   }
 
   .nav-sub {
     display: flex;
     align-items: center;
     gap: 6px;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    /* Full width of the padded container */
     width: 100%;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid transparent;
-    border-radius: 10px;
-    cursor: pointer;
+    
+    background: transparent;
+    border-radius: 6px;
+    border: 1px solid rgba(196, 30, 58, 0.4);
+    color: #C41E3A;
     font-size: 13px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.75);
+
+    cursor: pointer;
     transition: all 0.2s;
     text-align: left;
-    margin-bottom: 2px;
+    margin-bottom: 6px;
+    box-shadow: 0 2px 8px rgba(196, 30, 58, 0.1);
   }
 
   .nav-sub:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: #C41E3A;
     color: white;
+    border-color: #C41E3A;
+    box-shadow: 0 4px 12px rgba(196, 30, 58, 0.25);
   }
 
   .nav-sub.expanded {
+    background: #C41E3A;
     color: white;
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: #C41E3A;
+    box-shadow: 0 4px 12px rgba(196, 30, 58, 0.25);
   }
 
   .chevron-sm {
@@ -1364,32 +1379,41 @@
   .sub-items {
     display: flex;
     flex-direction: column;
-    padding-left: 16px;
+    /* Indentation for sub-items */
+    padding-left: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    margin-left: 0;
   }
 
   .nav-item {
     display: flex;
     align-items: center;
     gap: 8px;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    /* Full width of padded container */
     width: 100%;
-    padding: 8px 12px;
-    background: none;
-    border: 1px solid transparent;
-    border-radius: 10px;
-    cursor: pointer;
+    
+    background: transparent;
+    border: 1px solid rgba(196, 30, 58, 0.4);
+    border-radius: 6px;
+    color: #C41E3A;
     font-size: 13px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.7);
+    font-weight: 600;
+
+    cursor: pointer;
     transition: all 0.2s;
     text-align: left;
-    margin-bottom: 1px;
+    margin-bottom: 6px;
+    box-shadow: 0 2px 8px rgba(196, 30, 58, 0.1);
   }
 
   .nav-item:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: #C41E3A;
     color: white;
-    border-color: rgba(255, 255, 255, 0.15);
-    transform: translateX(3px);
+    border-color: #C41E3A;
+    box-shadow: 0 4px 12px rgba(196, 30, 58, 0.25);
   }
 
   .nav-item svg {
@@ -1405,25 +1429,28 @@
   .sidebar-logout {
     width: 100%;
     padding: 12px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.15) !important;
-    border: 1px solid rgba(255, 255, 255, 0.25) !important;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    background: transparent !important;
+    border: 1px solid rgba(196, 30, 58, 0.4) !important;
+    color: #C41E3A; /* Red text for visibility on white */
+    font-weight: 600;
+    transition: all 0.2s;
   }
 
   .sidebar-logout:hover {
-    background: rgba(255, 255, 255, 0.25) !important;
+    background: #C41E3A !important;
+    color: white;
+    border-color: #C41E3A !important;
   }
 
   .desktop-main {
     flex: 1;
-    margin-left: 170px;
+    margin-left: 260px;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
     position: relative;
+    background: #f8fafc; /* Professional light gray background for the main area */
   }
 
   .desktop-logo-center {
@@ -1444,7 +1471,8 @@
 
   .center-logo {
     max-width: 100%;
-    max-height: 100%;
+    width: 480px; /* Increased size significantly */
+    height: auto;
     object-fit: contain;
     position: relative;
     z-index: 2;
@@ -1453,39 +1481,29 @@
 
   .logo-liquid-container {
     position: relative;
-    border-radius: 20px;
+    border-radius: 16px;
     overflow: hidden;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 2.5px solid rgba(234, 88, 12, 0.5);
-    box-shadow:
-      0 12px 40px rgba(234, 88, 12, 0.2),
-      0 0 0 1px rgba(249, 115, 22, 0.15),
-      inset 0 1px 0 rgba(255, 255, 255, 0.5);
-    padding: 0;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+    padding: 30px 40px;
+    margin-bottom: 20px;
   }
 
   .liquid-wave {
-    position: absolute;
-    bottom: -40%;
-    left: -20%;
-    width: 140%;
-    height: 100%;
-    border-radius: 40%;
-    opacity: 0.45;
+    display: none; /* Remove waves entirely */
   }
 
   .wave1 {
-    background: linear-gradient(180deg, transparent 40%, rgba(249, 115, 22, 0.5) 70%, rgba(234, 88, 12, 0.7) 100%);
+    background: linear-gradient(180deg, transparent 40%, rgba(196, 30, 58, 0.5) 70%, rgba(196, 30, 58, 0.7) 100%);
     animation: liquidWave1 4s ease-in-out infinite;
   }
 
   .wave2 {
-    background: linear-gradient(180deg, transparent 40%, rgba(251, 146, 60, 0.4) 70%, rgba(249, 115, 22, 0.6) 100%);
+    background: linear-gradient(180deg, transparent 40%, rgba(251, 146, 60, 0.4) 70%, rgba(196, 30, 58, 0.6) 100%);
     animation: liquidWave2 5s ease-in-out infinite;
     opacity: 0.35;
   }
@@ -1525,11 +1543,11 @@
 
   .desktop-bottom-bar {
     height: 48px;
-    background: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border-top: 1px solid rgba(234, 88, 12, 0.12);
-    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
     position: fixed;
     bottom: 0;
     left: 0;
@@ -1550,26 +1568,24 @@
 
   .taskbar-item {
     padding: 6px 14px;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(234, 88, 12, 0.15);
-    border-radius: 10px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #374151;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #334155;
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.2s;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
 
   .taskbar-item:hover {
-    background: linear-gradient(135deg, rgba(234, 88, 12, 0.1), rgba(249, 115, 22, 0.1));
-    border-color: #f97316;
-    color: #ea580c;
+    background: #f8fafc;
+    border-color: #C41E3A;
+    color: #C41E3A;
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(234, 88, 12, 0.15);
+    box-shadow: 0 2px 5px rgba(196, 30, 58, 0.1);
   }
 
   .taskbar-item.minimized {
@@ -1580,28 +1596,26 @@
   /* ========== QR WIDGET (DESKTOP) ========== */
   .qr-widget {
     pointer-events: auto;
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(234, 88, 12, 0.15);
-    border-radius: 18px;
-    padding: 12px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: 0 8px 32px rgba(234, 88, 12, 0.12), inset 0 1px 0 rgba(255,255,255,0.8);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   }
   .qr-widget-label {
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700;
-    color: #ea580c;
+    color: #C41E3A;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 6px;
+    margin-bottom: 12px;
   }
-  .qr-img { width: 140px; height: 140px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-  .qr-placeholder { width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 12px; }
-  .qr-widget-hint { font-size: 9px; color: #9ca3af; margin-top: 4px; }
+  .qr-img { width: 220px; height: 220px; border-radius: 8px; box-shadow: none; border: 1px solid #f1f5f9; }
+  .qr-placeholder { width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 14px; }
+  .qr-widget-hint { font-size: 11px; color: #9ca3af; margin-top: 8px; }
 
   /* ========== QR SCANNER (MOBILE) ========== */
   .qr-overlay {
@@ -1632,13 +1646,13 @@
     align-items: center;
     margin-bottom: 10px;
   }
-  .qr-scanner-header h3 { font-size: 16px; font-weight: 700; color: #ea580c; margin: 0; }
+  .qr-scanner-header h3 { font-size: 16px; font-weight: 700; color: #C41E3A; margin: 0; }
   .qr-close-btn {
-    background: rgba(234, 88, 12, 0.1);
+    background: rgba(196, 30, 58, 0.1);
     border: none;
     font-size: 20px;
     cursor: pointer;
-    color: #ea580c;
+    color: #C41E3A;
     line-height: 1;
     width: 32px;
     height: 32px;
@@ -1648,7 +1662,7 @@
     justify-content: center;
     transition: all 0.2s;
   }
-  .qr-close-btn:hover { background: rgba(234, 88, 12, 0.2); }
+  .qr-close-btn:hover { background: rgba(196, 30, 58, 0.2); }
   .qr-msg { text-align: center; color: #6b7280; font-size: 13px; margin-top: 8px; }
 
   /* ========== PUNCH CHOICE POPUP ========== */
@@ -1717,6 +1731,7 @@
   }
   .punch-cancel {
     background: none;
+      border: 1px solid transparent;
     border: none;
     color: #9ca3af;
     font-size: 13px;

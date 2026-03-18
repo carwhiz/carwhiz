@@ -140,7 +140,7 @@
   }
 
   .dropdown-trigger:hover {
-    border-color: #F97316;
+    border-color: #C41E3A;
   }
 
   .dropdown-trigger .placeholder {
@@ -188,7 +188,7 @@
   }
 
   .search-input:focus {
-    border-color: #F97316;
+    border-color: #C41E3A;
   }
 
   .add-btn {
@@ -197,7 +197,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #F97316;
+    background: #C41E3A;
     color: white;
     border: none;
     border-radius: 6px;
@@ -209,7 +209,7 @@
   }
 
   .add-btn:hover {
-    background: #EA580C;
+    background: #C41E3A;
   }
 
   .options-list {
@@ -252,22 +252,22 @@
 
   .edit-btn:hover {
     background: #fff7ed;
-    color: #EA580C;
+    color: #C41E3A;
   }
 
   .option-row:hover .option-item {
     background: #fff7ed;
-    color: #EA580C;
+    color: #C41E3A;
   }
 
   .option-item:hover {
     background: #fff7ed;
-    color: #EA580C;
+    color: #C41E3A;
   }
 
   .option-item.selected {
     background: #FFF7ED;
-    color: #EA580C;
+    color: #C41E3A;
     font-weight: 600;
   }
 

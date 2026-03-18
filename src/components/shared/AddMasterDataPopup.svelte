@@ -113,7 +113,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 16px 20px;
-    background: linear-gradient(135deg, #F97316, #EA580C);
+    background: linear-gradient(135deg, #C41E3A, #C41E3A);
     color: white;
   }
 
@@ -162,7 +162,7 @@
   }
 
   .field-input:focus {
-    border-color: #F97316;
+    border-color: #C41E3A;
     box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
   }
 
@@ -200,7 +200,7 @@
 
   .btn-save {
     padding: 8px 20px;
-    background: #F97316;
+    background: #C41E3A;
     border: none;
     border-radius: 6px;
     font-size: 13px;
@@ -211,7 +211,7 @@
   }
 
   .btn-save:hover {
-    background: #EA580C;
+    background: #C41E3A;
   }
 
   .btn-save:disabled {

@@ -159,7 +159,7 @@
   .report-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; }
   .header-left { display:flex; align-items:center; gap:10px; }
   .back-btn { display:flex; align-items:center; justify-content:center; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; color:#374151; transition:all .15s; }
-  .back-btn:hover { background:#fff7ed; border-color:#F97316; color:#EA580C; }
+  .back-btn:hover { background:#fff7ed; border-color:#C41E3A; color:#C41E3A; }
   .report-header h2 { margin:0; font-size:17px; font-weight:700; color:#111827; }
   .btn-refresh { display:flex; align-items:center; gap:5px; padding:6px 14px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; font-weight:600; color:#374151; cursor:pointer; }
   .btn-refresh:hover { background:#e5e7eb; }
@@ -169,7 +169,7 @@
   .search-group { flex:1; min-width:150px; }
   .filter-group label { font-size:11px; font-weight:600; color:#6b7280; }
   .filter-group input, .filter-group select { padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; outline:none; }
-  .filter-group input:focus, .filter-group select:focus { border-color:#F97316; }
+  .filter-group input:focus, .filter-group select:focus { border-color:#C41E3A; }
   .btn-clear { padding:7px 14px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; font-weight:600; color:#dc2626; cursor:pointer; align-self:flex-end; }
   .btn-clear:hover { background:#fee2e2; }
 
@@ -189,11 +189,11 @@
   td { padding:8px 10px; border-bottom:1px solid #f3f4f6; color:#374151; }
   .num { text-align:right; font-family:'Courier New',monospace; font-weight:600; }
   th.num { text-align:right; }
-  .mono { font-family:'Courier New',monospace; font-weight:600; color:#F97316; }
+  .mono { font-family:'Courier New',monospace; font-weight:600; color:#C41E3A; }
   .green-text { color:#16a34a; }
   .red-text { color:#dc2626; }
   .status-badge { padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; text-transform:capitalize; }
   .status-badge.paid { background:#dcfce7; color:#16a34a; }
-  .status-badge.posted { background:#fff7ed; color:#EA580C; }
+  .status-badge.posted { background:#fff7ed; color:#C41E3A; }
   .loading-msg, .empty-msg { text-align:center; color:#9ca3af; padding:40px 0; font-size:14px; }
 </style>

@@ -782,8 +782,8 @@
 
   .back-btn:hover {
     background: #fff7ed;
-    border-color: #F97316;
-    color: #EA580C;
+    border-color: #C41E3A;
+    color: #C41E3A;
   }
 
   .form-header h2 {
@@ -870,7 +870,7 @@
 
   .field input:focus,
   .field select:focus {
-    border-color: #F97316;
+    border-color: #C41E3A;
     box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
   }
 
@@ -896,9 +896,9 @@
     gap: 6px;
     padding: 8px 14px;
     background: white;
-    border: 1px solid #F97316;
+    border: 1px solid #C41E3A;
     border-radius: 6px;
-    color: #F97316;
+    color: #C41E3A;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
@@ -906,7 +906,7 @@
   }
 
   .file-upload-btn:hover {
-    background: #F97316;
+    background: #C41E3A;
     color: white;
   }
 
@@ -978,7 +978,7 @@
 
   .btn-save {
     padding: 9px 28px;
-    background: #F97316;
+    background: #C41E3A;
     border: none;
     border-radius: 8px;
     font-size: 14px;
@@ -989,7 +989,7 @@
   }
 
   .btn-save:hover {
-    background: #EA580C;
+    background: #C41E3A;
   }
 
   .btn-save:disabled {
@@ -1033,7 +1033,7 @@
   }
 
   .component-search:focus {
-    border-color: #F97316;
+    border-color: #C41E3A;
     box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
   }
 
@@ -1108,7 +1108,7 @@
   }
 
   .comp-qty-input:focus {
-    border-color: #F97316;
+    border-color: #C41E3A;
   }
 
   .comp-remove {
@@ -1138,7 +1138,7 @@
     border-radius: 6px;
     font-size: 13px;
     font-weight: 600;
-    color: #EA580C;
+    color: #C41E3A;
   }
 
   .auto-cost {
