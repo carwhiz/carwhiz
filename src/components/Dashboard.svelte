@@ -94,7 +94,16 @@
     if (!readerEl) { scanError = 'Scanner element not found.'; showScanner = false; return; }
 
     try {
-      const { Html5Qrcode } = await import('html5-qrcode');
+      let Html5Qrcode;
+      try {
+        ({ Html5Qrcode } = await import('html5-qrcode'));
+      } catch (importErr: any) {
+        // Fallback: retry import after delay if it fails
+        console.error('Initial import failed, retrying...', importErr);
+        await new Promise(r => setTimeout(r, 1000));
+        ({ Html5Qrcode } = await import('html5-qrcode'));
+      }
+      
       html5QrScanner = new Html5Qrcode('qr-reader');
 
       const cameras = await Html5Qrcode.getCameras();
@@ -115,7 +124,9 @@
         () => {}
       );
     } catch (err: any) {
-      scanError = err?.message || 'Camera access denied or not available.';
+      const errMsg = err?.message || err?.toString() || 'Camera access denied or not available.';
+      console.error('Scanner error:', errMsg, err);
+      scanError = errMsg.includes('Failed to fetch') ? 'Network error: Failed to load camera module. Check your internet connection.' : errMsg;
       showScanner = false;
     }
   }

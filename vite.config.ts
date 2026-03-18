@@ -4,6 +4,19 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/',
+  build: {
+    // Optimize chunk splitting for better module loading
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          qrcode: ['html5-qrcode', 'qrcode'],
+        },
+      },
+    },
+    // Ensure smaller chunks don't cause issues
+    chunkSizeWarningLimit: 1000,
+  },
   plugins: [
     svelte(),
     VitePWA({
@@ -21,48 +34,53 @@ export default defineConfig({
         icons: [
           {
             src: '/logo.jpeg',
-            sizes: '192x192',
+            sizes: 'any',
             type: 'image/jpeg',
             purpose: 'any',
           },
           {
             src: '/logo.jpeg',
-            sizes: '512x512',
-            type: 'image/jpeg',
-            purpose: 'any',
-          },
-          {
-            src: '/logo.jpeg',
-            sizes: '192x192',
+            sizes: 'any',
             type: 'image/jpeg',
             purpose: 'maskable',
-          },
-          {
-            src: '/logo.jpeg',
-            sizes: '512x512',
-            type: 'image/jpeg',
-            purpose: 'maskable',
-          },
-        ],
-        screenshots: [
-          {
-            src: '/logo.jpeg',
-            sizes: '540x720',
-            type: 'image/jpeg',
-            form_factor: 'narrow',
-          },
-          {
-            src: '/logo.jpeg',
-            sizes: '1280x720',
-            type: 'image/jpeg',
-            form_factor: 'wide',
           },
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,jpeg,jpg}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,jpeg,jpg,woff,woff2}'],
+        globIgnores: ['**/node_modules/**/*', '**/.*/**/*'],
         cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
+        navigateFallbackAllowlist: [/^(?!\/__)/],
+        // Runtime caching for dynamic imports
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: { maxEntries: 20 },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'gstatic-fonts-cache',
+              expiration: { maxEntries: 20 },
+            },
+          },
+          {
+            // Cache assets (including dynamic chunks)
+            urlPattern: /\/assets\/.+\.(js|css)$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'assets-cache',
+              expiration: { maxEntries: 60 },
+              networkTimeoutSeconds: 3,
+            },
+          },
+        ],
       },
       devOptions: {
         enabled: true,
