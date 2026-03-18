@@ -72,6 +72,8 @@
 
   // ---- QR Attendance (Mobile) ----
   let showScanner = false;
+  let showPunchChoice = false;
+  let scannedToken = '';
   let scanResult = '';
   let scanError = '';
   let scanLoading = false;
@@ -80,6 +82,8 @@
   async function startScanner() {
     scanResult = '';
     scanError = '';
+    showPunchChoice = false;
+    scannedToken = '';
     showScanner = true;
     // Wait for Svelte DOM update
     await tick();
@@ -129,18 +133,41 @@
     await stopScanner();
     try {
       const payload = JSON.parse(decodedText);
-      const token = payload.t;
-      const userId = $authStore.user?.id;
-      if (!userId) { scanError = 'Not logged in.'; scanLoading = false; return; }
-
-      const { data, error } = await supabase.rpc('fn_attendance_punch', { p_token: token, p_user_id: userId });
-      if (error) { scanError = error.message; }
-      else if (data?.success) { scanResult = data.message; }
-      else { scanError = data?.message || 'Punch failed.'; }
+      scannedToken = payload.t;
+      if (!$authStore.user?.id) { scanError = 'Not logged in.'; scanLoading = false; return; }
+      // Show check-in / check-out choice popup
+      showPunchChoice = true;
     } catch {
       scanError = 'Invalid QR code.';
     }
     scanLoading = false;
+  }
+
+  async function doPunch(action: 'check_in' | 'check_out') {
+    showPunchChoice = false;
+    scanLoading = true;
+    try {
+      const userId = $authStore.user?.id;
+      if (!userId) { scanError = 'Not logged in.'; scanLoading = false; return; }
+
+      const { data, error } = await supabase.rpc('fn_attendance_punch', {
+        p_token: scannedToken,
+        p_user_id: userId,
+        p_action: action
+      });
+      if (error) { scanError = error.message; }
+      else if (data?.success) { scanResult = data.message; }
+      else { scanError = data?.message || 'Punch failed.'; }
+    } catch {
+      scanError = 'Something went wrong.';
+    }
+    scannedToken = '';
+    scanLoading = false;
+  }
+
+  function cancelPunch() {
+    showPunchChoice = false;
+    scannedToken = '';
   }
 
   function toggleSection(key: string) {
@@ -342,6 +369,28 @@
               </div>
               <div id="qr-reader" style="width:100%;min-height:260px;"></div>
               {#if scanLoading}<p class="qr-msg">Processing...</p>{/if}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Check-in / Check-out Choice Popup -->
+        {#if showPunchChoice}
+          <div class="qr-overlay">
+            <div class="punch-choice-box">
+              <h3 class="punch-title">Mark Attendance</h3>
+              <p class="punch-subtitle">QR scanned successfully! Choose your action:</p>
+              <div class="punch-buttons">
+                <button class="punch-btn checkin" on:click={() => doPunch('check_in')} disabled={scanLoading}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28"><polyline points="20 6 9 17 4 12"/></svg>
+                  Check In
+                </button>
+                <button class="punch-btn checkout" on:click={() => doPunch('check_out')} disabled={scanLoading}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  Check Out
+                </button>
+              </div>
+              {#if scanLoading}<p class="qr-msg">Processing...</p>{/if}
+              <button class="punch-cancel" on:click={cancelPunch}>Cancel</button>
             </div>
           </div>
         {/if}
@@ -1396,6 +1445,86 @@
   }
   .qr-close-btn:hover { background: rgba(234, 88, 12, 0.2); }
   .qr-msg { text-align: center; color: #6b7280; font-size: 13px; margin-top: 8px; }
+
+  /* ========== PUNCH CHOICE POPUP ========== */
+  .punch-choice-box {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 28px 24px;
+    width: 320px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.8);
+    text-align: center;
+  }
+  .punch-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #111827;
+    margin: 0 0 6px 0;
+  }
+  .punch-subtitle {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0 0 20px 0;
+  }
+  .punch-buttons {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .punch-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px 12px;
+    border: none;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s;
+    color: white;
+  }
+  .punch-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .punch-btn.checkin {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35);
+  }
+  .punch-btn.checkin:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.45);
+  }
+  .punch-btn.checkout {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+  }
+  .punch-btn.checkout:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.45);
+  }
+  .punch-cancel {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.2s;
+  }
+  .punch-cancel:hover {
+    color: #6b7280;
+    background: rgba(0,0,0,0.04);
+  }
 
   /* ========== SCAN TOAST ========== */
   .scan-toast {
