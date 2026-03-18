@@ -35,6 +35,8 @@
         { id: 'finance-vendors', label: 'Vendors' },
         { id: 'finance-ledger', label: 'Ledger' },
         { id: 'finance-assets', label: 'Fixed Assets' },
+        { id: 'finance-job-card', label: 'Job Card' },
+        { id: 'finance-my-jobs', label: 'My Job Cards' },
       ]
     },
     {
@@ -56,6 +58,7 @@
         { id: 'finance-trial-balance', label: 'Trial Balance' },
         { id: 'finance-profit-loss', label: 'Profit & Loss' },
         { id: 'finance-balance-sheet', label: 'Balance Sheet' },
+        { id: 'finance-job-card-report', label: 'Job Cards Report' },
       ]
     },
     {
@@ -111,7 +114,7 @@
 
   async function loadUsers() {
     loading = true;
-    const { data } = await supabase.from('users').select('id, email, role').order('email');
+    const { data } = await supabase.from('users').select('id, email, phone_number, role, created_at').order('email');
     users = (data as UserRow[]) || [];
     if (users.length > 0 && !selectedUserId) selectedUserId = users[0].id;
     if (selectedUserId) await loadPermissions();
@@ -182,20 +185,31 @@
     const currentUserId = $authStore.user?.id || null;
     const allResources = resourceGroups.flatMap(g => g.resources.map(r => r.id));
 
+    const toUpdate: string[] = [];
+    const toInsert: string[] = [];
     for (const res of allResources) {
       const existing = permMap[res];
       if (existing?.id) {
-        await supabase.from('permissions').update({
-          can_view: grant, can_create: grant, can_edit: grant, can_delete: grant,
-          updated_at: new Date().toISOString(), updated_by: currentUserId
-        }).eq('id', existing.id);
+        toUpdate.push(existing.id);
       } else {
-        await supabase.from('permissions').insert({
-          user_id: selectedUserId, resource: res,
-          can_view: grant, can_create: grant, can_edit: grant, can_delete: grant,
-          created_by: currentUserId
-        });
+        toInsert.push(res);
       }
+    }
+
+    if (toUpdate.length > 0) {
+      await supabase.from('permissions').update({
+        can_view: grant, can_create: grant, can_edit: grant, can_delete: grant,
+        updated_at: new Date().toISOString(), updated_by: currentUserId
+      }).in('id', toUpdate);
+    }
+
+    if (toInsert.length > 0) {
+      const rows = toInsert.map(res => ({
+        user_id: selectedUserId, resource: res,
+        can_view: grant, can_create: grant, can_edit: grant, can_delete: grant,
+        created_by: currentUserId
+      }));
+      await supabase.from('permissions').insert(rows);
     }
 
     await loadPermissions();
@@ -266,23 +280,23 @@
               {#each resourceGroups as group}
                 <tr class="group-row"><td colspan="6">{group.group}</td></tr>
                 {#each group.resources as res}
-                  {@const perm = getPerm(res.id)}
+                  {@const perm = permMap[res.id] || { id: '', can_view: false, can_create: false, can_edit: false, can_delete: false }}
                   <tr>
                     <td class="res-label">{res.label}</td>
                     <td class="perm-cell">
-                      <label class="toggle"><input type="checkbox" checked={perm.can_view} on:change={() => togglePerm(res.id, 'can_view')} /><span class="slider"></span></label>
+                      <label class="toggle"><input type="checkbox" checked={permMap[res.id]?.can_view || false} on:change={() => togglePerm(res.id, 'can_view')} /><span class="slider"></span></label>
                     </td>
                     <td class="perm-cell">
-                      <label class="toggle"><input type="checkbox" checked={perm.can_create} on:change={() => togglePerm(res.id, 'can_create')} /><span class="slider"></span></label>
+                      <label class="toggle"><input type="checkbox" checked={permMap[res.id]?.can_create || false} on:change={() => togglePerm(res.id, 'can_create')} /><span class="slider"></span></label>
                     </td>
                     <td class="perm-cell">
-                      <label class="toggle"><input type="checkbox" checked={perm.can_edit} on:change={() => togglePerm(res.id, 'can_edit')} /><span class="slider"></span></label>
+                      <label class="toggle"><input type="checkbox" checked={permMap[res.id]?.can_edit || false} on:change={() => togglePerm(res.id, 'can_edit')} /><span class="slider"></span></label>
                     </td>
                     <td class="perm-cell">
-                      <label class="toggle"><input type="checkbox" checked={perm.can_delete} on:change={() => togglePerm(res.id, 'can_delete')} /><span class="slider"></span></label>
+                      <label class="toggle"><input type="checkbox" checked={permMap[res.id]?.can_delete || false} on:change={() => togglePerm(res.id, 'can_delete')} /><span class="slider"></span></label>
                     </td>
                     <td class="perm-cell">
-                      <label class="toggle"><input type="checkbox" checked={perm.can_view && perm.can_create && perm.can_edit && perm.can_delete} on:change={() => toggleAllForResource(res.id)} /><span class="slider"></span></label>
+                      <label class="toggle"><input type="checkbox" checked={permMap[res.id]?.can_view && permMap[res.id]?.can_create && permMap[res.id]?.can_edit && permMap[res.id]?.can_delete || false} on:change={() => toggleAllForResource(res.id)} /><span class="slider"></span></label>
                     </td>
                   </tr>
                 {/each}

@@ -55,10 +55,7 @@
   async function loadUsers() {
     loading = true;
     error = '';
-    const { data, error: dbErr } = await supabase
-      .from('users')
-      .select('id, email, phone_number, role, created_at')
-      .order('created_at', { ascending: false });
+    const { data, error: dbErr } = await supabase.from('users').select('id, email, phone_number, role, created_at').order('email');
 
     loading = false;
     if (dbErr) { error = dbErr.message; return; }

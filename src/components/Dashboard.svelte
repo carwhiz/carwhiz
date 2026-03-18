@@ -40,6 +40,9 @@
   import PermissionsWindow from './windows/appcontrol/manage/PermissionsWindow.svelte';
   import StockReportWindow from './windows/products/reports/StockReportWindow.svelte';
   import AttendanceReportWindow from './windows/hr/reports/AttendanceReportWindow.svelte';
+  import JobCardWindow from './windows/finance/manage/JobCardWindow.svelte';
+  import JobCardReportWindow from './windows/finance/reports/JobCardReportWindow.svelte';
+  import MyJobCardsWindow from './windows/finance/manage/MyJobCardsWindow.svelte';
   import { createEventDispatcher } from 'svelte';
   import { onDestroy } from 'svelte';
   import QRCode from 'qrcode';
@@ -592,6 +595,16 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
                     <span>Fixed Assets</span>
                   </button>
+                  <!-- Finance > Manage > Job Card -->
+                  <button class="nav-item" on:click={() => openWindow('finance-job-card', 'Job Card')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
+                    <span>Job Card</span>
+                  </button>
+                  <!-- Finance > Manage > My Job Cards -->
+                  <button class="nav-item" on:click={() => openWindow('finance-my-jobs', 'My Job Cards')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+                    <span>My Job Cards</span>
+                  </button>
                 </div>
               {/if}
 
@@ -666,6 +679,11 @@
                   <button class="nav-item" on:click={() => openWindow('finance-balance-sheet', 'Balance Sheet')}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
                     <span>Balance Sheet</span>
+                  </button>
+                  <!-- Finance > Reports > Job Cards -->
+                  <button class="nav-item" on:click={() => openWindow('finance-job-card-report', 'Job Cards Report')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
+                    <span>Job Cards</span>
                   </button>
                 </div>
               {/if}
@@ -962,6 +980,12 @@
                 <StockReportWindow />
               {:else if win.id === 'hr-attendance-report'}
                 <AttendanceReportWindow />
+              {:else if win.id === 'finance-job-card'}
+                <JobCardWindow />
+              {:else if win.id === 'finance-job-card-report'}
+                <JobCardReportWindow />
+              {:else if win.id === 'finance-my-jobs'}
+                <MyJobCardsWindow />
               {/if}
             </AppWindow>
           {/each}

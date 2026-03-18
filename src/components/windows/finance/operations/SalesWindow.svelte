@@ -65,10 +65,18 @@
   let cash_bank_ledger_id = '';
   let salesLedgerId = ''; // Sales Account (Revenue) - auto-fetched
 
+  // ---- Job Card Import ----
+  let showJobCardImport = false;
+  let closedJobCards: any[] = [];
+  let jcLoading = false;
+  let selectedJobCard: any = null;
+  let jcItems: any[] = [];
+
   // ---- Save state ----
   let saving = false;
   let saveError = '';
   let saveSuccess = '';
+  let importedJobCardId = '';
 
   onMount(async () => {
     await Promise.all([
@@ -116,6 +124,58 @@
     const typeIds = (types || []).map((t: any) => t.id);
     const { data } = await supabase.from('ledger').select('id, ledger_name, ledger_type_id').order('ledger_name');
     cashBankLedgers = (data || []).filter((l: any) => typeIds.includes(l.ledger_type_id));
+  }
+
+  async function loadClosedJobCards() {
+    jcLoading = true;
+    const { data } = await supabase
+      .from('job_cards')
+      .select('id, job_card_no, description, customer_id, vehicle_id, customers(name), vehicles(model_name)')
+      .eq('status', 'Closed')
+      .is('billed_invoice_id', null)
+      .order('created_at', { ascending: false });
+    closedJobCards = (data || []).map((j: any) => ({
+      ...j,
+      customer_name: j.customers?.name || '—',
+      vehicle_name: j.vehicles?.model_name || '—',
+    }));
+    jcLoading = false;
+  }
+
+  async function importJobCard(jc: any) {
+    // Load job card items
+    const { data: items } = await supabase
+      .from('job_card_items')
+      .select('item_type, item_id, name, qty, price, discount, total')
+      .eq('job_card_id', jc.id);
+
+    if (!items || items.length === 0) { saveError = 'No items in this job card'; return; }
+
+    // Set customer
+    const cust = customers.find(c => c.id === jc.customer_id);
+    if (cust) { selectedCustomer = cust; customerSearch = cust.name; }
+
+    // Set line items
+    lines = items.map((it: any) => {
+      const prod = allProducts.find(p => p.id === it.item_id);
+      return {
+        product_id: it.item_id || '',
+        product_name: it.name,
+        product_type: it.item_type || 'product',
+        barcode: prod?.barcode || '',
+        unit_id: prod?.unit_id || '',
+        unit_name: prod?.unit_name || '',
+        unit_qty: prod?.unit_qty || 1,
+        qty: it.qty || 1,
+        rate: it.price || 0,
+        discount: it.discount || 0,
+        line_total: it.total || ((it.qty || 1) * (it.price || 0) - (it.discount || 0)),
+      };
+    });
+
+    importedJobCardId = jc.id;
+    selectedJobCard = jc;
+    showJobCardImport = false;
   }
 
   async function loadSalesLedger() {
@@ -387,10 +447,33 @@
       await supabase.from('ledger_entries').insert(ledgerEntries);
     }
 
+    // Mark job card as billed if imported
+    if (importedJobCardId) {
+      await supabase.from('job_cards').update({
+        status: 'Billed',
+        billed_invoice_id: sale.id,
+        billed_at: new Date().toISOString(),
+        updated_by: $authStore.user?.id || null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', importedJobCardId);
+
+      await supabase.from('job_card_logs').insert({
+        job_card_id: importedJobCardId,
+        action: 'Billed',
+        from_status: 'Closed',
+        to_status: 'Billed',
+        note: `Billed via invoice ${bill_no}`,
+        action_by: $authStore.user?.id || null,
+        created_by: $authStore.user?.id || null,
+      });
+    }
+
     saving = false;
     saveSuccess = `Bill ${bill_no} posted successfully!`;
 
     // Reset
+    importedJobCardId = '';
+    selectedJobCard = null;
     lines = [];
     selectedCustomer = null;
     customerSearch = '';
@@ -426,6 +509,10 @@
       </div>
     </div>
     <div class="header-right">
+      <button class="btn-import-jc" on:click={() => { showJobCardImport = true; loadClosedJobCards(); }} title="Import from Job Card">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+        Import Job Card
+      </button>
       <button class="btn-quick-create" on:click={openQuickCreateCustomer} title="Quick Create Customer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Customer
@@ -433,11 +520,48 @@
     </div>
   </div>
 
+  {#if selectedJobCard}
+    <div class="msg msg-jc">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Imported from Job Card: <strong>{selectedJobCard.job_card_no}</strong>
+      <button class="jc-clear" on:click={() => { importedJobCardId = ''; selectedJobCard = null; }}>&times;</button>
+    </div>
+  {/if}
+
   {#if saveError}
     <div class="msg msg-error">{saveError}</div>
   {/if}
   {#if saveSuccess}
     <div class="msg msg-success">{saveSuccess}</div>
+  {/if}
+
+  <!-- Job Card Import Modal -->
+  {#if showJobCardImport}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="jc-overlay" on:click={() => showJobCardImport = false}>
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="jc-modal" on:click|stopPropagation>
+        <div class="jc-modal-header">
+          <h3>Import from Job Card</h3>
+          <button class="jc-close" on:click={() => showJobCardImport = false}>&times;</button>
+        </div>
+        <div class="jc-modal-body">
+          {#if jcLoading}
+            <div class="jc-loading">Loading closed job cards...</div>
+          {:else if closedJobCards.length === 0}
+            <div class="jc-empty">No closed & unbilled job cards found.</div>
+          {:else}
+            {#each closedJobCards as jc}
+              <button class="jc-card" on:click={() => importJobCard(jc)}>
+                <div class="jc-card-top"><span class="jc-no">{jc.job_card_no}</span></div>
+                <div class="jc-card-info">{jc.customer_name} — {jc.vehicle_name}</div>
+                <div class="jc-card-desc">{jc.description || ''}</div>
+              </button>
+            {/each}
+          {/if}
+        </div>
+      </div>
+    </div>
   {/if}
 
   <div class="pos-body">
@@ -674,4 +798,22 @@
     .pos-sidebar { width:100%; flex-direction:row; flex-wrap:wrap; padding:10px 18px; }
     .search-row { flex-direction:column; }
   }
+
+  /* Job Card Import */
+  .btn-import-jc { display:flex; align-items:center; gap:5px; padding:6px 12px; background:#eef2ff; border:1px solid #a5b4fc; border-radius:6px; font-size:12px; font-weight:600; color:#4338ca; cursor:pointer; }
+  .btn-import-jc:hover { background:#e0e7ff; }
+  .msg-jc { display:flex; align-items:center; gap:6px; background:#eef2ff; color:#4338ca; border:1px solid #a5b4fc; }
+  .jc-clear { background:none; border:none; color:#dc2626; font-size:18px; cursor:pointer; margin-left:auto; font-weight:700; }
+  .jc-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:1000; display:flex; align-items:center; justify-content:center; }
+  .jc-modal { background:white; border-radius:12px; width:480px; max-height:70vh; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+  .jc-modal-header { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid #e5e7eb; }
+  .jc-modal-header h3 { font-size:15px; font-weight:700; margin:0; }
+  .jc-close { background:none; border:none; font-size:22px; cursor:pointer; color:#6b7280; }
+  .jc-modal-body { flex:1; overflow-y:auto; padding:12px 18px; display:flex; flex-direction:column; gap:8px; }
+  .jc-loading, .jc-empty { text-align:center; color:#9ca3af; padding:30px; font-size:14px; }
+  .jc-card { background:#fafafa; border:1px solid #e5e7eb; border-radius:8px; padding:12px; cursor:pointer; text-align:left; width:100%; transition:background 0.15s; }
+  .jc-card:hover { background:#eef2ff; border-color:#a5b4fc; }
+  .jc-no { font-family:monospace; font-weight:700; color:#C41E3A; font-size:13px; }
+  .jc-card-info { font-size:13px; color:#111827; margin:4px 0 2px; }
+  .jc-card-desc { font-size:12px; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 </style>
