@@ -73,6 +73,29 @@
     return `${dd}/${mm}/${d.getFullYear()}`;
   }
 
+  // Validate password is exactly 6 digits
+  function isValidAccessCode(code: string): boolean {
+    return /^\d{6}$/.test(code);
+  }
+
+  // Handle password input - only allow digits, max 6
+  function handlePasswordInput(e: Event) {
+    const input = e.target as HTMLInputElement;
+    input.value = input.value.replace(/[^0-9]/g, '').slice(0, 6);
+    formPassword = input.value;
+  }
+
+  function handleEditPasswordInput(e: Event) {
+    const input = e.target as HTMLInputElement;
+    input.value = input.value.replace(/[^0-9]/g, '').slice(0, 6);
+    editPassword = input.value;
+  }
+
+  // Display dots for empty password
+  function getPasswordDisplay(): string {
+    return formPassword ? '●●●●●●' : '••••••';
+  }
+
   // ---- CREATE ----
   function openCreateForm() {
     formEmail = ''; formPhone = ''; formPassword = ''; formRole = 'user';
@@ -84,7 +107,8 @@
   async function handleCreate() {
     if (!formEmail.trim()) { formError = 'Email is required'; return; }
     if (!formPhone.trim()) { formError = 'Phone is required'; return; }
-    if (!formPassword) { formError = 'Password is required'; return; }
+    if (!formPassword) { formError = 'Access code is required'; return; }
+    if (!isValidAccessCode(formPassword)) { formError = 'Access code must be exactly 6 digits'; return; }
 
     formSaving = true; formError = ''; formSuccess = '';
 
@@ -119,6 +143,7 @@
   async function handleEdit() {
     if (!editEmail.trim()) { editError = 'Email is required'; return; }
     if (!editPhone.trim()) { editError = 'Phone is required'; return; }
+    if (editPassword && !isValidAccessCode(editPassword)) { editError = 'Access code must be exactly 6 digits'; return; }
 
     editSaving = true; editError = ''; editSuccess = '';
 
@@ -186,7 +211,7 @@
       <div class="form-grid">
         <label>Email <input type="email" bind:value={formEmail} placeholder="user@example.com" /></label>
         <label>Phone <input type="text" bind:value={formPhone} placeholder="+91..." /></label>
-        <label>Password <input type="password" bind:value={formPassword} placeholder="Password" /></label>
+        <label>Access Code (6 digits) <input type="text" inputmode="numeric" value={formPassword} on:input={handlePasswordInput} placeholder="000000" maxlength="6" /></label>
         <label>Role
           <select bind:value={formRole}>
             <option value="user">User</option>
@@ -195,7 +220,7 @@
         </label>
       </div>
       <div class="form-actions">
-        <button class="btn-save" on:click={handleCreate} disabled={formSaving}>{formSaving ? 'Creating...' : 'Create User'}</button>
+        <button class="btn-save" on:click={handleCreate} disabled={formSaving || !isValidAccessCode(formPassword)}>{formSaving ? 'Creating...' : 'Create User'}</button>
         <button class="btn-cancel" on:click={() => showCreateForm = false}>Cancel</button>
       </div>
     </div>
@@ -210,7 +235,7 @@
       <div class="form-grid">
         <label>Email <input type="email" bind:value={editEmail} /></label>
         <label>Phone <input type="text" bind:value={editPhone} /></label>
-        <label>New Password <input type="password" bind:value={editPassword} placeholder="Leave blank to keep current" /></label>
+        <label>New Access Code (6 digits) <input type="text" inputmode="numeric" value={editPassword} on:input={handleEditPasswordInput} placeholder="Leave blank to keep current" maxlength="6" /></label>
         <label>Role
           <select bind:value={editRole}>
             <option value="user">User</option>
