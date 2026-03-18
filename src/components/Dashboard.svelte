@@ -201,6 +201,8 @@
   let purchaseBalanceTotal = 0;
   let attendanceCheckIn: string | null = null;
   let attendanceCheckOut: string | null = null;
+  let totalPresent = 0;
+  let totalEmployees = 0;
   let mobileLoading = true;
 
   function formatMobileAmt(val: number): string {
@@ -262,6 +264,19 @@
         attendanceCheckOut = att.check_out;
       }
     }
+
+    // Load total present employees
+    const { count: presentCount } = await supabase
+      .from('attendance')
+      .select('id', { count: 'exact', head: true })
+      .eq('date', mobileDate)
+      .not('check_in', 'is', null);
+    totalPresent = presentCount || 0;
+
+    const { count: empCount } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true });
+    totalEmployees = empCount || 0;
 
     mobileLoading = false;
   }
@@ -393,6 +408,16 @@
                 <span class="attend-out">Out: {formatTime(attendanceCheckOut)}</span>
               </div>
               <div class="m-card-sub">{attendanceCheckIn ? (attendanceCheckOut ? 'Completed' : 'Checked in') : 'Not checked in'}</div>
+            </div>
+
+            <!-- Staff Present Card -->
+            <div class="m-card staff-present">
+              <div class="m-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div class="m-card-label">Staff Present</div>
+              <div class="m-card-amount">{totalPresent} / {totalEmployees}</div>
+              <div class="m-card-sub">{totalEmployees - totalPresent} absent</div>
             </div>
           </div>
         {/if}
@@ -1095,6 +1120,7 @@
   .m-card.sales-bal { border-left-color: #06b6d4; background: rgba(236, 254, 255, 0.65); }
   .m-card.purchase-bal { border-left-color: #e11d48; background: rgba(255, 241, 242, 0.65); }
   .m-card.attendance { border-left-color: #f97316; background: rgba(255, 247, 237, 0.65); }
+  .m-card.staff-present { border-left-color: #10b981; background: rgba(236, 253, 245, 0.65); }
   .m-card-icon {
     width: 40px;
     height: 40px;
@@ -1113,6 +1139,7 @@
   .m-card.sales-bal .m-card-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
   .m-card.purchase-bal .m-card-icon { background: linear-gradient(135deg, #e11d48, #be123c); color: white; }
   .m-card.attendance .m-card-icon { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
+  .m-card.staff-present .m-card-icon { background: linear-gradient(135deg, #10b981, #059669); color: white; }
   .m-card-attend-row {
     display: flex;
     gap: 8px;
