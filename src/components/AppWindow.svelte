@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
   import { windowStore, type AppWindow } from '../stores/windowStore';
 
   export let win: AppWindow;
 
+  const dispatch = createEventDispatcher();
+  let refreshKey = 0;
   let dragging = false;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
@@ -47,7 +50,7 @@
   }
 
   function handleRefresh() {
-    // Placeholder for future refresh logic
+    refreshKey++;
   }
 </script>
 
@@ -85,7 +88,9 @@
     </div>
 
     <div class="window-body">
-      <slot />
+      {#key refreshKey}
+        <slot />
+      {/key}
     </div>
   </div>
 {/if}
