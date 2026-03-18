@@ -106,7 +106,7 @@
   .app-window.maximized {
     position: fixed;
     top: 0;
-    left: 240px;
+    left: 170px;
     right: 0;
     bottom: 48px;
     width: auto;
