@@ -687,17 +687,16 @@
         <!-- Centered Logo -->
         <div class="desktop-logo-center">
           <img src="/logo.jpeg" alt="CarWhizz" class="center-logo" />
-        </div>
-
-        <!-- QR Attendance Widget -->
-        <div class="qr-widget">
-          <div class="qr-widget-label">Attendance QR</div>
-          {#if qrDataUrl}
-            <img src={qrDataUrl} alt="Attendance QR" class="qr-img" />
-          {:else}
-            <div class="qr-placeholder">Loading...</div>
-          {/if}
-          <div class="qr-widget-hint">Auto-refreshes every 10s</div>
+          <!-- QR Attendance Widget -->
+          <div class="qr-widget">
+            <div class="qr-widget-label">Attendance QR</div>
+            {#if qrDataUrl}
+              <img src={qrDataUrl} alt="Attendance QR" class="qr-img" />
+            {:else}
+              <div class="qr-placeholder">Loading...</div>
+            {/if}
+            <div class="qr-widget-hint">Auto-refreshes every 10s</div>
+          </div>
         </div>
 
         <div class="desktop-content">
@@ -1045,7 +1044,7 @@
   }
 
   .desktop-sidebar {
-    width: 250px;
+    width: 200px;
     background: linear-gradient(180deg, #ea580c 0%, #c2410c 60%, #9a3412 100%);
     display: flex;
     flex-direction: column;
@@ -1233,7 +1232,7 @@
 
   .desktop-main {
     flex: 1;
-    margin-left: 250px;
+    margin-left: 200px;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -1247,16 +1246,18 @@
     width: 100%;
     height: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 16px;
     pointer-events: none;
     opacity: 1;
     z-index: 0;
   }
 
   .center-logo {
-    max-width: 100%;
-    max-height: 100%;
+    max-width: 60%;
+    max-height: 50%;
     object-fit: contain;
   }
 
@@ -1324,10 +1325,7 @@
 
   /* ========== QR WIDGET (DESKTOP) ========== */
   .qr-widget {
-    position: fixed;
-    bottom: 60px;
-    right: 16px;
-    z-index: 50;
+    pointer-events: auto;
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
