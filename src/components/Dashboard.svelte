@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { authStore } from '../stores/authStore';
   import { logout } from '../lib/services/authService';
+  import { canUserViewResources } from '../lib/services/permissionService';
   import { interfaceStore } from '../stores/interfaceStore';
   import { windowStore } from '../stores/windowStore';
   import { supabase } from '../lib/supabaseClient';
@@ -174,6 +175,30 @@
   let purchaseBalanceTotal = 0;
   let mobileLoading = true;
 
+  // ---- Mobile Dashboard Card Permissions ----
+  let cardPermissions = new Map<string, boolean>();
+  const mobileCardResources = [
+    'mobile-dashboard-sales',
+    'mobile-dashboard-purchase',
+    'mobile-dashboard-expense',
+    'mobile-dashboard-cash-balance',
+    'mobile-dashboard-bank-balance',
+    'mobile-dashboard-sales-balance',
+    'mobile-dashboard-purchase-balance'
+  ];
+
+  async function loadMobileCardPermissions() {
+    const userId = $authStore.user?.id;
+    if (!userId) return;
+
+    const permissions = await canUserViewResources(userId, mobileCardResources);
+    cardPermissions = permissions;
+  }
+
+  function canShowCard(cardResource: string): boolean {
+    return cardPermissions.get(cardResource) ?? false;
+  }
+
   function formatMobileAmt(val: number): string {
     const sign = val < 0 ? '-' : '';
     const abs = Math.abs(val);
@@ -215,14 +240,21 @@
   }
 
   onMount(() => {
-    if ($interfaceStore === 'mobile') loadMobileData();
+    if ($interfaceStore === 'mobile') {
+      loadMobileCardPermissions();
+      loadMobileData();
+    }
     if ($interfaceStore === 'desktop') startQRTimer();
   });
 
   onDestroy(() => { stopQRTimer(); });
 
   // Reload when switching to mobile
-  $: if ($interfaceStore === 'mobile') { loadMobileData(); stopQRTimer(); }
+  $: if ($interfaceStore === 'mobile') { 
+    loadMobileCardPermissions();
+    loadMobileData(); 
+    stopQRTimer(); 
+  }
   $: if ($interfaceStore === 'desktop') startQRTimer();
 </script>
 
@@ -261,74 +293,88 @@
           <!-- Cards Grid: 2 per row -->
           <div class="m-cards">
             <!-- Sales Card -->
-            <div class="m-card sales">
-              <div class="m-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            {#if canShowCard('mobile-dashboard-sales')}
+              <div class="m-card sales">
+                <div class="m-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                </div>
+                <div class="m-card-label">Sales</div>
+                <div class="m-card-amount">{formatMobileAmt(salesToday)}</div>
+                <div class="m-card-sub">{salesCount} bill{salesCount !== 1 ? 's' : ''}</div>
               </div>
-              <div class="m-card-label">Sales</div>
-              <div class="m-card-amount">{formatMobileAmt(salesToday)}</div>
-              <div class="m-card-sub">{salesCount} bill{salesCount !== 1 ? 's' : ''}</div>
-            </div>
+            {/if}
 
             <!-- Purchase Card -->
-            <div class="m-card purchase">
-              <div class="m-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            {#if canShowCard('mobile-dashboard-purchase')}
+              <div class="m-card purchase">
+                <div class="m-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                </div>
+                <div class="m-card-label">Purchase</div>
+                <div class="m-card-amount">{formatMobileAmt(purchaseToday)}</div>
+                <div class="m-card-sub">{purchaseCount} invoice{purchaseCount !== 1 ? 's' : ''}</div>
               </div>
-              <div class="m-card-label">Purchase</div>
-              <div class="m-card-amount">{formatMobileAmt(purchaseToday)}</div>
-              <div class="m-card-sub">{purchaseCount} invoice{purchaseCount !== 1 ? 's' : ''}</div>
-            </div>
+            {/if}
 
             <!-- Expense Card -->
-            <div class="m-card expense">
-              <div class="m-card-icon">
-                <svg viewBox="0 0 24 24" width="22" height="22"><text x="12" y="18" text-anchor="middle" font-size="18" font-weight="bold" fill="currentColor" stroke="none">₹</text></svg>
+            {#if canShowCard('mobile-dashboard-expense')}
+              <div class="m-card expense">
+                <div class="m-card-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22"><text x="12" y="18" text-anchor="middle" font-size="18" font-weight="bold" fill="currentColor" stroke="none">₹</text></svg>
+                </div>
+                <div class="m-card-label">Expenses</div>
+                <div class="m-card-amount">{formatMobileAmt(expenseToday)}</div>
+                <div class="m-card-sub">{expenseCount} entr{expenseCount !== 1 ? 'ies' : 'y'}</div>
               </div>
-              <div class="m-card-label">Expenses</div>
-              <div class="m-card-amount">{formatMobileAmt(expenseToday)}</div>
-              <div class="m-card-sub">{expenseCount} entr{expenseCount !== 1 ? 'ies' : 'y'}</div>
-            </div>
+            {/if}
 
             <!-- Cash Balance Card -->
-            <div class="m-card cash">
-              <div class="m-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+            {#if canShowCard('mobile-dashboard-cash-balance')}
+              <div class="m-card cash">
+                <div class="m-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                </div>
+                <div class="m-card-label">Cash Balance</div>
+                <div class="m-card-amount">{formatMobileAmt(cashBalance)}</div>
+                <div class="m-card-sub">All cash ledgers</div>
               </div>
-              <div class="m-card-label">Cash Balance</div>
-              <div class="m-card-amount">{formatMobileAmt(cashBalance)}</div>
-              <div class="m-card-sub">All cash ledgers</div>
-            </div>
+            {/if}
 
             <!-- Bank Balance Card -->
-            <div class="m-card bank">
-              <div class="m-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M12 3l9 7H3l9-7z"/><path d="M5 10v11"/><path d="M19 10v11"/><path d="M9 10v11"/><path d="M15 10v11"/></svg>
+            {#if canShowCard('mobile-dashboard-bank-balance')}
+              <div class="m-card bank">
+                <div class="m-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M12 3l9 7H3l9-7z"/><path d="M5 10v11"/><path d="M19 10v11"/><path d="M9 10v11"/><path d="M15 10v11"/></svg>
+                </div>
+                <div class="m-card-label">Bank Balance</div>
+                <div class="m-card-amount">{formatMobileAmt(bankBalance)}</div>
+                <div class="m-card-sub">All bank ledgers</div>
               </div>
-              <div class="m-card-label">Bank Balance</div>
-              <div class="m-card-amount">{formatMobileAmt(bankBalance)}</div>
-              <div class="m-card-sub">All bank ledgers</div>
-            </div>
+            {/if}
 
             <!-- Sales Balance Card -->
-            <div class="m-card sales-bal">
-              <div class="m-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            {#if canShowCard('mobile-dashboard-sales-balance')}
+              <div class="m-card sales-bal">
+                <div class="m-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <div class="m-card-label">Sales Balance</div>
+                <div class="m-card-amount">{formatMobileAmt(salesBalanceTotal)}</div>
+                <div class="m-card-sub">Total receivable</div>
               </div>
-              <div class="m-card-label">Sales Balance</div>
-              <div class="m-card-amount">{formatMobileAmt(salesBalanceTotal)}</div>
-              <div class="m-card-sub">Total receivable</div>
-            </div>
+            {/if}
 
             <!-- Purchase Balance Card -->
-            <div class="m-card purchase-bal">
-              <div class="m-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>
+            {#if canShowCard('mobile-dashboard-purchase-balance')}
+              <div class="m-card purchase-bal">
+                <div class="m-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>
+                </div>
+                <div class="m-card-label">Purchase Balance</div>
+                <div class="m-card-amount">{formatMobileAmt(purchaseBalanceTotal)}</div>
+                <div class="m-card-sub">Total payable</div>
               </div>
-              <div class="m-card-label">Purchase Balance</div>
-              <div class="m-card-amount">{formatMobileAmt(purchaseBalanceTotal)}</div>
-              <div class="m-card-sub">Total payable</div>
-            </div>
+            {/if}
           </div>
         {/if}
 

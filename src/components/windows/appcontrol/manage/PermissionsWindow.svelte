@@ -73,6 +73,18 @@
         { id: 'appcontrol-permissions', label: 'Permissions' },
         { id: 'appcontrol-audit-log', label: 'Audit Logs' },
       ]
+    },
+    {
+      group: 'Mobile — Dashboard Cards',
+      resources: [
+        { id: 'mobile-dashboard-sales', label: 'Sales Card' },
+        { id: 'mobile-dashboard-purchase', label: 'Purchase Card' },
+        { id: 'mobile-dashboard-expense', label: 'Expense Card' },
+        { id: 'mobile-dashboard-cash-balance', label: 'Cash Balance Card' },
+        { id: 'mobile-dashboard-bank-balance', label: 'Bank Balance Card' },
+        { id: 'mobile-dashboard-sales-balance', label: 'Sales Balance Card' },
+        { id: 'mobile-dashboard-purchase-balance', label: 'Purchase Balance Card' },
+      ]
     }
   ];
 
