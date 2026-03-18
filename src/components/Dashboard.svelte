@@ -1044,7 +1044,7 @@
   }
 
   .desktop-sidebar {
-    width: 200px;
+    width: 170px;
     background: linear-gradient(180deg, #ea580c 0%, #c2410c 60%, #9a3412 100%);
     display: flex;
     flex-direction: column;
@@ -1232,7 +1232,7 @@
 
   .desktop-main {
     flex: 1;
-    margin-left: 200px;
+    margin-left: 170px;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
