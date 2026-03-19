@@ -11,8 +11,54 @@
   let showPrivacy = false;
 
   let password = '';
+  let codeDigits = ['', '', '', '', '', ''];
   let touched = { password: false };
   let isSubmitting = false;
+
+  function handleCodeInput(index: number, e: Event) {
+    const input = e.target as HTMLInputElement;
+    const val = input.value.replace(/[^0-9]/g, '');
+    if (val.length > 1) {
+      // Handle paste
+      const chars = val.slice(0, 6 - index).split('');
+      for (let i = 0; i < chars.length; i++) {
+        codeDigits[index + i] = chars[i];
+      }
+      codeDigits = [...codeDigits];
+      password = codeDigits.join('');
+      const nextIdx = Math.min(index + chars.length, 5);
+      focusBox(nextIdx);
+      if (password.length === 6 && validatePassword(password)) {
+        handleLogin();
+      }
+      return;
+    }
+    codeDigits[index] = val;
+    codeDigits = [...codeDigits];
+    password = codeDigits.join('');
+    if (val && index < 5) {
+      focusBox(index + 1);
+    }
+    if (password.length === 6 && validatePassword(password)) {
+      handleLogin();
+    }
+  }
+
+  function handleCodeKeydown(index: number, e: KeyboardEvent) {
+    if (e.key === 'Backspace' && !codeDigits[index] && index > 0) {
+      codeDigits[index - 1] = '';
+      codeDigits = [...codeDigits];
+      password = codeDigits.join('');
+      focusBox(index - 1);
+    }
+  }
+
+  function focusBox(idx: number) {
+    setTimeout(() => {
+      const el = document.querySelector(`.login-code-${idx}`) as HTMLInputElement;
+      el?.focus();
+    }, 0);
+  }
 
   function toggleInterface() {
     interfaceStore.toggle();
@@ -84,19 +130,20 @@
     <form on:submit|preventDefault={handleLogin} class="login-form">
       <div class="form-group">
         <label for="password">Access Code</label>
-        <input
-          id="password"
-          type="password"
-          placeholder="Enter 6-digit access code"
-          bind:value={password}
-          maxlength="6"
-          inputmode="numeric"
-          on:blur={() => { touched.password = true; }}
-          on:keypress={handleKeyPress}
-          disabled={isSubmitting}
-          class:error={touched.password && getPasswordError()}
-          class:valid={touched.password && !getPasswordError() && password}
-        />
+        <div class="login-code-boxes">
+          {#each codeDigits as digit, i}
+            <input
+              class="login-code-box login-code-{i}"
+              type="password"
+              inputmode="numeric"
+              maxlength="6"
+              value={digit}
+              on:input={(e) => handleCodeInput(i, e)}
+              on:keydown={(e) => handleCodeKeydown(i, e)}
+              disabled={isSubmitting}
+            />
+          {/each}
+        </div>
         {#if getPasswordError()}
           <span class="error-message">{getPasswordError()}</span>
         {/if}
@@ -105,7 +152,7 @@
       <button
         type="submit"
         class="btn-primary"
-        disabled={isSubmitting || !!getPasswordError()}
+        disabled={isSubmitting || password.length !== 6}
       >
         {#if isSubmitting}
           <span class="spinner"></span>
@@ -316,6 +363,39 @@
     color: #C41E3A;
     margin-top: 4px;
     font-weight: 500;
+  }
+
+  .login-code-boxes {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .login-code-box {
+    width: 46px;
+    height: 54px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a202c;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    outline: none;
+    padding: 0;
+    transition: all 0.3s ease;
+  }
+
+  .login-code-box:focus {
+    border-color: #C41E3A;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.15);
+  }
+
+  .login-code-box:disabled {
+    background: #f1f5f9;
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 
   .btn-primary {

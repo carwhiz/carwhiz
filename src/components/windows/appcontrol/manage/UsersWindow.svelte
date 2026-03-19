@@ -14,6 +14,10 @@
     email: string;
     phone_number: string;
     role: string;
+    user_name: string;
+    is_employee: boolean;
+    is_partner: boolean;
+    employee_id: string | null;
     created_at: string;
   }
 
@@ -25,9 +29,12 @@
   // Create form
   let showCreateForm = false;
   let formEmail = '';
+  let formUserName = '';
   let formPhone = '';
   let formPassword = '';
   let formRole = 'user';
+  let formIsEmployee = false;
+  let formIsPartner = false;
   let formSaving = false;
   let formError = '';
   let formSuccess = '';
@@ -35,15 +42,19 @@
   // Edit form
   let editUserId = '';
   let editEmail = '';
+  let editUserName = '';
   let editPhone = '';
   let editRole = '';
   let editPassword = '';
+  let editIsEmployee = false;
+  let editIsPartner = false;
   let editSaving = false;
   let editError = '';
   let editSuccess = '';
 
   $: filtered = searchQuery
     ? users.filter(u =>
+        (u.user_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         u.phone_number.includes(searchQuery) ||
         u.role.toLowerCase().includes(searchQuery.toLowerCase())
@@ -55,7 +66,7 @@
   async function loadUsers() {
     loading = true;
     error = '';
-    const { data, error: dbErr } = await supabase.from('users').select('id, email, phone_number, role, created_at').order('email');
+    const { data, error: dbErr } = await supabase.from('users').select('id, email, phone_number, role, user_name, is_employee, is_partner, employee_id, created_at').order('email');
 
     loading = false;
     if (dbErr) { error = dbErr.message; return; }
@@ -75,27 +86,61 @@
     return /^\d{6}$/.test(code);
   }
 
-  // Handle password input - only allow digits, max 6
-  function handlePasswordInput(e: Event) {
+  // OTP-style 6-box access code
+  let formCodeDigits = ['', '', '', '', '', ''];
+  let editCodeDigits = ['', '', '', '', '', ''];
+
+  function handleCodeInput(digits: string[], index: number, e: Event, mode: 'create' | 'edit') {
     const input = e.target as HTMLInputElement;
-    input.value = input.value.replace(/[^0-9]/g, '').slice(0, 6);
-    formPassword = input.value;
+    const val = input.value.replace(/[^0-9]/g, '');
+    if (val.length > 1) {
+      // Handle paste: distribute digits across boxes
+      const chars = val.slice(0, 6 - index).split('');
+      for (let i = 0; i < chars.length; i++) {
+        digits[index + i] = chars[i];
+      }
+      if (mode === 'create') formCodeDigits = [...digits];
+      else editCodeDigits = [...digits];
+      syncCode(digits, mode);
+      const nextIdx = Math.min(index + chars.length, 5);
+      focusCodeBox(mode, nextIdx);
+      return;
+    }
+    digits[index] = val;
+    if (mode === 'create') formCodeDigits = [...digits];
+    else editCodeDigits = [...digits];
+    syncCode(digits, mode);
+    if (val && index < 5) focusCodeBox(mode, index + 1);
   }
 
-  function handleEditPasswordInput(e: Event) {
-    const input = e.target as HTMLInputElement;
-    input.value = input.value.replace(/[^0-9]/g, '').slice(0, 6);
-    editPassword = input.value;
+  function handleCodeKeydown(digits: string[], index: number, e: KeyboardEvent, mode: 'create' | 'edit') {
+    if (e.key === 'Backspace' && !digits[index] && index > 0) {
+      digits[index - 1] = '';
+      if (mode === 'create') formCodeDigits = [...digits];
+      else editCodeDigits = [...digits];
+      syncCode(digits, mode);
+      focusCodeBox(mode, index - 1);
+    }
   }
 
-  // Display dots for empty password
-  function getPasswordDisplay(): string {
-    return formPassword ? '●●●●●●' : '••••••';
+  function syncCode(digits: string[], mode: 'create' | 'edit') {
+    const code = digits.join('');
+    if (mode === 'create') formPassword = code;
+    else editPassword = code;
+  }
+
+  function focusCodeBox(mode: 'create' | 'edit', idx: number) {
+    setTimeout(() => {
+      const el = document.querySelector(`.code-box-${mode}-${idx}`) as HTMLInputElement;
+      el?.focus();
+    }, 0);
   }
 
   // ---- CREATE ----
   function openCreateForm() {
-    formEmail = ''; formPhone = ''; formPassword = ''; formRole = 'user';
+    formEmail = ''; formUserName = ''; formPhone = ''; formPassword = ''; formRole = 'user';
+    formCodeDigits = ['', '', '', '', '', ''];
+    formIsEmployee = false; formIsPartner = false;
     formError = ''; formSuccess = '';
     showCreateForm = true;
     editUserId = '';
@@ -103,42 +148,136 @@
 
   async function handleCreate() {
     if (!formEmail.trim()) { formError = 'Email is required'; return; }
+    if (!formUserName.trim()) { formError = 'User name is required'; return; }
     if (!formPhone.trim()) { formError = 'Phone is required'; return; }
     if (!formPassword) { formError = 'Access code is required'; return; }
     if (!isValidAccessCode(formPassword)) { formError = 'Access code must be exactly 6 digits'; return; }
 
     formSaving = true; formError = ''; formSuccess = '';
 
+    // 1. Register User
     const { data, error: rpcErr } = await supabase.rpc('register_user', {
       p_email: formEmail.trim(),
       p_phone_number: formPhone.trim(),
       p_password: formPassword,
-      p_role: formRole
+      p_role: formRole,
+      p_user_name: formUserName.trim(),
+      p_is_employee: formIsEmployee,
+      p_is_partner: formIsPartner
     });
 
+    if (rpcErr) { formSaving = false; formError = rpcErr.message; return; }
+    if (data?.error) { formSaving = false; formError = data.error; return; }
+
+    const newUserId = data?.id;
+
+    // 2. If Is Employee → create Employee ledger + Employee record
+    if (formIsEmployee && newUserId) {
+      try {
+        // Get Employee ledger category & a suitable ledger type (Payables works for employee payables)
+        const [catRes, typeRes] = await Promise.all([
+          supabase.from('ledger_categories').select('id').eq('name', 'Employee').maybeSingle(),
+          supabase.from('ledger_types').select('id').eq('name', 'Payables').maybeSingle()
+        ]);
+
+        const ledgerTypeId = typeRes.data?.id;
+        const ledgerCatId = catRes.data?.id;
+
+        // Create employee ledger
+        const { data: ledgerData, error: ledgerErr } = await supabase.from('ledger').insert({
+          ledger_name: formUserName.trim(),
+          ledger_type_id: ledgerTypeId || null,
+          ledger_category_id: ledgerCatId || null,
+          reference_type: 'employee',
+          opening_balance: 0,
+          status: 'active',
+          created_by: $authStore.user?.id || null
+        }).select('id').single();
+
+        if (ledgerErr) { console.error('Employee ledger creation failed:', ledgerErr.message); }
+
+        // Create employee record
+        if (ledgerData) {
+          const { data: empData, error: empErr } = await supabase.from('employees').insert({
+            employee_name: formUserName.trim(),
+            ledger_id: ledgerData.id,
+            ledger_type_id: ledgerTypeId || null,
+            created_by: $authStore.user?.id || null
+          }).select('id').single();
+
+          if (empErr) { console.error('Employee creation failed:', empErr.message); }
+
+          if (empData) {
+            // Link employee back to ledger
+            await supabase.from('ledger').update({
+              reference_id: empData.id,
+              updated_by: $authStore.user?.id || null
+            }).eq('id', ledgerData.id);
+
+            // Link employee_id to user
+            await supabase.from('users').update({
+              employee_id: empData.id,
+              updated_by: $authStore.user?.id || null
+            }).eq('id', newUserId);
+          }
+        }
+      } catch (e: any) {
+        console.error('Employee/ledger creation error:', e.message);
+      }
+    }
+
+    // 3. If Is Partner/Owner → create Capital Account ledger
+    if (formIsPartner && newUserId) {
+      try {
+        const [typeRes, catRes] = await Promise.all([
+          supabase.from('ledger_types').select('id').eq('name', 'Equity').maybeSingle(),
+          supabase.from('ledger_categories').select('id').eq('name', 'Equity').maybeSingle()
+        ]);
+
+        const { error: capErr } = await supabase.from('ledger').insert({
+          ledger_name: `${formUserName.trim()} - Capital Account`,
+          ledger_type_id: typeRes.data?.id || null,
+          ledger_category_id: catRes.data?.id || null,
+          opening_balance: 0,
+          status: 'active',
+          created_by: $authStore.user?.id || null
+        });
+
+        if (capErr) { console.error('Capital account ledger creation failed:', capErr.message); }
+      } catch (e: any) {
+        console.error('Capital ledger creation error:', e.message);
+      }
+    }
+
     formSaving = false;
-
-    if (rpcErr) { formError = rpcErr.message; return; }
-    if (data?.error) { formError = data.error; return; }
-
     formSuccess = 'User created successfully!';
     setTimeout(() => { showCreateForm = false; formSuccess = ''; }, 1500);
     loadUsers();
   }
 
   // ---- EDIT ----
+  let editOrigIsEmployee = false;
+  let editOrigIsPartner = false;
+
   function openEdit(user: UserRow) {
     showCreateForm = false;
     editUserId = user.id;
     editEmail = user.email;
+    editUserName = user.user_name || '';
     editPhone = user.phone_number;
     editRole = user.role;
+    editIsEmployee = user.is_employee || false;
+    editIsPartner = user.is_partner || false;
+    editOrigIsEmployee = user.is_employee || false;
+    editOrigIsPartner = user.is_partner || false;
     editPassword = '';
+    editCodeDigits = ['', '', '', '', '', ''];
     editError = ''; editSuccess = '';
   }
 
   async function handleEdit() {
     if (!editEmail.trim()) { editError = 'Email is required'; return; }
+    if (!editUserName.trim()) { editError = 'User name is required'; return; }
     if (!editPhone.trim()) { editError = 'Phone is required'; return; }
     if (editPassword && !isValidAccessCode(editPassword)) { editError = 'Access code must be exactly 6 digits'; return; }
 
@@ -146,8 +285,11 @@
 
     const updateData: Record<string, any> = {
       email: editEmail.trim(),
+      user_name: editUserName.trim(),
       phone_number: editPhone.trim(),
       role: editRole,
+      is_employee: editIsEmployee,
+      is_partner: editIsPartner,
       updated_at: new Date().toISOString(),
       updated_by: $authStore.user?.id || null
     };
@@ -159,10 +301,83 @@
     }
 
     const { error: dbErr } = await supabase.from('users').update(updateData).eq('id', editUserId);
+
+    if (dbErr) { editSaving = false; editError = dbErr.message; return; }
+
+    // If Employee checkbox was newly turned ON → create Employee ledger + record
+    if (editIsEmployee && !editOrigIsEmployee) {
+      try {
+        const [catRes, typeRes] = await Promise.all([
+          supabase.from('ledger_categories').select('id').eq('name', 'Employee').maybeSingle(),
+          supabase.from('ledger_types').select('id').eq('name', 'Payables').maybeSingle()
+        ]);
+
+        const ledgerTypeId = typeRes.data?.id;
+        const ledgerCatId = catRes.data?.id;
+
+        const { data: ledgerData, error: ledgerErr } = await supabase.from('ledger').insert({
+          ledger_name: editUserName.trim(),
+          ledger_type_id: ledgerTypeId || null,
+          ledger_category_id: ledgerCatId || null,
+          reference_type: 'employee',
+          opening_balance: 0,
+          status: 'active',
+          created_by: $authStore.user?.id || null
+        }).select('id').single();
+
+        if (ledgerErr) { console.error('Employee ledger creation failed:', ledgerErr.message); }
+
+        if (ledgerData) {
+          const { data: empData, error: empErr } = await supabase.from('employees').insert({
+            employee_name: editUserName.trim(),
+            ledger_id: ledgerData.id,
+            ledger_type_id: ledgerTypeId || null,
+            created_by: $authStore.user?.id || null
+          }).select('id').single();
+
+          if (empErr) { console.error('Employee creation failed:', empErr.message); }
+
+          if (empData) {
+            await supabase.from('ledger').update({
+              reference_id: empData.id,
+              updated_by: $authStore.user?.id || null
+            }).eq('id', ledgerData.id);
+
+            await supabase.from('users').update({
+              employee_id: empData.id,
+              updated_by: $authStore.user?.id || null
+            }).eq('id', editUserId);
+          }
+        }
+      } catch (e: any) {
+        console.error('Employee/ledger creation error:', e.message);
+      }
+    }
+
+    // If Partner checkbox was newly turned ON → create Capital Account ledger
+    if (editIsPartner && !editOrigIsPartner) {
+      try {
+        const [typeRes, catRes] = await Promise.all([
+          supabase.from('ledger_types').select('id').eq('name', 'Equity').maybeSingle(),
+          supabase.from('ledger_categories').select('id').eq('name', 'Equity').maybeSingle()
+        ]);
+
+        const { error: capErr } = await supabase.from('ledger').insert({
+          ledger_name: `${editUserName.trim()} - Capital Account`,
+          ledger_type_id: typeRes.data?.id || null,
+          ledger_category_id: catRes.data?.id || null,
+          opening_balance: 0,
+          status: 'active',
+          created_by: $authStore.user?.id || null
+        });
+
+        if (capErr) { console.error('Capital account ledger creation failed:', capErr.message); }
+      } catch (e: any) {
+        console.error('Capital ledger creation error:', e.message);
+      }
+    }
+
     editSaving = false;
-
-    if (dbErr) { editError = dbErr.message; return; }
-
     editSuccess = 'User updated!';
     setTimeout(() => { editUserId = ''; editSuccess = ''; }, 1500);
     loadUsers();
@@ -207,8 +422,24 @@
       {#if formSuccess}<div class="msg msg-success">{formSuccess}</div>{/if}
       <div class="form-grid">
         <label>Email <input type="email" bind:value={formEmail} placeholder="user@example.com" /></label>
+        <label>User Name <input type="text" bind:value={formUserName} placeholder="Full name" /></label>
         <label>Phone <input type="text" bind:value={formPhone} placeholder="+91..." /></label>
-        <label>Access Code (6 digits) <input type="text" inputmode="numeric" value={formPassword} on:input={handlePasswordInput} placeholder="000000" maxlength="6" /></label>
+        <div class="code-field">
+          <span class="code-label">Access Code (6 digits)</span>
+          <div class="code-boxes">
+            {#each formCodeDigits as digit, i}
+              <input
+                class="code-box code-box-create-{i}"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                value={digit}
+                on:input={(e) => handleCodeInput(formCodeDigits, i, e, 'create')}
+                on:keydown={(e) => handleCodeKeydown(formCodeDigits, i, e, 'create')}
+              />
+            {/each}
+          </div>
+        </div>
         <label>Role
           <select bind:value={formRole}>
             <option value="user">User</option>
@@ -216,6 +447,22 @@
           </select>
         </label>
       </div>
+      <div class="checkbox-row">
+        <label class="checkbox-label">
+          <input type="checkbox" bind:checked={formIsEmployee} />
+          <span>Is Employee</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" bind:checked={formIsPartner} />
+          <span>Is Partner / Owner</span>
+        </label>
+      </div>
+      {#if formIsEmployee || formIsPartner}
+        <div class="auto-info">
+          {#if formIsEmployee}<span class="info-tag">Employee record & ledger will be created</span>{/if}
+          {#if formIsPartner}<span class="info-tag">Capital account ledger will be created</span>{/if}
+        </div>
+      {/if}
       <div class="form-actions">
         <button class="btn-save" on:click={handleCreate} disabled={formSaving || !isValidAccessCode(formPassword)}>{formSaving ? 'Creating...' : 'Create User'}</button>
         <button class="btn-cancel" on:click={() => showCreateForm = false}>Cancel</button>
@@ -231,13 +478,40 @@
       {#if editSuccess}<div class="msg msg-success">{editSuccess}</div>{/if}
       <div class="form-grid">
         <label>Email <input type="email" bind:value={editEmail} /></label>
+        <label>User Name <input type="text" bind:value={editUserName} placeholder="Full name" /></label>
         <label>Phone <input type="text" bind:value={editPhone} /></label>
-        <label>New Access Code (6 digits) <input type="text" inputmode="numeric" value={editPassword} on:input={handleEditPasswordInput} placeholder="Leave blank to keep current" maxlength="6" /></label>
+        <div class="code-field">
+          <span class="code-label">New Access Code (6 digits)</span>
+          <div class="code-boxes">
+            {#each editCodeDigits as digit, i}
+              <input
+                class="code-box code-box-edit-{i}"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                value={digit}
+                placeholder="·"
+                on:input={(e) => handleCodeInput(editCodeDigits, i, e, 'edit')}
+                on:keydown={(e) => handleCodeKeydown(editCodeDigits, i, e, 'edit')}
+              />
+            {/each}
+          </div>
+        </div>
         <label>Role
           <select bind:value={editRole}>
             <option value="user">User</option>
             {#if $authStore.user?.role === 'admin'}<option value="admin">Admin</option>{/if}
           </select>
+        </label>
+      </div>
+      <div class="checkbox-row">
+        <label class="checkbox-label">
+          <input type="checkbox" bind:checked={editIsEmployee} />
+          <span>Is Employee</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" bind:checked={editIsPartner} />
+          <span>Is Partner / Owner</span>
         </label>
       </div>
       <div class="form-actions">
@@ -259,9 +533,11 @@
         <thead>
           <tr>
             <th>#</th>
+            <th>Name</th>
             <th>Email</th>
             <th>Phone</th>
             <th>Role</th>
+            <th>Flags</th>
             <th>Created</th>
             <th>Actions</th>
           </tr>
@@ -270,9 +546,14 @@
           {#each filtered as u, i (u.id)}
             <tr>
               <td class="num">{i + 1}</td>
-              <td class="name-col">{u.email}</td>
+              <td class="name-col">{u.user_name || '—'}</td>
+              <td>{u.email}</td>
               <td>{u.phone_number}</td>
               <td><span class="role-badge" class:admin={u.role === 'admin'}>{u.role}</span></td>
+              <td class="flags-col">
+                {#if u.is_employee}<span class="flag-badge emp">Employee</span>{/if}
+                {#if u.is_partner}<span class="flag-badge partner">Partner</span>{/if}
+              </td>
               <td>{formatDate(u.created_at)}</td>
               <td class="actions">
                 <button class="btn-edit" on:click={() => openEdit(u)} title="Edit">
@@ -339,4 +620,24 @@
   .btn-edit:hover { background:#C41E3A; color:white; border-color:#C41E3A; }
   .btn-delete { display:inline-flex; align-items:center; padding:5px 8px; background:#fef2f2; border:1px solid #fecaca; border-radius:5px; color:#dc2626; cursor:pointer; transition:all .15s; }
   .btn-delete:hover { background:#dc2626; color:white; border-color:#dc2626; }
+
+  /* Checkbox row */
+  .checkbox-row { display:flex; gap:20px; margin-top:12px; }
+  .checkbox-label { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:#374151; cursor:pointer; }
+  .checkbox-label input[type="checkbox"] { width:16px; height:16px; accent-color:#C41E3A; cursor:pointer; }
+  .auto-info { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .info-tag { font-size:11px; padding:4px 10px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:12px; }
+
+  /* Flag badges */
+  .flags-col { display:flex; gap:4px; flex-wrap:wrap; }
+  .flag-badge { display:inline-block; padding:2px 7px; border-radius:10px; font-size:10px; font-weight:600; }
+  .flag-badge.emp { background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; }
+  .flag-badge.partner { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+
+  /* OTP-style code boxes */
+  .code-field { display:flex; flex-direction:column; gap:4px; }
+  .code-label { font-size:12px; font-weight:600; color:#6b7280; }
+  .code-boxes { display:flex; gap:6px; }
+  .code-box { width:36px; height:40px; text-align:center; font-size:18px; font-weight:700; color:#111827; border:1px solid #e5e7eb; border-radius:8px; background:#fafafa; outline:none; padding:0; }
+  .code-box:focus { border-color:#C41E3A; background:white; box-shadow:0 0 0 2px rgba(196,30,58,0.15); }
 </style>
