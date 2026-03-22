@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
+  import QRCode from 'qrcode';
   import { authStore } from '../../stores/authStore';
   import { windowStore } from '../../stores/windowStore';
   import { interfaceStore } from '../../stores/interfaceStore';
@@ -39,6 +41,7 @@
   
   // HR Windows
   import AttendanceReportWindow from '../../components/windows/hr/reports/AttendanceReportWindow.svelte';
+  import AttendanceQRWindow from '../../components/windows/hr/AttendanceQRWindow.svelte';
 
   let expandedSections: Record<string, boolean> = { finance: false, products: false, appcontrol: false, hr: false };
   let expandedSubs: Record<string, boolean> = {
@@ -55,6 +58,34 @@
     'appcontrol-operations': false,
     'appcontrol-reports': false,
   };
+
+  // QR Code State
+  let qrDataUrl: string = '';
+  let qrGeneratedAt: Date = new Date();
+  let qrRefreshInterval: any = null;
+
+  onMount(async () => {
+    generateDashboardQR();
+    qrRefreshInterval = setInterval(generateDashboardQR, 10000);
+  });
+
+  onDestroy(() => {
+    if (qrRefreshInterval) clearInterval(qrRefreshInterval);
+  });
+
+  async function generateDashboardQR() {
+    try {
+      const token = `${$authStore.user?.id}|${new Date().getTime()}`;
+      qrDataUrl = await QRCode.toDataURL(token, {
+        width: 200,
+        margin: 2,
+        color: { dark: '#111827', light: '#ffffff' }
+      });
+      qrGeneratedAt = new Date();
+    } catch (err) {
+      console.error('Error generating QR code:', err);
+    }
+  }
 
   // Map window IDs to their content components
   const windowComponentMap: Record<string, any> = {
@@ -87,6 +118,8 @@
     'products-stock-report': StockReportWindow,
     // HR > Reports
     'hr-attendance-report': AttendanceReportWindow,
+    // HR > Operations
+    'hr-attendance-qr': AttendanceQRWindow,
     // App Control
     'appcontrol-permissions': PermissionsWindow,
     'appcontrol-users': UsersWindow,
@@ -120,7 +153,6 @@
   <nav class="sidebar">
     <div class="sidebar-header">
       <img src="/src/assets/CARWHIZ.jpeg" alt="CarWhizz Logo" class="sidebar-logo" />
-      <h1>CarWhizz</h1>
     </div>
 
     <div class="sidebar-content">
@@ -256,7 +288,7 @@
           </button>
           {#if expandedSubs['hr-operations']}
             <div class="sub-items">
-              <div style="padding: 8px 12px; color: #999; font-size: 12px; font-style: italic; text-align: center;">Coming Soon</div>
+              <button class="nav-item" on:click={() => openWindow('hr-attendance-qr', 'Attendance QR Code')}>Attendance QR Code</button>
             </div>
           {/if}
 
@@ -342,11 +374,24 @@
       {/each}
     </div>
 
-    <!-- Empty State -->
+    <!-- Empty State with QR Code -->
     {#if $windowStore.length === 0}
       <div class="empty-state">
-        <h2>Welcome to CarWhizz Desktop</h2>
-        <p>Open a module from the sidebar to get started</p>
+        <div class="dashboard-content">
+          <!-- App Logo Section -->
+          <div class="logo-section">
+            <img src="/src/assets/CARWHIZ.jpeg" alt="CarWhizz Logo" class="app-logo" />
+          </div>
+
+          <!-- QR Code Section (No Labels) -->
+          <div class="qr-section">
+            {#if qrDataUrl}
+              <img src={qrDataUrl} alt="QR Code" class="qr-code" />
+            {:else}
+              <div class="loading">Generating...</div>
+            {/if}
+          </div>
+        </div>
       </div>
     {/if}
   </div>
@@ -387,21 +432,13 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
   }
 
   .sidebar-logo {
-    width: 50px;
-    height: 50px;
+    width: 120px;
+    height: 60px;
     border-radius: 8px;
     object-fit: contain;
-  }
-
-  .sidebar-header h1 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 700;
-    color: #000000;
   }
 
   .sidebar-content {
@@ -613,8 +650,63 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    text-align: center;
+    width: 100%;
+    max-width: 800px;
+    padding: 0 20px;
+  }
+
+  .dashboard-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    width: 100%;
+  }
+
+  .logo-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 3px solid #ff9800;
+    border-radius: 12px;
+    background: #fffbf5;
+    width: 260px;
+    height: 160px;
+  }
+
+  .app-logo {
+    width: 240px;
+    height: 140px;
+    border-radius: 8px;
+    object-fit: contain;
+  }
+
+  .qr-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .qr-code {
+    width: 280px;
+    height: 280px;
+    border-radius: 8px;
+  }
+
+  .refresh-time {
+    font-size: 11px;
     color: #9ca3af;
+    margin: 0;
+  }
+
+  .loading {
+    color: #9ca3af;
+    font-size: 13px;
   }
 
   .empty-state h2 {
