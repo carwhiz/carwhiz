@@ -1,29 +1,56 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { authStore } from './stores/authStore';
+  import { interfaceStore } from './stores/interfaceStore';
   import { getCurrentUser } from './lib/services/authService';
-  import Login from './components/Login.svelte';
-  import Dashboard from './components/Dashboard.svelte';
+  import { initRouter, getCurrentMode } from './routes';
+  
+  // Page imports
+  import AuthLogin from './pages/auth/AuthLogin.svelte';
+  import AuthSignUp from './pages/auth/AuthSignUp.svelte';
+  import MobileLayout from './pages/mobile/MobileLayout.svelte';
+  import DesktopLayout from './pages/desktop/DesktopLayout.svelte';
+  import PrivacyPolicy from './pages/info/PrivacyPolicy.svelte';
+  import MobileMyJobs from './pages/mobile/MobileMyJobs.svelte';
+  import MobileAttendance from './pages/mobile/MobileAttendance.svelte';
 
-  let currentPage = 'login';
   let isInitializing = true;
 
-  onMount(async () => {
-    // Check authentication status
-    try {
-      const user = await getCurrentUser();
-      if (user) {
-        authStore.setUser(user);
-        currentPage = 'dashboard';
-      } else {
-        currentPage = 'login';
-      }
-    } catch (error) {
-      console.error('Auth check error:', error);
-    } finally {
-      isInitializing = false;
-    }
+  // Subscribe to interface changes for reactive updates
+  const unsubscribe = interfaceStore.subscribe(() => {
+    // This subscription ensures reactivity when interface changes
+  });
 
+  onMount(() => {
+    // Check authentication status
+    (async () => {
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          authStore.setUser(user);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+      }
+
+      // Get current URL on app load
+      const currentUrl = typeof window !== 'undefined' ? window.location.pathname : '/';
+      const currentMode = getCurrentMode();
+      
+      // Set interface based on current URL
+      if (currentMode) {
+        interfaceStore.setInterface(currentMode);
+      } else {
+        interfaceStore.setInterface('login');
+      }
+
+      // Initialize router after setting initial interface
+      initRouter();
+
+      isInitializing = false;
+    })();
+
+    return unsubscribe;
   });
 </script>
 
@@ -33,10 +60,20 @@
       <div class="spinner"></div>
       <p>Loading CarWhizz...</p>
     </div>
-  {:else if currentPage === 'dashboard'}
-    <Dashboard on:logout={() => { currentPage = 'login'; }} />
-  {:else}
-    <Login on:login={() => { currentPage = 'dashboard'; }} />
+  {:else if $interfaceStore.currentInterface === 'login'}
+    <AuthLogin />
+  {:else if $interfaceStore.currentInterface === 'signup'}
+    <AuthSignUp />
+  {:else if $interfaceStore.currentInterface === 'mobile'}
+    <MobileLayout />
+  {:else if $interfaceStore.currentInterface === 'my-jobs'}
+    <MobileMyJobs />
+  {:else if $interfaceStore.currentInterface === 'attendance'}
+    <MobileAttendance />
+  {:else if $interfaceStore.currentInterface === 'desktop'}
+    <DesktopLayout />
+  {:else if $interfaceStore.currentInterface === 'privacy'}
+    <PrivacyPolicy />
   {/if}
 </main>
 

@@ -32,6 +32,19 @@
   let photoUploading = false;
   let photoError = '';
 
+  // Add items
+  let productSearch = '';
+  let allProducts: any[] = [];
+  let filteredProducts: any[] = [];
+  let showProductDropdown = false;
+  let selectedProduct: any = null;
+  let itemQty = 1;
+  let itemPrice = '';
+  let itemNotes = '';
+  let itemSaving = false;
+  let itemError = '';
+  let deletingItemId: string | null = null;
+
   // Actions
   let actionLoading = false;
   let actionError = '';
@@ -45,6 +58,7 @@
       if (!allowed) { permDenied = true; loading = false; return; }
     }
     await loadMyJobs();
+    await loadAllProducts();
   });
 
   function formatDate(dt: string): string {
@@ -68,14 +82,17 @@
 
     const { data } = await supabase
       .from('job_cards')
-      .select('id, job_card_no, status, priority, description, details, expected_date, created_at, customers(name), vehicles(model_name)')
+      .select('id, job_card_no, status, priority, description, details, expected_date, created_at, customer_id, vehicle_id, vehicle_number, customers(name, place), vehicles(model_name, makes(name))')
       .eq('assigned_user_id', userId)
-      .in('status', ['Open', 'In Progress', 'Closed'])
+      .in('status', ['Open', 'In Progress'])
       .order('created_at', { ascending: false });
+    
     myJobs = (data || []).map((j: any) => ({
       ...j,
       customer_name: j.customers?.name || '—',
+      customer_place: j.customers?.place || '',
       vehicle_name: j.vehicles?.model_name || '—',
+      vehicle_make: j.vehicles?.makes?.name || '',
     }));
     loading = false;
   }
@@ -103,6 +120,99 @@
     viewingJob = null;
     jcItems = []; jcPhotos = []; jcNotes = []; jcLogs = [];
     newNote = '';
+    selectedProduct = null;
+    productSearch = '';
+    showProductDropdown = false;
+    itemQty = 1;
+    itemPrice = '';
+    itemNotes = '';
+  }
+
+  // ---- Load Products ----
+  async function loadAllProducts() {
+    const { data } = await supabase
+      .from('products')
+      .select('id, product_name, product_type, sales_price')
+      .order('product_name');
+    allProducts = data || [];
+  }
+
+  function handleProductSearch() {
+    const q = productSearch.toLowerCase().trim();
+    if (!q) { filteredProducts = []; showProductDropdown = false; return; }
+    filteredProducts = allProducts.filter(p =>
+      p.product_name.toLowerCase().includes(q) || (p.product_type || '').toLowerCase().includes(q)
+    ).slice(0, 10);
+    showProductDropdown = filteredProducts.length > 0;
+  }
+
+  function selectProduct(p: any) {
+    selectedProduct = p;
+    productSearch = p.product_name;
+    itemPrice = (p.sales_price || 0).toString();
+    showProductDropdown = false;
+  }
+
+  // ---- Add Item to Job ----
+  async function addItemToJob() {
+    if (!viewingJob || !selectedProduct || itemQty <= 0 || !itemPrice) {
+      itemError = 'Please select a product and set qty and price';
+      return;
+    }
+    itemSaving = true;
+    itemError = '';
+
+    const qty = Number(itemQty);
+    const price = Number(itemPrice);
+    const total = qty * price;
+
+    const { error } = await supabase.from('job_card_items').insert({
+      job_card_id: viewingJob.id,
+      item_type: selectedProduct.product_type || 'product',
+      item_id: selectedProduct.id,
+      name: selectedProduct.product_name,
+      qty: qty,
+      price: price,
+      total: total,
+      discount: 0,
+      notes: itemNotes || '',
+      created_by: $authStore.user?.id || null,
+    });
+
+    if (error) {
+      itemError = 'Failed to add item: ' + error.message;
+      itemSaving = false;
+      return;
+    }
+
+    selectedProduct = null;
+    productSearch = '';
+    itemQty = 1;
+    itemPrice = '';
+    itemNotes = '';
+    showProductDropdown = false;
+    itemSaving = false;
+    await loadJobDetails(viewingJob.id);
+  }
+
+  // ---- Remove Item from Job ----
+  async function removeItem(itemId: string) {
+    if (!confirm('Remove this item from the job card?')) return;
+    deletingItemId = itemId;
+
+    const { error } = await supabase
+      .from('job_card_items')
+      .delete()
+      .eq('id', itemId);
+
+    if (error) {
+      alert('Failed to remove item: ' + error.message);
+      deletingItemId = null;
+      return;
+    }
+
+    deletingItemId = null;
+    await loadJobDetails(viewingJob.id);
   }
 
   // ---- Start Job ----
@@ -283,7 +393,7 @@
               <span class="status-badge {getStatusClass(job.status)}">{job.status}</span>
             </div>
             <div class="job-card-body">
-              <div class="job-info"><strong>{job.customer_name}</strong> — {job.vehicle_name}</div>
+              <div class="job-info"><strong>{job.customer_name}</strong> — {job.vehicle_name} {#if job.vehicle_number}({job.vehicle_number}){/if}</div>
               <div class="job-desc">{job.description}</div>
             </div>
             <div class="job-card-footer">
@@ -314,8 +424,11 @@
       <!-- Info -->
       <div class="detail-section">
         <div class="info-grid">
-          <div class="info-item"><span class="info-label">Customer</span><span>{viewingJob.customer_name}</span></div>
+          <div class="info-item"><span class="info-label">Customer</span><span>{viewingJob.customer_name}{viewingJob.customer_place ? ` (${viewingJob.customer_place})` : ''}</span></div>
           <div class="info-item"><span class="info-label">Vehicle</span><span>{viewingJob.vehicle_name}</span></div>
+          {#if viewingJob.vehicle_number}
+            <div class="info-item"><span class="info-label">Vehicle Number</span><span><strong>{viewingJob.vehicle_number}</strong></span></div>
+          {/if}
           <div class="info-item"><span class="info-label">Priority</span><span class="pri-badge {getPriorityClass(viewingJob.priority)}">{viewingJob.priority}</span></div>
           <div class="info-item"><span class="info-label">Created</span><span>{formatDateTime(viewingJob.created_at)}</span></div>
           {#if viewingJob.expected_date}<div class="info-item"><span class="info-label">Expected</span><span>{formatDate(viewingJob.expected_date)}</span></div>{/if}
@@ -343,9 +456,49 @@
       <!-- Items -->
       <div class="detail-section">
         <h4>Items ({jcItems.length})</h4>
+        {#if viewingJob.status !== 'Closed'}
+          <div class="add-item-form">
+            <div class="form-row">
+              <div class="form-field">
+                <label>Search & Select Product</label>
+                <div class="search-box">
+                  <input type="text" placeholder="Search product..." bind:value={productSearch} on:input={handleProductSearch} on:focus={handleProductSearch} />
+                  {#if showProductDropdown}
+                    <div class="dropdown">
+                      {#each filteredProducts as p}
+                        <button class="dd-item" on:click={() => selectProduct(p)}>
+                          <strong>{p.product_name}</strong>
+                          <span class="type-tag" class:service={p.product_type === 'service'} class:consumable={p.product_type === 'consumable'}>{p.product_type}</span>
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              </div>
+              <div class="form-field">
+                <label>Qty</label>
+                <input type="number" min="1" bind:value={itemQty} />
+              </div>
+              <div class="form-field">
+                <label>Price</label>
+                <input type="number" min="0" step="0.01" bind:value={itemPrice} />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field full">
+                <label>Notes</label>
+                <input type="text" placeholder="Optional notes..." bind:value={itemNotes} />
+              </div>
+            </div>
+            {#if itemError}<div class="form-error">{itemError}</div>{/if}
+            <button class="btn-add-item" on:click={addItemToJob} disabled={itemSaving || !productSearch.trim()}>
+              {itemSaving ? 'Adding...' : '+ Add Item'}
+            </button>
+          </div>
+        {/if}
         {#if jcItems.length > 0}
           <table class="detail-table">
-            <thead><tr><th>#</th><th>Type</th><th>Name</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th></tr></thead>
+            <thead><tr><th>#</th><th>Type</th><th>Name</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th><th></th></tr></thead>
             <tbody>
               {#each jcItems as it, idx}
                 <tr>
@@ -355,6 +508,13 @@
                   <td class="num">{it.qty}</td>
                   <td class="num">₹{(it.price||0).toFixed(2)}</td>
                   <td class="num">₹{(it.total||0).toFixed(2)}</td>
+                  <td class="action-cell">
+                    {#if viewingJob.status !== 'Closed'}
+                      <button class="btn-remove-item" on:click={() => removeItem(it.id)} disabled={deletingItemId === it.id} title="Remove item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                      </button>
+                    {/if}
+                  </td>
                 </tr>
               {/each}
             </tbody>
@@ -447,6 +607,8 @@
   .jc-no { font-family: 'SF Mono', monospace; font-size: 13px; font-weight: 700; color: #C41E3A; }
   .job-card-body { margin-bottom: 8px; }
   .job-info { font-size: 14px; color: #111827; margin-bottom: 4px; }
+  .vehicle-numbers-list { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+  .vehicle-number-badge { display: inline-block; padding: 2px 6px; background: #fff3cd; color: #856404; border-radius: 3px; font-size: 11px; font-weight: 600; border: 1px solid #ffc107; }
   .job-desc { font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .job-card-footer { display: flex; gap: 10px; align-items: center; font-size: 11px; }
   .job-date { color: #9ca3af; }
@@ -489,6 +651,10 @@
   .type-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: #dbeafe; color: #1d4ed8; text-transform: capitalize; }
   .type-tag.service { background: #f3e8ff; color: #7c3aed; }
   .type-tag.consumable { background: #dcfce7; color: #16a34a; }
+  .action-cell { padding: 6px 4px !important; text-align: center; }
+  .btn-remove-item { background: none; border: none; color: #dc2626; cursor: pointer; padding: 2px 4px; display: flex; align-items: center; justify-content: center; }
+  .btn-remove-item:hover:not(:disabled) { color: #991b1b; opacity: 0.8; }
+  .btn-remove-item:disabled { opacity: 0.4; cursor: not-allowed; }
 
   /* Photos */
   .photo-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -517,6 +683,25 @@
   .btn-primary { padding: 8px 16px; background: #C41E3A; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
   .btn-primary:hover:not(:disabled) { background: #a71830; }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Add item form */
+  .add-item-form { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 10px; }
+  .form-row.full { grid-template-columns: 1fr; }
+  .form-field { display: flex; flex-direction: column; gap: 4px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-field label { font-size: 11px; font-weight: 600; color: #6b7280; }
+  .form-field input, .form-field select { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; outline: none; }
+  .form-field input:focus, .form-field select:focus { border-color: #C41E3A; box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.1); }
+  .search-box { position: relative; }
+  .search-box .dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 50; max-height: 150px; overflow-y: auto; }
+  .dd-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; background: none; cursor: pointer; font-size: 12px; text-align: left; }
+  .dd-item:hover { background: #f3f4f6; }
+  .dd-item .type-tag { margin-left: auto; }
+  .form-error { background: #fef2f2; color: #dc2626; padding: 8px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
+  .btn-add-item { display: block; width: 100%; padding: 8px 12px; background: #C41E3A; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-add-item:hover:not(:disabled) { background: #a71830; }
+  .btn-add-item:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .msg { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin: 8px 20px 0; }
   .msg-error { background: #fef2f2; color: #dc2626; }

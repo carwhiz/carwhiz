@@ -44,6 +44,8 @@
       resources: [
         { id: 'finance-sales', label: 'Sales' },
         { id: 'finance-purchase', label: 'Purchase' },
+        { id: 'finance-sales-return', label: 'Sales Return' },
+        { id: 'finance-purchase-return', label: 'Purchase Return' },
         { id: 'finance-receipt', label: 'Receipts' },
         { id: 'finance-payment', label: 'Payments' },
       ]
@@ -66,6 +68,7 @@
       resources: [
         { id: 'products-vehicles', label: 'Vehicles' },
         { id: 'products-products', label: 'Products' },
+        { id: 'products-stock-management', label: 'Stock Management' },
         { id: 'products-stock-report', label: 'Stock Report' },
       ]
     },

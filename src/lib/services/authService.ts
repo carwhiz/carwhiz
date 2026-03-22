@@ -61,6 +61,32 @@ export async function logout(): Promise<void> {
   authStore.logout();
 }
 
+// Sign up user (typically admin-only, but shows message to get access code)
+export async function signup(email: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    authStore.setLoading(true);
+    authStore.setError(null);
+
+    if (!email) {
+      throw new Error('Email is required');
+    }
+
+    // In CarWhizz, new users get access codes from administrators
+    // This would typically be handled by an admin panel
+    // For now, we just return a success message
+    return {
+      success: true
+    };
+  } catch (error: any) {
+    const errorMessage = error.message || 'Sign up failed';
+    authStore.setError(errorMessage);
+    authStore.setLoading(false);
+    return { success: false, error: errorMessage };
+  } finally {
+    authStore.setLoading(false);
+  }
+}
+
 // Get current user from localStorage
 export async function getCurrentUser(): Promise<User | null> {
   try {

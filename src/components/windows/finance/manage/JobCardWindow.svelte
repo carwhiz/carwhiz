@@ -28,11 +28,13 @@
   let newCustPhones: string[] = [''];
   let custSaving = false;
   let custError = '';
+  let selectedVehicleNumber: string | null = null;
 
   // ---- Step 2: Vehicle ----
   let vehicleSearch = '';
   let vehicles: any[] = [];
   let customerVehicles: any[] = [];
+  let customerVehicleNumbers: any[] = [];
   let filteredVehicles: any[] = [];
   let selectedVehicle: any = null;
   let showVehicleDropdown = false;
@@ -111,13 +113,29 @@
 
   // ---- Data loaders ----
   async function loadCustomers() {
-    const { data } = await supabase.from('customers').select('id, name, place, ledger_id').order('name');
-    customers = data || [];
+    const { data } = await supabase.from('customers').select('id, name, place, ledger_id, customer_vehicle_numbers(vehicle_number), customer_phones(phone)').order('name');
+    customers = (data || []).map((c: any) => ({
+      ...c,
+      vehicle_numbers: (c.customer_vehicle_numbers || []).map((v: any) => v.vehicle_number).filter(Boolean),
+      phone_numbers: (c.customer_phones || []).map((p: any) => p.phone).filter(Boolean)
+    }));
   }
 
   async function loadVehicles() {
-    const { data } = await supabase.from('vehicles').select('id, model_name, makes(name)').order('model_name');
-    vehicles = (data || []).map((v: any) => ({ ...v, make_name: v.makes?.name || '' }));
+    const { data } = await supabase
+      .from('vehicles')
+      .select('id, model_name, makes(name), generations(name), generation_types(name), variants(name), gearboxes(name), fuel_types(name), body_sides(name)')
+      .order('model_name');
+    vehicles = (data || []).map((v: any) => ({
+      ...v,
+      make_name: v.makes?.name || '',
+      generation_name: v.generations?.name || '',
+      gen_type_name: v.generation_types?.name || '',
+      variant_name: v.variants?.name || '',
+      gearbox_name: v.gearboxes?.name || '',
+      fuel_type_name: v.fuel_types?.name || '',
+      body_side_name: v.body_sides?.name || ''
+    }));
   }
 
   async function loadProducts() {
@@ -129,7 +147,7 @@
   }
 
   async function loadUsers() {
-    const { data } = await supabase.from('users').select('id, email, phone_number, role, created_at').order('email');
+    const { data } = await supabase.from('users').select('id, email, user_name, phone_number, role, created_at').order('email');
     users = data || [];
   }
 
@@ -163,19 +181,32 @@
     selectedCustomer = c;
     customerSearch = c.name;
     showCustomerDropdown = false;
-    // Filter vehicles for this customer (if customer_vehicles table exists, else show all)
-    updateCustomerVehicles();
+    // Load and filter vehicles for this customer
+    loadCustomerVehicles(c.id);
   }
 
   function clearCustomer() {
     selectedCustomer = null;
     customerSearch = '';
+    selectedVehicleNumber = null;
     selectedVehicle = null;
     vehicleSearch = '';
+    customerVehicleNumbers = [];
+  }
+
+  async function loadCustomerVehicles(customerId: string) {
+    // Load customer vehicle numbers
+    const { data: vehicleNumbers } = await supabase
+      .from('customer_vehicle_numbers')
+      .select('id, vehicle_number')
+      .eq('customer_id', customerId);
+    
+    customerVehicleNumbers = vehicleNumbers || [];
+    customerVehicles = vehicles;
   }
 
   function updateCustomerVehicles() {
-    // Show all vehicles (no customer_vehicle linkage table in schema)
+    // Show all vehicles
     customerVehicles = vehicles;
   }
 
@@ -350,7 +381,7 @@
   }
 
   // ---- Navigation ----
-  $: canNext = step === 1 ? !!selectedCustomer
+  $: canNext = step === 1 ? (!!selectedCustomer && !!selectedVehicleNumber)
              : step === 2 ? !!selectedVehicle
              : step === 3 ? items.length > 0
              : false;
@@ -365,34 +396,41 @@
 
   function goToStep(s: number) {
     if (s === 1) { step = 1; return; }
-    if (s === 2 && selectedCustomer) { step = 2; return; }
-    if (s === 3 && selectedCustomer && selectedVehicle) { step = 3; return; }
-    if (s === 4 && selectedCustomer && selectedVehicle && items.length > 0) { step = 4; return; }
+    if (s === 2 && selectedCustomer && selectedVehicleNumber) { step = 2; return; }
+    if (s === 3 && selectedCustomer && selectedVehicleNumber && selectedVehicle) { step = 3; return; }
+    if (s === 4 && selectedCustomer && selectedVehicleNumber && selectedVehicle && items.length > 0) { step = 4; return; }
   }
 
   // ---- Save Job Card ----
   async function handleSaveJobCard() {
     if (!selectedCustomer) { saveError = 'Customer is required'; return; }
+    if (!selectedVehicleNumber) { saveError = 'Vehicle number is required'; return; }
     if (!selectedVehicle) { saveError = 'Vehicle is required'; return; }
     if (items.length === 0) { saveError = 'At least one item is required'; return; }
     if (!assignedUserId) { saveError = 'Assigned user is required'; return; }
     if (!description.trim()) { saveError = 'Description is required'; return; }
+    if (!expectedDate) { saveError = 'Expected date is required'; return; }
 
     saving = true;
     saveError = '';
 
-    // Generate job card number
-    let jobCardNo = '';
-    try {
-      const { data: seqVal } = await supabase.rpc('nextval', { seq_name: 'job_card_seq' });
-      if (seqVal) jobCardNo = 'JC-' + String(seqVal).padStart(5, '0');
-    } catch {}
-    if (!jobCardNo) jobCardNo = 'JC-' + Date.now();
+    // Generate job card number: JC-DD-MM-YYYY-HH:MM AM/PM - (vehicle_number)
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+    const displayHours = now.getHours() % 12 || 12;
+    
+    const jobCardNo = `JC-${day}${month}${year}${String(displayHours).padStart(2, '0')}${minutes}-${selectedVehicleNumber}`;
 
     const { data: jc, error: jcErr } = await supabase.from('job_cards').insert({
       job_card_no: jobCardNo,
       customer_id: selectedCustomer.id,
       vehicle_id: selectedVehicle.id,
+      vehicle_number: selectedVehicleNumber,
       assigned_user_id: assignedUserId,
       status: 'Open',
       priority,
@@ -409,6 +447,9 @@
     }
 
     // Save items
+    // NOTE: Stock is NOT reduced here. Job cards are work orders only.
+    // Stock reduction happens only when the job card is converted to a sale,
+    // following the sales logic: products reduce qty, services reduce component stock.
     const itemRows = items.map(it => ({
       job_card_id: jc.id,
       item_type: it.item_type,
@@ -449,6 +490,7 @@
     step = 1;
     selectedCustomer = null;
     customerSearch = '';
+    selectedVehicleNumber = null;
     selectedVehicle = null;
     vehicleSearch = '';
     items = [];
@@ -462,23 +504,82 @@
     showSuccess = false;
   }
 
-  function handlePrint() {
+  async function handlePrint() {
     const printContent = document.getElementById('job-card-print');
     if (!printContent) return;
+    
+    // Load logo as base64
+    let logoBase64 = '';
+    try {
+      const response = await fetch('/logo.jpeg');
+      const blob = await response.blob();
+      logoBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      console.log('Logo loading failed, continuing without it');
+    }
+    
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.write(`
       <html><head><title>Job Card - ${savedJobCardNo}</title>
       <style>
-        body { font-family: Arial, sans-serif; padding: 20px; font-size: 14px; }
-        h2 { margin: 0 0 10px; } table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-        th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
-        th { background: #f5f5f5; } .row { display: flex; gap: 20px; margin: 6px 0; }
-        .label { font-weight: 600; min-width: 100px; } .sig { margin-top: 40px; border-top: 1px solid #333; width: 200px; text-align: center; padding-top: 4px; }
-      </style></head><body>${printContent.innerHTML}</body></html>
+        body { font-family: Arial, sans-serif; padding: 20px; font-size: 13px; margin: 0; }
+        .logo-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .logo-header img { max-height: 80px; max-width: 200px; }
+        h2 { margin: 10px 0; text-align: center; }
+        .job-info { text-align: center; margin: 10px 0; font-weight: bold; font-size: 14px; }
+        .cards-row { display: flex; gap: 20px; margin: 15px 0; }
+        .card { flex: 1; border: 1px solid #333; padding: 12px; }
+        .card-title { font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+        .card-item { display: flex; margin: 6px 0; }
+        .card-label { font-weight: 600; min-width: 90px; }
+        .card-value { flex: 1; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 12px; }
+        th { background: #f5f5f5; font-weight: bold; }
+        .sig { margin-top: 20px; border-top: 1px solid #333; width: 150px; text-align: center; padding-top: 4px; }
+      </style></head><body>
+      <div class="logo-header">
+        ${logoBase64 ? `<img src="${logoBase64}" alt="CarWhizz Logo" />` : ''}
+      </div>
+      <h2>Job Card</h2>
+      <div class="job-info">${savedJobCardNo}</div>
+      <div class="cards-row">
+        <div class="card">
+          <div class="card-title">Customer Details</div>
+          <div class="card-item"><span class="card-label">Name:</span><span class="card-value">${selectedCustomer?.name || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Location:</span><span class="card-value">${selectedCustomer?.place || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Phone:</span><span class="card-value">${selectedCustomer?.phone_numbers && selectedCustomer.phone_numbers.length > 0 ? selectedCustomer.phone_numbers.join(', ') : '—'}</span></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Vehicle Details</div>
+          <div class="card-item"><span class="card-label">Number:</span><span class="card-value">${selectedVehicleNumber || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Model:</span><span class="card-value">${selectedVehicle?.model_name || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Make:</span><span class="card-value">${selectedVehicle?.make_name || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Variant:</span><span class="card-value">${selectedVehicle?.variant_name || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Fuel Type:</span><span class="card-value">${selectedVehicle?.fuel_type_name || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Body Side:</span><span class="card-value">${selectedVehicle?.body_side_name || '—'}</span></div>
+        </div>
+      </div>
+      <div class="card" style="margin: 15px 0;">
+        <div class="card-title">Description</div>
+        <div style="padding: 8px; line-height: 1.5;">${description || '—'}</div>
+      </div>
+      <div style="border: 1px solid #333; padding: 10px; margin: 15px 0;">
+        <div style="margin: 6px 0;"><strong>Assigned To:</strong> ${users.find(u => u.id === assignedUserId)?.user_name || users.find(u => u.id === assignedUserId)?.email || ''}</div>
+        <div style="margin: 6px 0;"><strong>Priority:</strong> ${priority}</div>
+        ${details ? `<div style="margin: 6px 0;"><strong>Notes:</strong> ${details}</div>` : ''}
+        <div style="margin: 6px 0;"><strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}</div>
+        ${expectedDate ? `<div style="margin: 6px 0;"><strong>Expected Date:</strong> ${expectedDate}</div>` : ''}
+      </div>
+      ${printContent.innerHTML}</body></html>
     `);
     win.document.close();
-    win.print();
+    setTimeout(() => win.print(), 500);
   }
 </script>
 
@@ -502,17 +603,9 @@
         </div>
       </div>
 
-      <!-- Hidden print content -->
+      <!-- Hidden print content (items table only) -->
       <div id="job-card-print" style="display:none;">
-        <h2>Job Card: {savedJobCardNo}</h2>
-        <div class="row"><span class="label">Date:</span> {new Date().toLocaleDateString('en-IN')}</div>
-        <div class="row"><span class="label">Customer:</span> {selectedCustomer?.name || ''} {selectedCustomer?.place ? `(${selectedCustomer.place})` : ''}</div>
-        <div class="row"><span class="label">Vehicle:</span> {selectedVehicle?.model_name || ''}</div>
-        <div class="row"><span class="label">Assigned To:</span> {users.find(u => u.id === assignedUserId)?.email || ''}</div>
-        <div class="row"><span class="label">Priority:</span> {priority}</div>
-        <div class="row"><span class="label">Description:</span> {description}</div>
-        {#if details}<div class="row"><span class="label">Notes:</span> {details}</div>{/if}
-        {#if expectedDate}<div class="row"><span class="label">Expected Date:</span> {expectedDate}</div>{/if}
+        <h3>Items</h3>
         <table>
           <thead><tr><th>#</th><th>Type</th><th>Item</th><th>Qty</th><th>Price</th><th>Discount</th><th>Total</th><th>Notes</th></tr></thead>
           <tbody>
@@ -521,8 +614,8 @@
             {/each}
           </tbody>
         </table>
-        <div class="row"><span class="label">Grand Total:</span> <strong>₹{grandTotal.toFixed(2)}</strong></div>
-        <div class="sig">Signature</div>
+        <div style="margin-top: 10px; font-weight: bold;">Grand Total: ₹{grandTotal.toFixed(2)}</div>
+        <div style="margin-top: 30px; border-top: 1px solid #333; width: 150px; text-align: center; padding-top: 4px;">Signature</div>
       </div>
     </div>
   {:else}
@@ -564,6 +657,12 @@
                   {#each filteredCustomers as c}
                     <button class="dd-item" on:click={() => selectCustomer(c)}>
                       <strong>{c.name}</strong>{#if c.place} <span class="sub">— {c.place}</span>{/if}
+                      {#if c.phone_numbers && c.phone_numbers.length > 0}
+                        <div style="font-size: 11px; color: #666; margin-top: 4px;">Phones: {c.phone_numbers.join(', ')}</div>
+                      {/if}
+                      {#if c.vehicle_numbers && c.vehicle_numbers.length > 0}
+                        <div style="font-size: 11px; color: #666; margin-top: 2px;">Vehicles: {c.vehicle_numbers.join(', ')}</div>
+                      {/if}
                     </button>
                   {/each}
                 </div>
@@ -572,16 +671,48 @@
 
             {#if selectedCustomer}
               <div class="selected-chip">
-                <span>{selectedCustomer.name}</span>
-                {#if selectedCustomer.place}<span class="sub"> — {selectedCustomer.place}</span>{/if}
+                <div>
+                  <span>{selectedCustomer.name}</span>
+                  {#if selectedCustomer.place}<span class="sub"> — {selectedCustomer.place}</span>{/if}
+                  {#if selectedCustomer.phone_numbers && selectedCustomer.phone_numbers.length > 0}
+                    <div style="font-size: 11px; color: #666; margin-top: 4px;">Phones: {selectedCustomer.phone_numbers.join(', ')}</div>
+                  {/if}
+                  {#if selectedCustomer.vehicle_numbers && selectedCustomer.vehicle_numbers.length > 0}
+                    <div style="font-size: 11px; color: #666; margin-top: 2px;">Vehicles: {selectedCustomer.vehicle_numbers.join(', ')}</div>
+                  {/if}
+                </div>
                 <button class="chip-clear" on:click={clearCustomer}>×</button>
               </div>
+
+              {#if customerVehicleNumbers && customerVehicleNumbers.length > 0}
+                <div class="vehicle-numbers-section">
+                  <label>Select Vehicle Number:</label>
+                  <div class="vehicle-numbers-list">
+                    {#each customerVehicleNumbers as vn}
+                      <button
+                        class="vehicle-number-btn"
+                        class:selected={selectedVehicleNumber === vn.vehicle_number}
+                        on:click={() => selectedVehicleNumber = vn.vehicle_number}
+                      >
+                        {vn.vehicle_number}
+                      </button>
+                    {/each}
+                  </div>
+                  {#if selectedVehicleNumber}
+                    <div class="selected-vn">Selected: <strong>{selectedVehicleNumber}</strong></div>
+                  {/if}
+                </div>
+              {:else}
+                <div class="note-info">No vehicle numbers found for this customer.</div>
+              {/if}
             {/if}
 
-            <button class="btn-inline-create" on:click={() => showCreateCustomer = true}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Create New Customer
-            </button>
+            {#if !selectedCustomer}
+              <button class="btn-inline-create" on:click={() => showCreateCustomer = true}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Create New Customer
+              </button>
+            {/if}
           {:else}
             <!-- Inline customer form -->
             <div class="inline-form">
@@ -629,15 +760,27 @@
       <!-- ===== STEP 2: VEHICLE ===== -->
       {:else if step === 2}
         <div class="step-content">
-          <h3>Select or Create Vehicle</h3>
+          <h3>Select Vehicle Model / Details</h3>
+          <p class="step-note">Vehicle Number selected: <strong>{selectedVehicleNumber || 'N/A'}</strong></p>
           {#if !showCreateVehicle}
             <div class="search-box">
               <input type="text" placeholder="Search vehicles by model or make..." bind:value={vehicleSearch} on:input={handleVehicleSearch} on:focus={handleVehicleSearch} />
               {#if showVehicleDropdown}
                 <div class="dropdown">
                   {#each filteredVehicles as v}
-                    <button class="dd-item" on:click={() => selectVehicle(v)}>
-                      <strong>{v.model_name}</strong>{#if v.make_name} <span class="sub">— {v.make_name}</span>{/if}
+                    <button class="dd-item vehicle-item" on:click={() => selectVehicle(v)}>
+                      <strong>{v.model_name}</strong>
+                      {#if v.make_name || v.generation_name || v.variant_name || v.fuel_type_name || v.gearbox_name || v.body_side_name}
+                        <div class="vehicle-details">
+                          {#if v.make_name}<span class="tag">{v.make_name}</span>{/if}
+                          {#if v.generation_name}<span class="tag">{v.generation_name}</span>{/if}
+                          {#if v.gen_type_name}<span class="tag">{v.gen_type_name}</span>{/if}
+                          {#if v.variant_name}<span class="tag">{v.variant_name}</span>{/if}
+                          {#if v.fuel_type_name}<span class="tag">{v.fuel_type_name}</span>{/if}
+                          {#if v.gearbox_name}<span class="tag">{v.gearbox_name}</span>{/if}
+                          {#if v.body_side_name}<span class="tag">{v.body_side_name}</span>{/if}
+                        </div>
+                      {/if}
                     </button>
                   {/each}
                 </div>
@@ -645,17 +788,29 @@
             </div>
 
             {#if selectedVehicle}
-              <div class="selected-chip">
-                <span>{selectedVehicle.model_name}</span>
-                {#if selectedVehicle.make_name}<span class="sub"> — {selectedVehicle.make_name}</span>{/if}
-                <button class="chip-clear" on:click={clearVehicle}>×</button>
+              <div class="selected-card">
+                <div class="card-main">
+                  <strong>{selectedVehicle.model_name}</strong>
+                  <button class="chip-clear" on:click={clearVehicle}>×</button>
+                </div>
+                <div class="card-details">
+                  {#if selectedVehicle.make_name}<span class="detail-tag">{selectedVehicle.make_name}</span>{/if}
+                  {#if selectedVehicle.generation_name}<span class="detail-tag">{selectedVehicle.generation_name}</span>{/if}
+                  {#if selectedVehicle.gen_type_name}<span class="detail-tag">{selectedVehicle.gen_type_name}</span>{/if}
+                  {#if selectedVehicle.variant_name}<span class="detail-tag">{selectedVehicle.variant_name}</span>{/if}
+                  {#if selectedVehicle.fuel_type_name}<span class="detail-tag">{selectedVehicle.fuel_type_name}</span>{/if}
+                  {#if selectedVehicle.gearbox_name}<span class="detail-tag">{selectedVehicle.gearbox_name}</span>{/if}
+                  {#if selectedVehicle.body_side_name}<span class="detail-tag">{selectedVehicle.body_side_name}</span>{/if}
+                </div>
               </div>
             {/if}
 
-            <button class="btn-inline-create" on:click={() => showCreateVehicle = true}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Create New Vehicle
-            </button>
+            {#if !selectedVehicle}
+              <button class="btn-inline-create" on:click={() => showCreateVehicle = true}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Create New Vehicle
+              </button>
+            {/if}
           {:else}
             <div class="inline-form">
               <h4>New Vehicle</h4>
@@ -826,7 +981,7 @@
               <select bind:value={assignedUserId}>
                 <option value="">Select user</option>
                 {#each users as u}
-                  <option value={u.id}>{u.email}</option>
+                  <option value={u.id}>{u.user_name || u.email}</option>
                 {/each}
               </select>
             </div>
@@ -840,8 +995,8 @@
               </select>
             </div>
             <div class="form-field">
-              <label>Expected Date</label>
-              <input type="date" bind:value={expectedDate} />
+              <label>Expected Date *</label>
+              <input type="date" bind:value={expectedDate} required />
             </div>
           </div>
           <div class="form-field full-width">
@@ -878,7 +1033,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       {:else}
-        <button class="btn-primary save-btn" on:click={handleSaveJobCard} disabled={saving || !assignedUserId || !description.trim()}>
+        <button class="btn-primary save-btn" on:click={handleSaveJobCard} disabled={saving || !assignedUserId || !description.trim() || !expectedDate}>
           {#if saving}Saving...{:else}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             Save Job Card
@@ -918,8 +1073,23 @@
   .dd-item:hover { background: #f3f4f6; }
   .dd-item .sub { color: #6b7280; font-size: 12px; }
 
-  /* Selected chip */
-  .selected-chip { display: inline-flex; align-items: center; gap: 8px; background: #ecfdf5; border: 1px solid #86efac; padding: 8px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; color: #166534; }
+  /* Vehicle item in dropdown */
+  .dd-item.vehicle-item { flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px 14px; }
+  .vehicle-numbers { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; margin-bottom: 4px; }
+  .vehicle-number-tag { display: inline-block; padding: 3px 8px; background: #fef3c7; color: #92400e; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid #f59e0b; }
+  .vehicle-details { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+  .vehicle-details .tag { display: inline-block; padding: 2px 8px; background: #dbeafe; color: #1d4ed8; border-radius: 4px; font-size: 11px; font-weight: 600; }
+
+  /* Selected card with vehicle numbers */
+  .vehicle-numbers-selected { margin-top: 8px; padding-top: 8px; border-top: 1px solid #d1f4e3; }
+  .vehicle-numbers-selected label { font-size: 11px; font-weight: 700; color: #166534; display: block; margin-bottom: 4px; }
+  .vehicle-number-tag-selected { display: inline-block; padding: 4px 10px; background: #fef3c7; color: #92400e; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid #f59e0b; margin-right: 6px; }
+
+  /* Selected card */
+  .selected-card { background: #ecfdf5; border: 1px solid #86efac; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .card-main { display: flex; align-items: center; justify-content: space-between; font-weight: 600; color: #166534; }
+  .card-details { display: flex; flex-wrap: wrap; gap: 6px; }
+  .detail-tag { display: inline-block; padding: 3px 10px; background: #86efac; color: #166534; border-radius: 6px; font-size: 12px; font-weight: 600; }
   .chip-clear { background: none; border: none; color: #dc2626; cursor: pointer; font-size: 18px; font-weight: 700; padding: 0 4px; }
 
   /* Inline create button */
@@ -992,4 +1162,91 @@
   .success-card h2 { margin: 12px 0 4px; font-size: 22px; color: #111827; }
   .jc-no { font-size: 28px; font-weight: 800; color: #C41E3A; margin-bottom: 20px; font-family: monospace; }
   .success-actions { display: flex; gap: 10px; justify-content: center; }
+
+  /* Selected Customer Chip */
+  .selected-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border: 2px solid #86efac;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    color: #166534;
+  }
+  .selected-chip span { display: flex; align-items: center; gap: 4px; }
+  .selected-chip .sub { color: #059669; font-size: 13px; font-weight: 500; }
+  .selected-chip .chip-clear { font-size: 24px; color: #dc2626; background: none; border: none; cursor: pointer; padding: 0 8px; transition: transform 0.2s; }
+  .selected-chip .chip-clear:hover { transform: scale(1.2); }
+
+  /* Vehicle Numbers Section */
+  .vehicle-numbers-section {
+    padding: 16px;
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    margin-bottom: 16px;
+  }
+  .vehicle-numbers-section label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .vehicle-numbers-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .vehicle-number-btn {
+    padding: 8px 14px;
+    background: white;
+    border: 2px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .vehicle-number-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+  }
+  .vehicle-number-btn.selected {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-color: #f59e0b;
+    color: #92400e;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+  }
+  .selected-vn {
+    padding: 10px 12px;
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #92400e;
+    font-weight: 600;
+  }
+  .selected-vn strong {
+    color: #c2410c;
+    font-weight: 700;
+  }
+
+  /* Note info message */
+  .note-info {
+    padding: 12px 14px;
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #166534;
+    font-weight: 500;
+  }
 </style>
