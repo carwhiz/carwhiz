@@ -13,10 +13,18 @@
   import PurchaseWindow from '../../components/windows/finance/operations/PurchaseWindow.svelte';
   import SalesReturnWindow from '../../components/windows/finance/operations/SalesReturnWindow.svelte';
   import PurchaseReturnWindow from '../../components/windows/finance/operations/PurchaseReturnWindow.svelte';
+  import ReceiptWindow from '../../components/windows/finance/operations/ReceiptWindow.svelte';
+  import PaymentWindow from '../../components/windows/finance/operations/PaymentWindow.svelte';
   import CustomersWindow from '../../components/windows/finance/manage/CustomersWindow.svelte';
+  import CreateCustomerWindow from '../../components/windows/finance/manage/CreateCustomerWindow.svelte';
   import VendorsWindow from '../../components/windows/finance/manage/VendorsWindow.svelte';
+  import CreateVendorWindow from '../../components/windows/finance/manage/CreateVendorWindow.svelte';
   import LedgerWindow from '../../components/windows/finance/manage/LedgerWindow.svelte';
+  import CreateLedgerWindow from '../../components/windows/finance/manage/CreateLedgerWindow.svelte';
+  import EditLedgerWindow from '../../components/windows/finance/manage/EditLedgerWindow.svelte';
   import AssetsWindow from '../../components/windows/finance/manage/AssetsWindow.svelte';
+  import CreateAssetWindow from '../../components/windows/finance/manage/CreateAssetWindow.svelte';
+  import CreateEmployeeWindow from '../../components/windows/finance/manage/CreateEmployeeWindow.svelte';
   import JobCardWindow from '../../components/windows/finance/manage/JobCardWindow.svelte';
   import MyJobCardsWindow from '../../components/windows/finance/manage/MyJobCardsWindow.svelte';
   import SalesReportWindow from '../../components/windows/finance/reports/SalesReportWindow.svelte';
@@ -30,7 +38,11 @@
   
   // Product Windows
   import ProductsWindow from '../../components/windows/products/manage/ProductsWindow.svelte';
+  import CreateProductWindow from '../../components/windows/products/manage/CreateProductWindow.svelte';
+  import EditProductWindow from '../../components/windows/products/manage/EditProductWindow.svelte';
   import VehiclesWindow from '../../components/windows/products/manage/VehiclesWindow.svelte';
+  import CreateVehicleWindow from '../../components/windows/products/manage/CreateVehicleWindow.svelte';
+  import EditVehicleWindow from '../../components/windows/products/manage/EditVehicleWindow.svelte';
   import StockManagementWindow from '../../components/windows/products/manage/StockManagementWindow.svelte';
   import StockReportWindow from '../../components/windows/products/reports/StockReportWindow.svelte';
   
@@ -91,9 +103,14 @@
   const windowComponentMap: Record<string, any> = {
     // Finance > Manage
     'finance-customers': CustomersWindow,
+    'finance-create-customer': CreateCustomerWindow,
     'finance-vendors': VendorsWindow,
+    'finance-create-vendor': CreateVendorWindow,
     'finance-ledger': LedgerWindow,
+    'finance-create-ledger': CreateLedgerWindow,
+    'finance-create-employee': CreateEmployeeWindow,
     'finance-assets': AssetsWindow,
+    'finance-create-asset': CreateAssetWindow,
     'finance-job-card': JobCardWindow,
     'finance-my-jobs': MyJobCardsWindow,
     // Finance > Operations
@@ -101,6 +118,8 @@
     'finance-purchase': PurchaseWindow,
     'finance-sales-return': SalesReturnWindow,
     'finance-purchase-return': PurchaseReturnWindow,
+    'finance-receipt': ReceiptWindow,
+    'finance-payment': PaymentWindow,
     // Finance > Reports
     'finance-sales-report': SalesReportWindow,
     'finance-purchase-report': PurchaseReportWindow,
@@ -112,7 +131,9 @@
     'finance-job-card-report': JobCardReportWindow,
     // Products > Manage
     'products-vehicles': VehiclesWindow,
+    'products-create-vehicle': CreateVehicleWindow,
     'products-products': ProductsWindow,
+    'products-create-product': CreateProductWindow,
     'products-stock-management': StockManagementWindow,
     // Products > Reports
     'products-stock-report': StockReportWindow,
@@ -127,7 +148,19 @@
   };
 
   function getWindowComponent(windowId: string) {
-    return windowComponentMap[windowId];
+    if (windowComponentMap[windowId]) return windowComponentMap[windowId];
+    // Dynamic edit windows
+    if (windowId.startsWith('products-edit-vehicle-')) return EditVehicleWindow;
+    if (windowId.startsWith('products-edit-product-')) return EditProductWindow;
+    if (windowId.startsWith('finance-edit-ledger-')) return EditLedgerWindow;
+    return null;
+  }
+
+  function getWindowProps(windowId: string): Record<string, any> {
+    if (windowId.startsWith('products-edit-vehicle-')) return { vehicleId: windowId.replace('products-edit-vehicle-', '') };
+    if (windowId.startsWith('products-edit-product-')) return { productId: windowId.replace('products-edit-product-', '') };
+    if (windowId.startsWith('finance-edit-ledger-')) return { ledgerId: windowId.replace('finance-edit-ledger-', '') };
+    return {};
   }
 
   async function handleLogout() {
@@ -192,6 +225,8 @@
               <button class="nav-item" on:click={() => openWindow('finance-sales-return', 'Sales Return')}>Sales Return</button>
               <button class="nav-item" on:click={() => openWindow('finance-purchase', 'Purchase')}>Purchase</button>
               <button class="nav-item" on:click={() => openWindow('finance-purchase-return', 'Purchase Return')}>Purchase Return</button>
+              <button class="nav-item" on:click={() => openWindow('finance-receipt', 'Receipts')}>Receipts</button>
+              <button class="nav-item" on:click={() => openWindow('finance-payment', 'Payments')}>Payments</button>
             </div>
           {/if}
 
@@ -364,7 +399,7 @@
       {#each $windowStore as window (window.id)}
         <AppWindow win={window}>
           {#if getWindowComponent(window.id)}
-            <svelte:component this={getWindowComponent(window.id)} />
+            <svelte:component this={getWindowComponent(window.id)} {...getWindowProps(window.id)} />
           {:else}
             <div style="padding: 20px; color: #999;">
               <p>Window content not found for: {window.id}</p>
