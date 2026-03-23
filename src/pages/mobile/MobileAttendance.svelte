@@ -131,10 +131,9 @@
     try {
       html5QrScanner = new Html5Qrcode('qr-reader');
 
-      // For iOS/mobile, use facingMode instead of device ID for better compatibility
+      // For iOS/mobile, use facingMode constraint for rear camera
       const constraints = {
-        audio: false,
-        video: { facingMode: 'environment' }
+        facingMode: 'environment'
       };
 
       await html5QrScanner.start(
