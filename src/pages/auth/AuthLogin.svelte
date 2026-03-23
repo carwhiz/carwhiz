@@ -3,6 +3,7 @@
   import { authStore } from '../../stores/authStore';
   import { login } from '../../lib/services/authService';
   import type { LoginPayload } from '../../types/auth';
+  import logoPath from '../../assets/CARWHIZ.jpeg';
 
   let codeDigits: string[] = ['', '', '', '', '', ''];
   let loading = false;
@@ -94,7 +95,7 @@
   <div class="auth-container">
     <div class="auth-box">
       <div class="auth-header">
-        <img src="/src/assets/CARWHIZ.jpeg" alt="CarWhizz Logo" class="auth-logo" />
+        <img src={logoPath} alt="CarWhizz Logo" class="auth-logo" />
       </div>
 
       <div class="mode-toggle">
