@@ -202,6 +202,11 @@
       showPunchChoice = true;
     } catch {
       scanError = 'Invalid QR code format.';
+    }
+    scanLoading = false;
+  }
+
+  async function doPunch(action: 'check_in' | 'check_out') {
     showPunchChoice = false;
     scanLoading = true;
     try {
