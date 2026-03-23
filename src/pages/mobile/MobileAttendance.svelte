@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { supabase } from '../../lib/supabaseClient';
   import { authStore } from '../../stores/authStore';
   import { navigateTo } from '../../routes/navigation';
@@ -27,6 +27,15 @@
   let error = '';
   let selectedDate = new Date().toISOString().split('T')[0];
   let currentMonth = new Date().toISOString().slice(0, 7);
+
+  // QR Scanning state
+  let showScanner = false;
+  let showPunchChoice = false;
+  let scannedToken = '';
+  let scanResult = '';
+  let scanError = '';
+  let scanLoading = false;
+  let html5QrScanner: any = null;
 
   async function loadAttendance() {
     if (!$authStore.user) return;
@@ -99,6 +108,123 @@
     navigateTo('mobile');
   }
 
+  // QR Scanning functions
+  async function startScanner() {
+    scanResult = '';
+    scanError = '';
+    showPunchChoice = false;
+    scannedToken = '';
+    showScanner = true;
+    await tick();
+    await new Promise(r => setTimeout(r, 500));
+
+    const readerEl = document.getElementById('qr-reader');
+    if (!readerEl) { 
+      scanError = 'Scanner element not found.'; 
+      showScanner = false; 
+      return; 
+    }
+
+    try {
+      let Html5Qrcode;
+      try {
+        ({ Html5Qrcode } = await import('html5-qrcode'));
+      } catch (importErr: any) {
+        console.error('Initial import failed, retrying...', importErr);
+        await new Promise(r => setTimeout(r, 1000));
+        ({ Html5Qrcode } = await import('html5-qrcode'));
+      }
+      
+      html5QrScanner = new Html5Qrcode('qr-reader');
+
+      const cameras = await Html5Qrcode.getCameras();
+      if (!cameras || cameras.length === 0) {
+        scanError = 'No camera found on this device.';
+        showScanner = false;
+        return;
+      }
+
+      const backCam = cameras.find((c: any) => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('rear'));
+      const cameraId = backCam ? backCam.id : cameras[cameras.length - 1].id;
+
+      await html5QrScanner.start(
+        cameraId,
+        { fps: 10, qrbox: { width: 200, height: 200 } },
+        onScanSuccess,
+        () => {}
+      );
+    } catch (err: any) {
+      const errMsg = err?.message || err?.toString() || 'Camera access denied or not available.';
+      console.error('Scanner error:', errMsg, err);
+      scanError = errMsg.includes('Failed to fetch') ? 'Network error: Failed to load camera module.' : errMsg;
+      showScanner = false;
+    }
+  }
+
+  async function stopScanner() {
+    if (html5QrScanner) {
+      try { await html5QrScanner.stop(); } catch {}
+      html5QrScanner = null;
+    }
+    showScanner = false;
+  }
+
+  async function onScanSuccess(decodedText: string) {
+    if (scanLoading) return;
+    scanLoading = true;
+    await stopScanner();
+    try {
+      const payload = JSON.parse(decodedText);
+      scannedToken = payload.t;
+      if (!$authStore.user?.id) { 
+        scanError = 'Not logged in.'; 
+        scanLoading = false; 
+        return; 
+      }
+      showPunchChoice = true;
+    } catch {
+      scanError = 'Invalid QR code.';
+    }
+    scanLoading = false;
+  }
+
+  async function doPunch(action: 'check_in' | 'check_out') {
+    showPunchChoice = false;
+    scanLoading = true;
+    try {
+      const userId = $authStore.user?.id;
+      if (!userId) { 
+        scanError = 'Not logged in.'; 
+        scanLoading = false; 
+        return; 
+      }
+
+      const { data, error: punchError } = await supabase.rpc('fn_attendance_punch', {
+        p_token: scannedToken,
+        p_user_id: userId,
+        p_action: action
+      });
+      
+      if (punchError) { 
+        scanError = punchError.message; 
+      } else if (data?.success) { 
+        scanResult = data.message;
+        await loadAttendance();
+      } else { 
+        scanError = data?.message || 'Punch failed.'; 
+      }
+    } catch {
+      scanError = 'Something went wrong.';
+    }
+    scannedToken = '';
+    scanLoading = false;
+  }
+
+  function cancelPunch() {
+    showPunchChoice = false;
+    scannedToken = '';
+  }
+
   onMount(() => {
     setMobilePage('attendance', 'Attendance');
     loadAttendance();
@@ -115,6 +241,11 @@
     {/if}
 
     <div class="content">
+      <!-- QR Scan Button -->
+      <button class="qr-scan-button" on:click={startScanner} title="Scan QR to mark attendance">
+        <span>📱 Scan QR to Check In/Out</span>
+      </button>
+
       <!-- Today's Attendance -->
       <div class="section">
         <h2>Today's Attendance</h2>
@@ -181,6 +312,52 @@
         {/if}
       </div>
     </div>
+
+    <!-- QR Scanner Overlay -->
+    {#if showScanner}
+      <div class="qr-overlay">
+        <div class="qr-scanner-box">
+          <div class="qr-scanner-header">
+            <h3>Scan Attendance QR</h3>
+            <button class="qr-close-btn" on:click={stopScanner}>&times;</button>
+          </div>
+          <div id="qr-reader" style="width:100%;min-height:260px;"></div>
+          {#if scanLoading}<p class="qr-msg">Processing...</p>{/if}
+        </div>
+      </div>
+    {/if}
+
+    <!-- Check-in / Check-out Choice Popup -->
+    {#if showPunchChoice}
+      <div class="qr-overlay">
+        <div class="punch-choice-box">
+          <h3 class="punch-title">Mark Attendance</h3>
+          <p class="punch-subtitle">QR scanned successfully! Choose your action:</p>
+          <div class="punch-buttons">
+            <button class="punch-btn checkin" on:click={() => doPunch('check_in')} disabled={scanLoading}>
+              ✓ Check In
+            </button>
+            <button class="punch-btn checkout" on:click={() => doPunch('check_out')} disabled={scanLoading}>
+              → Check Out
+            </button>
+          </div>
+          {#if scanLoading}<p class="qr-msg">Processing...</p>{/if}
+          <button class="punch-cancel" on:click={cancelPunch}>Cancel</button>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Scan Result/Error Toast -->
+    {#if scanResult}
+      <div class="scan-toast success" on:click={() => scanResult = ''} on:keydown={() => {}} role="button" tabindex="-1">
+        {scanResult}
+      </div>
+    {/if}
+    {#if scanError}
+      <div class="scan-toast error" on:click={() => scanError = ''} on:keydown={() => {}} role="button" tabindex="-1">
+        {scanError}
+      </div>
+    {/if}
   </div>
 </MobilePageWrapper>
 
@@ -329,6 +506,240 @@
   .status.present {
     background: #e8f5e9;
     color: #2e7d32;
+  }
+
+  .status.absent {
+    background: #ffebee;
+    color: #c62828;
+  }
+
+  .status.checked\ in {
+    background: #e3f2fd;
+    color: #1565c0;
+  }
+
+  /* ========== QR SCAN BUTTON ========== */
+  .qr-scan-button {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #C41E3A 0%, #a01830 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(196, 30, 58, 0.3);
+    transition: all 0.2s;
+  }
+
+  .qr-scan-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(196, 30, 58, 0.4);
+  }
+
+  .qr-scan-button:active {
+    transform: translateY(0);
+  }
+
+  /* ========== QR SCANNER OVERLAY ========== */
+  .qr-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .qr-scanner-box {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 20px;
+    padding: 20px;
+    width: 320px;
+    max-width: 90vw;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+  }
+
+  .qr-scanner-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+
+  .qr-scanner-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #C41E3A;
+    margin: 0;
+  }
+
+  .qr-close-btn {
+    background: rgba(196, 30, 58, 0.1);
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #C41E3A;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .qr-close-btn:hover {
+    background: rgba(196, 30, 58, 0.2);
+  }
+
+  .qr-msg {
+    text-align: center;
+    color: #6b7280;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  /* ========== PUNCH CHOICE POPUP ========== */
+  .punch-choice-box {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 24px;
+    padding: 28px 24px;
+    width: 320px;
+    max-width: 90vw;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+  }
+
+  .punch-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 8px 0;
+    text-align: center;
+  }
+
+  .punch-subtitle {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .punch-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .punch-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 12px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s;
+    color: white;
+  }
+
+  .punch-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .punch-btn.checkin {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35);
+  }
+
+  .punch-btn.checkin:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.45);
+  }
+
+  .punch-btn.checkout {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+  }
+
+  .punch-btn.checkout:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.45);
+  }
+
+  .punch-cancel {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  .punch-cancel:hover {
+    color: #6b7280;
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  /* ========== SCAN TOAST ========== */
+  .scan-toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 200;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: toastSlide 0.3s ease;
+  }
+
+  .scan-toast.success {
+    background: rgba(220, 252, 231, 0.9);
+    color: #166534;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+  }
+
+  .scan-toast.error {
+    background: rgba(254, 226, 226, 0.9);
+    color: #991b1b;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+
+  @keyframes toastSlide {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   }
 
   .status.absent {
