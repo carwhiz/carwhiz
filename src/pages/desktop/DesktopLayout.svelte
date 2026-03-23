@@ -7,6 +7,7 @@
   import { logout } from '../../lib/services/authService';
   import AppWindow from '../../components/AppWindow.svelte';
   import Taskbar from '../../components/desktop/Taskbar.svelte';
+  import logoPath from '../../assets/CARWHIZ.jpeg';
   
   // Finance Windows
   import SalesWindow from '../../components/windows/finance/operations/SalesWindow.svelte';
@@ -185,7 +186,7 @@
   <!-- Sidebar -->
   <nav class="sidebar">
     <div class="sidebar-header">
-      <img src="/src/assets/CARWHIZ.jpeg" alt="CarWhizz Logo" class="sidebar-logo" />
+      <img src={logoPath} alt="CarWhizz Logo" class="sidebar-logo" />
     </div>
 
     <div class="sidebar-content">
@@ -415,7 +416,7 @@
         <div class="dashboard-content">
           <!-- App Logo Section -->
           <div class="logo-section">
-            <img src="/src/assets/CARWHIZ.jpeg" alt="CarWhizz Logo" class="app-logo" />
+            <img src={logoPath} alt="CarWhizz Logo" class="app-logo" />
           </div>
 
           <!-- QR Code Section (No Labels) -->

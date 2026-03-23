@@ -8,6 +8,7 @@
   import MobileMyJobs from './MobileMyJobs.svelte';
   import MobileAttendance from './MobileAttendance.svelte';
   import MobileJobDetail from './MobileJobDetail.svelte';
+  import logoPath from '../../assets/CARWHIZ.jpeg';
 
   let menuOpen = false;
 
@@ -61,7 +62,7 @@
       {#if shouldShowBackButton()}
         <button class="back-btn" on:click={goBack} title="Back">← Back</button>
       {/if}
-      <img src="/src/assets/CARWHIZ.jpeg" alt="CarWhizz" class="mobile-logo" />
+      <img src={logoPath} alt="CarWhizz" class="mobile-logo" />
       <span class="page-title">{$mobilePageStore.pageTitle}</span>
     </div>
     <div class="header-right">
