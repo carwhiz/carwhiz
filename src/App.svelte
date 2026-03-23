@@ -48,6 +48,27 @@
       isInitializing = false;
     })();
 
+    // Setup Service Worker update handler to auto-reload when new version available
+    if ('serviceWorker' in navigator) {
+      const refreshing = { current: false };
+      
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing.current) {
+          refreshing.current = true;
+          window.location.reload();
+        }
+      });
+
+      // Poll for updates every 60 seconds
+      setInterval(() => {
+        navigator.serviceWorker.getRegistration().then((registration) => {
+          if (registration) {
+            registration.update();
+          }
+        });
+      }, 60000);
+    }
+
     return unsubscribe;
   });
 </script>

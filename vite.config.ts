@@ -23,7 +23,6 @@ export default defineConfig({
     svelte(),
     VitePWA({
       registerType: 'autoUpdate',
-      selfDestroying: true,
       includeAssets: ['logo.jpeg'],
       manifest: {
         name: 'CarWhizz',
@@ -79,7 +78,16 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'assets-cache',
-              expiration: { maxEntries: 60 },
+              expiration: { maxEntries: 60, maxAgeSeconds: 3600 },
+              networkTimeoutSeconds: 2,
+            },
+          },
+          {
+            // Always check for new HTML
+            urlPattern: /\.html$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html-cache',
               networkTimeoutSeconds: 3,
             },
           },
