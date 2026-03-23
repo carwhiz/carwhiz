@@ -23,6 +23,7 @@ export default defineConfig({
     svelte(),
     VitePWA({
       registerType: 'autoUpdate',
+      selfDestroying: true,
       includeAssets: ['logo.jpeg'],
       manifest: {
         name: 'CarWhizz',
