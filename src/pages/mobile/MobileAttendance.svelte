@@ -131,37 +131,41 @@
     try {
       html5QrScanner = new Html5Qrcode('qr-reader');
 
-      const cameras = await Html5Qrcode.getCameras();
-      if (!cameras || cameras.length === 0) {
-        scanError = 'No camera found on this device.';
-        showScanner = false;
-        scanLoading = false;
-        return;
-      }
-
-      const backCam = cameras.find((c: any) => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('rear'));
-      const cameraId = backCam ? backCam.id : cameras[cameras.length - 1].id;
+      // For iOS/mobile, use facingMode instead of device ID for better compatibility
+      const constraints = {
+        audio: false,
+        video: { facingMode: 'environment' }
+      };
 
       await html5QrScanner.start(
-        cameraId,
+        constraints,
         { 
           fps: 10, 
-          // Scale down the qrbox slightly for small screens
           qrbox: { width: 200, height: 200 },
-          aspectRatio: 1.0 // Force a square aspect ratio to prevent iOS collapse
+          disableFlip: false
         },
         onScanSuccess,
-        () => {}
+        (errorMsg: string) => {
+          // Scan error handler - typically just log, don't stop scanner
+          if (errorMsg && errorMsg.indexOf('NotFoundException') === -1) {
+            console.log('Scan error:', errorMsg);
+          }
+        }
       );
       scanLoading = false;
     } catch (err: any) {
       const errMsg = err?.message || err?.toString() || 'Camera access denied or not available. Please ensure you have granted camera permissions to this site.';
-      console.error('Scanner error:', errMsg, err);
+      console.error('Scanner initialization failed:', errMsg, err);
+      
       // Give a more user friendly error if it's permission denied
-      if (err?.name === 'NotAllowedError' || errMsg.includes('Permission denied')) {
-         scanError = 'Camera access was denied. Please allow camera permissions in your browser settings and try again.';
+      if (err?.name === 'NotAllowedError' || errMsg.includes('Permission denied') || errMsg.includes('Permission dismissed')) {
+         scanError = 'Camera permission denied. Please go to Settings > Safari and allow camera access for this site.';
+      } else if (errMsg.includes('NotFoundError') || errMsg.includes('no camera')) {
+         scanError = 'No camera found on your device.';
+      } else if (errMsg.includes('NotSupportedError')) {
+         scanError = 'QR scanning is not supported on your device or browser.';
       } else {
-         scanError = errMsg.includes('Failed to fetch') ? 'Network error: Failed to load camera module.' : errMsg;
+         scanError = errMsg || 'Failed to initialize camera. Please try again.';
       }
       showScanner = false;
       scanLoading = false;
@@ -335,7 +339,7 @@
                 <p>Initializing camera...</p>
               </div>
             {/if}
-            <div id="qr-reader" style="width:100%; height:300px; display:flex; justify-content:center; align-items:center; overflow:hidden; border-radius:12px; background:#000;"></div>
+            <div id="qr-reader" style="width:100%; height:300px; overflow:hidden; border-radius:12px; background:#000;"></div>
           </div>
         </div>
       </div>
