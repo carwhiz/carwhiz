@@ -4,10 +4,8 @@ import AuthSignUp from '../pages/auth/AuthSignUp.svelte';
 import MobileLayout from '../pages/mobile/MobileLayout.svelte';
 import DesktopLayout from '../pages/desktop/DesktopLayout.svelte';
 import PrivacyPolicy from '../pages/info/PrivacyPolicy.svelte';
-import MobileMyJobs from '../pages/mobile/MobileMyJobs.svelte';
-import MobileAttendance from '../pages/mobile/MobileAttendance.svelte';
 
-export type InterfaceMode = 'login' | 'signup' | 'mobile' | 'desktop' | 'privacy' | 'my-jobs' | 'attendance';
+export type InterfaceMode = 'login' | 'signup' | 'mobile' | 'desktop' | 'privacy';
 
 export interface Route {
   path: InterfaceMode;
@@ -58,22 +56,6 @@ export const routes: Record<InterfaceMode, Route> = {
     component: PrivacyPolicy,
     requiresAuth: false,
     description: 'Privacy policy page'
-  },
-  'my-jobs': {
-    path: 'my-jobs',
-    url: '/my-jobs',
-    name: 'My Jobs',
-    component: MobileMyJobs,
-    requiresAuth: true,
-    description: 'User job cards page'
-  },
-  'attendance': {
-    path: 'attendance',
-    url: '/attendance',
-    name: 'Attendance',
-    component: MobileAttendance,
-    requiresAuth: true,
-    description: 'Attendance tracking page'
   }
 };
 

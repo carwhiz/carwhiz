@@ -11,8 +11,6 @@
   import MobileLayout from './pages/mobile/MobileLayout.svelte';
   import DesktopLayout from './pages/desktop/DesktopLayout.svelte';
   import PrivacyPolicy from './pages/info/PrivacyPolicy.svelte';
-  import MobileMyJobs from './pages/mobile/MobileMyJobs.svelte';
-  import MobileAttendance from './pages/mobile/MobileAttendance.svelte';
 
   let isInitializing = true;
 
@@ -66,10 +64,6 @@
     <AuthSignUp />
   {:else if $interfaceStore.currentInterface === 'mobile'}
     <MobileLayout />
-  {:else if $interfaceStore.currentInterface === 'my-jobs'}
-    <MobileMyJobs />
-  {:else if $interfaceStore.currentInterface === 'attendance'}
-    <MobileAttendance />
   {:else if $interfaceStore.currentInterface === 'desktop'}
     <DesktopLayout />
   {:else if $interfaceStore.currentInterface === 'privacy'}

@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 
-export type InterfaceMode = 'login' | 'signup' | 'mobile' | 'desktop' | 'privacy' | 'my-jobs' | 'attendance';
+export type InterfaceMode = 'login' | 'signup' | 'mobile' | 'desktop' | 'privacy';
 
 interface InterfaceState {
   currentInterface: InterfaceMode;
