@@ -1,22 +1,52 @@
 import { writable } from 'svelte/store';
 
-export type InterfaceMode = 'mobile' | 'desktop';
+export type InterfaceMode = 'login' | 'signup' | 'mobile' | 'desktop' | 'privacy' | 'my-jobs' | 'attendance';
+
+interface InterfaceState {
+  currentInterface: InterfaceMode;
+}
 
 function createInterfaceStore() {
   const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('carwhizz_interface') as InterfaceMode : null;
-  const { subscribe, set, update } = writable<InterfaceMode>(stored || 'mobile');
+  const initialInterface: InterfaceMode = stored || 'login';
+  
+  const { subscribe, set, update } = writable<InterfaceState>({
+    currentInterface: initialInterface
+  });
 
   return {
     subscribe,
-    toggle: () => update(mode => {
-      const next = mode === 'mobile' ? 'desktop' : 'mobile';
-      localStorage.setItem('carwhizz_interface', next);
-      return next;
-    }),
-    set: (mode: InterfaceMode) => {
+    
+    setInterface: (mode: InterfaceMode) => {
       localStorage.setItem('carwhizz_interface', mode);
-      set(mode);
+      update(state => ({
+        ...state,
+        currentInterface: mode
+      }));
     },
+
+    toggle: () => update(state => {
+      const next = state.currentInterface === 'mobile' ? 'desktop' : 'mobile';
+      localStorage.setItem('carwhizz_interface', next);
+      return {
+        ...state,
+        currentInterface: next as InterfaceMode
+      };
+    }),
+
+    goHome: () => {
+      update(state => ({
+        ...state,
+        currentInterface: state.currentInterface === 'mobile' ? 'mobile' : 'desktop'
+      }));
+    },
+
+    logout: () => {
+      localStorage.removeItem('carwhizz_interface');
+      set({
+        currentInterface: 'login'
+      });
+    }
   };
 }
 

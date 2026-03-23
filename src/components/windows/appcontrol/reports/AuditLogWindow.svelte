@@ -190,6 +190,11 @@
       permissions: 'Permission',
       product_components: 'Service Component',
       attendance: 'Attendance',
+      job_cards: 'Job Card',
+      job_card_items: 'Job Card Item',
+      job_card_photos: 'Job Card Photo',
+      job_card_notes: 'Job Card Note',
+      job_card_logs: 'Job Card Log',
     };
     return map[t] || friendlyLabel(t);
   }

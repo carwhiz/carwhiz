@@ -1,16 +1,17 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-  const dispatch = createEventDispatcher();
+  import { interfaceStore } from '../../stores/interfaceStore';
 </script>
 
-<div class="pp-overlay" on:click|self={() => dispatch('close')} on:keydown={() => {}} role="button" tabindex="-1">
-  <div class="pp-container">
-    <div class="pp-header">
+<div class="privacy-page">
+  <div class="privacy-container">
+    <div class="privacy-header">
       <h1>Privacy Policy</h1>
-      <button class="pp-close" on:click={() => dispatch('close')} aria-label="Close">&times;</button>
+      <button class="back-btn" on:click={() => interfaceStore.setInterface('login')} aria-label="Go back" title="Back to Login">
+        ← Back
+      </button>
     </div>
 
-    <div class="pp-content">
+    <div class="privacy-content">
       <p class="pp-updated">Last updated: 17 March 2026</p>
 
       <section>
@@ -156,6 +157,64 @@
 </div>
 
 <style>
+  .privacy-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+    padding: 1rem;
+  }
+
+  .privacy-container {
+    background: white;
+    border-radius: 8px;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  }
+
+  .privacy-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem;
+    border-bottom: 1px solid #f3f4f6;
+    background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+    color: white;
+  }
+
+  .privacy-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+
+  .back-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .back-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .privacy-content {
+    overflow-y: auto;
+    padding: 2rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #374151;
+  }
+
   .pp-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;

@@ -10,6 +10,8 @@
   import AppWindow from './AppWindow.svelte';
   import SalesWindow from './windows/finance/operations/SalesWindow.svelte';
   import PurchaseWindow from './windows/finance/operations/PurchaseWindow.svelte';
+  import SalesReturnWindow from './windows/finance/operations/SalesReturnWindow.svelte';
+  import PurchaseReturnWindow from './windows/finance/operations/PurchaseReturnWindow.svelte';
   import ReceiptWindow from './windows/finance/operations/ReceiptWindow.svelte';
   import PaymentWindow from './windows/finance/operations/PaymentWindow.svelte';
   import VehiclesWindow from './windows/products/manage/VehiclesWindow.svelte';
@@ -40,6 +42,9 @@
   import PermissionsWindow from './windows/appcontrol/manage/PermissionsWindow.svelte';
   import StockReportWindow from './windows/products/reports/StockReportWindow.svelte';
   import AttendanceReportWindow from './windows/hr/reports/AttendanceReportWindow.svelte';
+  import JobCardWindow from './windows/finance/manage/JobCardWindow.svelte';
+  import JobCardReportWindow from './windows/finance/reports/JobCardReportWindow.svelte';
+  import MyJobCardsWindow from './windows/finance/manage/MyJobCardsWindow.svelte';
   import { createEventDispatcher } from 'svelte';
   import { onDestroy } from 'svelte';
   import QRCode from 'qrcode';
@@ -47,8 +52,21 @@
   const dispatch = createEventDispatcher();
 
   // Sidebar section collapse state
-  let expandedSections: Record<string, boolean> = { finance: false, products: false, appcontrol: false, hr: false };
-  let expandedSubs: Record<string, boolean> = {};
+  let expandedSections: Record<string, boolean> = { finance: true, products: true, appcontrol: true, hr: true };
+  let expandedSubs: Record<string, boolean> = {
+    'finance-manage': true,
+    'finance-operations': true,
+    'finance-reports': true,
+    'products-manage': true,
+    'products-operations': true,
+    'products-reports': true,
+    'hr-manage': true,
+    'hr-operations': true,
+    'hr-reports': true,
+    'appcontrol-manage': true,
+    'appcontrol-operations': true,
+    'appcontrol-reports': true,
+  };
 
   // ---- QR Attendance (Desktop) ----
   let qrDataUrl = '';
@@ -200,6 +218,7 @@
   }
 
   // ---- Mobile Dashboard Data ----
+  let mobilePage: 'home' | 'jobs' | 'attendance' = 'home';
   let mobileDate = new Date().toISOString().split('T')[0];
   let salesToday = 0;
   let salesCount = 0;
@@ -213,6 +232,8 @@
   let purchaseBalanceTotal = 0;
   let attendanceCheckIn: string | null = null;
   let attendanceCheckOut: string | null = null;
+  let attendancePunches: { check_in: string | null; check_out: string | null; punch_order: number }[] = [];
+  let attendanceTotalHours = '';
   let totalPresent = 0;
   let totalEmployees = 0;
   let mobileLoading = true;
@@ -287,17 +308,34 @@
     // Load attendance for today
     attendanceCheckIn = null;
     attendanceCheckOut = null;
+    attendancePunches = [];
+    attendanceTotalHours = '';
     const userId = $authStore.user?.id;
     if (userId) {
-      const { data: att } = await supabase
+      const { data: attList } = await supabase
         .from('attendance')
-        .select('check_in, check_out')
+        .select('check_in, check_out, punch_order')
         .eq('user_id', userId)
         .eq('date', mobileDate)
-        .maybeSingle();
-      if (att) {
-        attendanceCheckIn = att.check_in;
-        attendanceCheckOut = att.check_out;
+        .order('punch_order', { ascending: true });
+      if (attList && attList.length > 0) {
+        attendancePunches = attList;
+        // First check-in and latest check-out for summary
+        attendanceCheckIn = attList[0].check_in;
+        const lastCompleted = [...attList].reverse().find(p => p.check_out);
+        attendanceCheckOut = lastCompleted?.check_out || null;
+        // Calculate total worked hours
+        let totalMs = 0;
+        for (const p of attList) {
+          if (p.check_in && p.check_out) {
+            totalMs += new Date(p.check_out).getTime() - new Date(p.check_in).getTime();
+          }
+        }
+        if (totalMs > 0) {
+          const hrs = Math.floor(totalMs / 3600000);
+          const mins = Math.floor((totalMs % 3600000) / 60000);
+          attendanceTotalHours = `${hrs}h ${mins}m`;
+        }
       }
     }
 
@@ -317,6 +355,265 @@
     mobileLoading = false;
   }
 
+  // ---- Mobile Job Cards ----
+  let mobileJobs: any[] = [];
+  let mobileJobsLoading = true;
+  let mobileJobStatusFilter = '';
+  let mobileViewingJob: any = null;
+  let mjItems: any[] = [];
+  let mjPhotos: any[] = [];
+  let mjNotes: any[] = [];
+  let mjLogs: any[] = [];
+  let mjNewNote = '';
+  let mjNoteSaving = false;
+  let mjPhotoUploading = false;
+  let mjPhotoError = '';
+  let mjActionLoading = false;
+  let mjActionError = '';
+  let mjProducts: any[] = [];
+  let mjProductSearch = '';
+  let mjFilteredProducts: any[] = [];
+  let mjShowProductDropdown = false;
+  let mjSelectedProduct: any = null;
+  let mjItemQty = 1;
+  let mjItemPrice = '';
+  let mjItemNotes = '';
+  let mjItemSaving = false;
+  let mjItemError = '';
+  let mjDeletingItemId: string | null = null;
+
+  $: mobileFilteredJobs = mobileJobStatusFilter ? mobileJobs.filter(j => j.status === mobileJobStatusFilter) : mobileJobs;
+
+  async function loadMobileJobs() {
+    mobileJobsLoading = true;
+    const userId = $authStore.user?.id;
+    if (!userId) { mobileJobsLoading = false; return; }
+    const { data } = await supabase
+      .from('job_cards')
+      .select('id, job_card_no, status, priority, description, details, expected_date, created_at, customer_id, customers(name, place, gender), vehicles(model_name, makes(name), variants(name), gearboxes(name), fuel_types(name), body_sides(name))')
+      .eq('assigned_user_id', userId)
+      .in('status', ['Open', 'In Progress'])
+      .order('created_at', { ascending: false });
+    
+    // Load vehicle numbers for all customers
+    const { data: vehicleNumbers } = await supabase
+      .from('customer_vehicle_numbers')
+      .select('customer_id, vehicle_number');
+    
+    const vehicleNumbersByCustomer: { [key: string]: string[] } = {};
+    (vehicleNumbers || []).forEach((vn: any) => {
+      if (!vehicleNumbersByCustomer[vn.customer_id]) {
+        vehicleNumbersByCustomer[vn.customer_id] = [];
+      }
+      vehicleNumbersByCustomer[vn.customer_id].push(vn.vehicle_number);
+    });
+    
+    mobileJobs = (data || []).map((j: any) => {
+      const v = j.vehicles;
+      const parts = [v?.model_name, v?.makes?.name, v?.variants?.name, v?.fuel_types?.name, v?.gearboxes?.name].filter(Boolean);
+      return {
+        ...j,
+        customer_name: j.customers?.name || '—',
+        customer_place: j.customers?.place || '',
+        customer_gender: j.customers?.gender || '',
+        vehicle_name: parts.join(' • ') || '—',
+        vehicle_model: v?.model_name || '—',
+        vehicle_make: v?.makes?.name || '',
+        vehicle_variant: v?.variants?.name || '',
+        vehicle_fuel: v?.fuel_types?.name || '',
+        vehicle_gearbox: v?.gearboxes?.name || '',
+        vehicle_body: v?.body_sides?.name || '',
+        vehicle_numbers: vehicleNumbersByCustomer[j.customer_id] || [],
+      };
+    });
+    mobileJobsLoading = false;
+  }
+
+  async function openMobileJobDetail(job: any) {
+    mobileViewingJob = job;
+    mjActionError = '';
+    const [itemsRes, photosRes, notesRes, logsRes] = await Promise.all([
+      supabase.from('job_card_items').select('*').eq('job_card_id', job.id).order('created_at'),
+      supabase.from('job_card_photos').select('*').eq('job_card_id', job.id).order('created_at'),
+      supabase.from('job_card_notes').select('*, users:created_by(email, user_name)').eq('job_card_id', job.id).order('created_at', { ascending: false }),
+      supabase.from('job_card_logs').select('*, users:action_by(email, user_name)').eq('job_card_id', job.id).order('created_at', { ascending: false }),
+    ]);
+    mjItems = itemsRes.data || [];
+    mjPhotos = photosRes.data || [];
+    mjNotes = (notesRes.data || []).map((n: any) => ({ ...n, by_name: n.users?.user_name || n.users?.email || '—' }));
+    mjLogs = (logsRes.data || []).map((l: any) => ({ ...l, by_name: l.users?.user_name || l.users?.email || '—' }));
+  }
+
+  function closeMobileJobDetail() {
+    mobileViewingJob = null;
+    mjItems = []; mjPhotos = []; mjNotes = []; mjLogs = [];
+    mjNewNote = '';
+  }
+
+  async function mjStartJob() {
+    if (!mobileViewingJob || mobileViewingJob.status !== 'Open') return;
+    mjActionLoading = true; mjActionError = '';
+    const { error } = await supabase.from('job_cards').update({ status: 'In Progress', updated_by: $authStore.user?.id || null, updated_at: new Date().toISOString() }).eq('id', mobileViewingJob.id);
+    if (error) { mjActionError = error.message; mjActionLoading = false; return; }
+    await supabase.from('job_card_logs').insert({ job_card_id: mobileViewingJob.id, action: 'Started', from_status: 'Open', to_status: 'In Progress', note: 'Job started', action_by: $authStore.user?.id || null, created_by: $authStore.user?.id || null });
+    mobileViewingJob = { ...mobileViewingJob, status: 'In Progress' };
+    mjActionLoading = false;
+    loadMobileJobs();
+    await openMobileJobDetail(mobileViewingJob);
+  }
+
+  async function mjCloseJob() {
+    if (!mobileViewingJob || mobileViewingJob.status !== 'In Progress') return;
+    if (!confirm('Close this job card?')) return;
+    mjActionLoading = true; mjActionError = '';
+    const { error } = await supabase.from('job_cards').update({ status: 'Closed', closed_by: $authStore.user?.id || null, closed_at: new Date().toISOString(), updated_by: $authStore.user?.id || null, updated_at: new Date().toISOString() }).eq('id', mobileViewingJob.id);
+    if (error) { mjActionError = error.message; mjActionLoading = false; return; }
+    await supabase.from('job_card_logs').insert({ job_card_id: mobileViewingJob.id, action: 'Closed', from_status: 'In Progress', to_status: 'Closed', note: 'Job completed and closed', action_by: $authStore.user?.id || null, created_by: $authStore.user?.id || null });
+    mobileViewingJob = { ...mobileViewingJob, status: 'Closed' };
+    mjActionLoading = false;
+    loadMobileJobs();
+    await openMobileJobDetail(mobileViewingJob);
+  }
+
+  async function mjAddNote() {
+    if (!mjNewNote.trim() || !mobileViewingJob) return;
+    mjNoteSaving = true;
+    await supabase.from('job_card_notes').insert({ job_card_id: mobileViewingJob.id, note: mjNewNote.trim(), created_by: $authStore.user?.id || null });
+    await supabase.from('job_card_logs').insert({ job_card_id: mobileViewingJob.id, action: 'Note Added', note: mjNewNote.trim().substring(0, 100), action_by: $authStore.user?.id || null, created_by: $authStore.user?.id || null });
+    mjNewNote = '';
+    mjNoteSaving = false;
+    await openMobileJobDetail(mobileViewingJob);
+  }
+
+  async function mjHandlePhotoUpload(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const files = input.files;
+    if (!files || files.length === 0 || !mobileViewingJob) return;
+    mjPhotoUploading = true; mjPhotoError = '';
+    for (const file of Array.from(files)) {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const fileName = `${mobileViewingJob.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from('job-card-photos').upload(fileName, file);
+      if (uploadErr) { mjPhotoError = 'Upload failed: ' + uploadErr.message; continue; }
+      const { data: urlData } = supabase.storage.from('job-card-photos').getPublicUrl(fileName);
+      if (urlData?.publicUrl) {
+        await supabase.from('job_card_photos').insert({ job_card_id: mobileViewingJob.id, file_url: urlData.publicUrl, file_name: file.name, uploaded_by: $authStore.user?.id || null, created_by: $authStore.user?.id || null });
+      }
+    }
+    mjPhotoUploading = false;
+    input.value = '';
+    await openMobileJobDetail(mobileViewingJob);
+  }
+
+  // ---- Load Products (Mobile) ----
+  async function loadMobileProducts() {
+    const { data } = await supabase
+      .from('products')
+      .select('id, product_name, product_type, sales_price')
+      .order('product_name');
+    mjProducts = data || [];
+  }
+
+  function handleMobileProductSearch() {
+    const q = mjProductSearch.toLowerCase().trim();
+    if (!q) { mjFilteredProducts = []; mjShowProductDropdown = false; return; }
+    mjFilteredProducts = mjProducts.filter(p =>
+      p.product_name.toLowerCase().includes(q) || (p.product_type || '').toLowerCase().includes(q)
+    ).slice(0, 8);
+    mjShowProductDropdown = mjFilteredProducts.length > 0;
+  }
+
+  function selectMobileProduct(p: any) {
+    mjSelectedProduct = p;
+    mjProductSearch = p.product_name;
+    mjItemPrice = (p.sales_price || 0).toString();
+    mjShowProductDropdown = false;
+  }
+
+  // ---- Add Item to Mobile Job ----
+  async function mjAddItem() {
+    if (!mobileViewingJob || !mjSelectedProduct || mjItemQty <= 0 || !mjItemPrice) {
+      mjItemError = 'Select product and set qty/price';
+      return;
+    }
+    mjItemSaving = true;
+    mjItemError = '';
+
+    const qty = Number(mjItemQty);
+    const price = Number(mjItemPrice);
+    const total = qty * price;
+
+    const { error } = await supabase.from('job_card_items').insert({
+      job_card_id: mobileViewingJob.id,
+      item_type: mjSelectedProduct.product_type || 'product',
+      item_id: mjSelectedProduct.id,
+      name: mjSelectedProduct.product_name,
+      qty: qty,
+      price: price,
+      total: total,
+      discount: 0,
+      notes: mjItemNotes || '',
+      created_by: $authStore.user?.id || null,
+    });
+
+    if (error) {
+      mjItemError = 'Failed to add: ' + error.message;
+      mjItemSaving = false;
+      return;
+    }
+
+    mjSelectedProduct = null;
+    mjProductSearch = '';
+    mjItemQty = 1;
+    mjItemPrice = '';
+    mjItemNotes = '';
+    mjShowProductDropdown = false;
+    mjItemSaving = false;
+    await openMobileJobDetail(mobileViewingJob);
+  }
+
+  // ---- Remove Item from Mobile Job ----
+  async function mjRemoveItem(itemId: string) {
+    if (!confirm('Remove this item?')) return;
+    mjDeletingItemId = itemId;
+
+    const { error } = await supabase
+      .from('job_card_items')
+      .delete()
+      .eq('id', itemId);
+
+    if (error) {
+      alert('Failed: ' + error.message);
+      mjDeletingItemId = null;
+      return;
+    }
+
+    mjDeletingItemId = null;
+    await openMobileJobDetail(mobileViewingJob);
+  }
+
+  function formatMobileDate(dt: string): string {
+    if (!dt) return '—';
+    const d = new Date(dt);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  }
+
+  function formatMobileDateTime(dt: string): string {
+    if (!dt) return '—';
+    const d = new Date(dt);
+    let h = d.getHours(); const min = String(d.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${h}:${min} ${ampm}`;
+  }
+
+  function mjStatusClass(s: string): string {
+    return { 'Open': 'mj-open', 'In Progress': 'mj-progress', 'Closed': 'mj-closed' }[s] || '';
+  }
+
+  function mjPriClass(p: string): string {
+    return { 'Low': 'mj-pri-low', 'Normal': 'mj-pri-normal', 'High': 'mj-pri-high', 'Urgent': 'mj-pri-urgent' }[p] || '';
+  }
+
   onMount(() => {
     if ($interfaceStore === 'mobile') {
       loadMobileCardPermissions();
@@ -330,7 +627,8 @@
   // Reload when switching to mobile
   $: if ($interfaceStore === 'mobile') { 
     loadMobileCardPermissions();
-    loadMobileData(); 
+    loadMobileData();
+    loadMobileProducts();
     stopQRTimer(); 
   }
   $: if ($interfaceStore === 'desktop') startQRTimer();
@@ -352,6 +650,7 @@
       </div>
 
       <div class="mobile-content">
+        {#if mobilePage === 'home'}
         <!-- Date Navigation -->
         <div class="m-date-nav">
           <button class="m-date-btn" on:click={() => changeDate(-1)} title="Previous day">
@@ -459,11 +758,33 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>
               </div>
               <div class="m-card-label">Attendance</div>
-              <div class="m-card-attend-row">
-                <span class="attend-in">In: {formatTime(attendanceCheckIn)}</span>
-                <span class="attend-out">Out: {formatTime(attendanceCheckOut)}</span>
+              {#if attendancePunches.length > 0}
+                <div class="m-card-punches">
+                  {#each attendancePunches as p}
+                    <div class="punch-row">
+                      <span class="attend-in">In: {formatTime(p.check_in)}</span>
+                      <span class="attend-out">Out: {p.check_out ? formatTime(p.check_out) : '—'}</span>
+                    </div>
+                  {/each}
+                </div>
+                {#if attendanceTotalHours}
+                  <div class="m-card-sub total-hrs">Total: {attendanceTotalHours}</div>
+                {/if}
+              {:else}
+                <div class="m-card-attend-row">
+                  <span class="attend-in">In: —</span>
+                  <span class="attend-out">Out: —</span>
+                </div>
+              {/if}
+              <div class="m-card-sub">
+                {#if attendancePunches.length === 0}
+                  Not checked in
+                {:else if attendancePunches.some(p => p.check_in && !p.check_out)}
+                  Working ({attendancePunches.length} punch{attendancePunches.length > 1 ? 'es' : ''})
+                {:else}
+                  Completed ({attendancePunches.length} punch{attendancePunches.length > 1 ? 'es' : ''})
+                {/if}
               </div>
-              <div class="m-card-sub">{attendanceCheckIn ? (attendanceCheckOut ? 'Completed' : 'Checked in') : 'Not checked in'}</div>
             </div>
 
             <!-- Staff Present Card -->
@@ -477,6 +798,292 @@
             </div>
             {/if}
           </div>
+        {/if}
+        {:else if mobilePage === 'jobs'}
+        <!-- ============================================================
+             MOBILE JOB CARDS PAGE
+             ============================================================ -->
+        {#if !mobileViewingJob}
+          <!-- Job List View -->
+          <div class="mj-header">
+            <button class="mj-back-btn" aria-label="Back to home" on:click={() => mobilePage = 'home'}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <h2 class="mj-title">My Job Cards</h2>
+            <select class="mj-filter" bind:value={mobileJobStatusFilter}>
+              <option value="">All</option>
+              <option value="Open">Open</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Closed">Closed</option>
+            </select>
+            <button class="mj-refresh-btn" aria-label="Refresh" on:click={loadMobileJobs}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+          </div>
+
+          {#if mobileJobsLoading}
+            <div class="m-loading">Loading jobs...</div>
+          {:else if mobileFilteredJobs.length === 0}
+            <div class="mj-empty">No job cards found.</div>
+          {:else}
+            <div class="mj-list">
+              {#each mobileFilteredJobs as job}
+                <button class="mj-card" on:click={() => openMobileJobDetail(job)}>
+                  <div class="mj-card-top">
+                    <span class="mj-card-no">{job.job_card_no}</span>
+                    <span class="mj-badge {mjStatusClass(job.status)}">{job.status}</span>
+                  </div>
+                  <div class="mj-card-customer">{job.customer_name}</div>
+                  {#if job.vehicle_numbers && job.vehicle_numbers.length > 0}
+                    <div class="mj-vehicle-numbers">
+                      {#each job.vehicle_numbers as vn}
+                        <span class="mj-vehicle-number">{vn}</span>
+                      {/each}
+                    </div>
+                  {/if}
+                  <div class="mj-card-vehicle">{job.vehicle_name}</div>
+                  {#if job.description}
+                    <div class="mj-card-desc">{job.description}</div>
+                  {/if}
+                  <div class="mj-card-bottom">
+                    <span class="mj-pri {mjPriClass(job.priority)}">{job.priority}</span>
+                    <span class="mj-card-date">{formatMobileDate(job.created_at)}</span>
+                  </div>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        {:else}
+          <!-- Job Detail View -->
+          <div class="mj-header">
+            <button class="mj-back-btn" aria-label="Back to list" on:click={closeMobileJobDetail}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <h2 class="mj-title">{mobileViewingJob.job_card_no}</h2>
+            <span class="mj-badge {mjStatusClass(mobileViewingJob.status)}">{mobileViewingJob.status}</span>
+          </div>
+
+          <div class="mj-detail-scroll">
+            <!-- Info -->
+            <div class="mj-info-grid">
+              <div class="mj-info-item"><span class="mj-info-label">Customer</span><span class="mj-info-value">{mobileViewingJob.customer_name}</span></div>
+              {#if mobileViewingJob.customer_place}
+                <div class="mj-info-item"><span class="mj-info-label">Place</span><span class="mj-info-value">{mobileViewingJob.customer_place}</span></div>
+              {/if}
+              <div class="mj-info-item"><span class="mj-info-label">Priority</span><span class="mj-info-value mj-pri {mjPriClass(mobileViewingJob.priority)}">{mobileViewingJob.priority}</span></div>
+              {#if mobileViewingJob.expected_date}
+                <div class="mj-info-item"><span class="mj-info-label">Expected</span><span class="mj-info-value">{formatMobileDate(mobileViewingJob.expected_date)}</span></div>
+              {/if}
+            </div>
+            <div class="mj-vehicle-box">
+              <span class="mj-info-label">Vehicle</span>
+              <div class="mj-vehicle-model">{mobileViewingJob.vehicle_model}</div>
+              <div class="mj-vehicle-specs">
+                {#if mobileViewingJob.vehicle_make}<span class="mj-vtag">{mobileViewingJob.vehicle_make}</span>{/if}
+                {#if mobileViewingJob.vehicle_variant}<span class="mj-vtag">{mobileViewingJob.vehicle_variant}</span>{/if}
+                {#if mobileViewingJob.vehicle_fuel}<span class="mj-vtag">{mobileViewingJob.vehicle_fuel}</span>{/if}
+                {#if mobileViewingJob.vehicle_gearbox}<span class="mj-vtag">{mobileViewingJob.vehicle_gearbox}</span>{/if}
+                {#if mobileViewingJob.vehicle_body}<span class="mj-vtag">{mobileViewingJob.vehicle_body}</span>{/if}
+              </div>
+            </div>
+            {#if mobileViewingJob.description}
+              <div class="mj-desc-box">{mobileViewingJob.description}</div>
+            {/if}
+            {#if mobileViewingJob.details}
+              <div class="mj-desc-box mj-details">{mobileViewingJob.details}</div>
+            {/if}
+
+            <!-- Actions -->
+            {#if mjActionError}
+              <div class="mj-error">{mjActionError}</div>
+            {/if}
+            <div class="mj-actions">
+              {#if mobileViewingJob.status === 'Open'}
+                <button class="mj-action-btn start" on:click={mjStartJob} disabled={mjActionLoading}>
+                  {mjActionLoading ? 'Starting...' : 'Start Job'}
+                </button>
+              {/if}
+              {#if mobileViewingJob.status === 'In Progress'}
+                <button class="mj-action-btn close-job" on:click={mjCloseJob} disabled={mjActionLoading}>
+                  {mjActionLoading ? 'Closing...' : 'Close Job'}
+                </button>
+              {/if}
+            </div>
+
+            <!-- Items -->
+            <div class="mj-section">
+              <h3 class="mj-section-title">Items / Services ({mjItems.length})</h3>
+              
+              {#if mobileViewingJob.status !== 'Closed'}
+                <div class="mj-add-item-form">
+                  <div class="mj-form-field mj-product-search">
+                    <label>Product</label>
+                    <input type="text" placeholder="Search..." bind:value={mjProductSearch} on:input={handleMobileProductSearch} on:focus={handleMobileProductSearch} />
+                    {#if mjShowProductDropdown}
+                      <div class="mj-dropdown">
+                        {#each mjFilteredProducts as p}
+                          <button class="mj-dd-item" on:click={() => selectMobileProduct(p)}>
+                            <span>{p.product_name}</span>
+                            <span class="mj-type-tag">{p.product_type}</span>
+                          </button>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
+                  <div class="mj-form-row">
+                    <div class="mj-form-field">
+                      <label>Qty</label>
+                      <input type="number" min="1" bind:value={mjItemQty} />
+                    </div>
+                    <div class="mj-form-field">
+                      <label>Price</label>
+                      <input type="number" min="0" step="0.01" bind:value={mjItemPrice} />
+                    </div>
+                    <button class="mj-btn-add-item" on:click={mjAddItem} disabled={mjItemSaving || !mjProductSearch.trim()}>
+                      {mjItemSaving ? '...' : '+'}
+                    </button>
+                  </div>
+                  {#if mjItemError}<div class="mj-form-error">{mjItemError}</div>{/if}
+                </div>
+              {/if}
+              
+              {#if mjItems.length > 0}
+                <div class="mj-items-list">
+                  {#each mjItems as item}
+                    <div class="mj-item-row">
+                      <span class="mj-item-type {item.item_type}">{item.item_type}</span>
+                      <span class="mj-item-name">{item.name || '—'}</span>
+                      <span class="mj-item-qty">x{item.qty}</span>
+                      <span class="mj-item-price">₹{(item.price || 0).toFixed(2)}</span>
+                      <span class="mj-item-amt">₹{(item.total || 0).toFixed(2)}</span>
+                      {#if mobileViewingJob.status !== 'Closed'}
+                        <button class="mj-item-delete" on:click={() => mjRemoveItem(item.id)} disabled={mjDeletingItemId === item.id} title="Remove">✕</button>
+                      {/if}
+                    </div>
+                  {/each}
+                  <div class="mj-item-total-row">
+                    <span class="mj-item-total-label">Total</span>
+                    <span class="mj-item-total-amt">₹{mjItems.reduce((s: number, i: any) => s + (i.total || 0), 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              {/if}
+            </div>
+
+            <!-- Photos -->
+            <div class="mj-section">
+              <h3 class="mj-section-title">Photos</h3>
+              {#if mjPhotos.length > 0}
+                <div class="mj-photos-grid">
+                  {#each mjPhotos as photo}
+                    <a href={photo.file_url} target="_blank" rel="noopener" class="mj-photo-thumb">
+                      <img src={photo.file_url} alt={photo.file_name || 'Photo'} />
+                    </a>
+                  {/each}
+                </div>
+              {:else}
+                <p class="mj-empty-text">No photos yet.</p>
+              {/if}
+              {#if mobileViewingJob.status !== 'Closed'}
+                <label class="mj-upload-btn">
+                  {mjPhotoUploading ? 'Uploading...' : 'Upload Photo'}
+                  <input type="file" accept="image/*" capture="environment" multiple on:change={mjHandlePhotoUpload} hidden disabled={mjPhotoUploading} />
+                </label>
+                {#if mjPhotoError}<p class="mj-error-text">{mjPhotoError}</p>{/if}
+              {/if}
+            </div>
+
+            <!-- Notes -->
+            <div class="mj-section">
+              <h3 class="mj-section-title">Notes</h3>
+              {#if mobileViewingJob.status !== 'Closed'}
+                <div class="mj-note-form">
+                  <textarea class="mj-note-input" bind:value={mjNewNote} placeholder="Add a note..." rows="2"></textarea>
+                  <button class="mj-note-send" on:click={mjAddNote} disabled={mjNoteSaving || !mjNewNote.trim()}>
+                    {mjNoteSaving ? '...' : 'Send'}
+                  </button>
+                </div>
+              {/if}
+              {#if mjNotes.length > 0}
+                <div class="mj-notes-list">
+                  {#each mjNotes as note}
+                    <div class="mj-note-item">
+                      <div class="mj-note-meta">{note.by_name} &middot; {formatMobileDateTime(note.created_at)}</div>
+                      <div class="mj-note-text">{note.note}</div>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+
+            <!-- Activity Log -->
+            {#if mjLogs.length > 0}
+              <div class="mj-section">
+                <h3 class="mj-section-title">Activity Log</h3>
+                <div class="mj-logs-list">
+                  {#each mjLogs as log}
+                    <div class="mj-log-item">
+                      <span class="mj-log-action">{log.action}</span>
+                      <span class="mj-log-meta">{log.by_name} &middot; {formatMobileDateTime(log.created_at)}</span>
+                      {#if log.note}<span class="mj-log-note">{log.note}</span>{/if}
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          </div>
+        {/if}
+
+        {:else if mobilePage === 'attendance'}
+        <!-- ============================================================
+             MOBILE ATTENDANCE PAGE
+             ============================================================ -->
+        <div class="ma-header">
+          <button class="ma-back-btn" aria-label="Back to home" on:click={() => mobilePage = 'home'}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <h2 class="ma-title">Attendance</h2>
+          <div class="ma-spacer"></div>
+        </div>
+
+        <div class="ma-content">
+          <!-- QR Scanner Card -->
+          <div class="ma-card qr-card">
+            <div class="ma-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>
+              <h3>QR Scan Check-in/Out</h3>
+            </div>
+            <p class="ma-card-desc">Scan QR code to mark your attendance</p>
+            <button class="ma-btn-primary" on:click={startScanner}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>
+              Open Scanner
+            </button>
+          </div>
+
+          <!-- Today's Attendance Card -->
+          <div class="ma-card status-card">
+            <div class="ma-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>
+              <h3>Today's Status</h3>
+            </div>
+            {#if attendancePunches.length > 0}
+              <div class="ma-punches">
+                {#each attendancePunches as p}
+                  <div class="punch-row">
+                    <span class="punch-label">Check-in:</span>
+                    <span class="punch-time">{formatTime(p.check_in)}</span>
+                    <span class="punch-label">Check-out:</span>
+                    <span class="punch-time">{p.check_out ? formatTime(p.check_out) : '—'}</span>
+                  </div>
+                {/each}
+              </div>
+              {#if attendanceTotalHours}
+                <div class="ma-total-hours">Total: {attendanceTotalHours}</div>
+              {/if}
+            {:else}
+              <div class="ma-no-punches">No check-ins today</div>
+            {/if}
+          </div>
+        </div>
         {/if}
 
         <!-- QR Scanner Overlay -->
@@ -525,18 +1132,18 @@
       </div>
 
       <div class="mobile-bottom-bar">
-        <div class="bottom-bar-item active">
+        <button class="bottom-bar-item" class:active={mobilePage === 'home'} on:click={() => mobilePage = 'home'}>
           <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
           <span>Home</span>
-        </div>
-        <button class="bottom-bar-item qr-scan-btn" on:click={startScanner}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="24" height="24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>
-          <span>QR Scan</span>
         </button>
-        <div class="bottom-bar-item">
-          <span class="placeholder-icon"></span>
-          <span>&nbsp;</span>
-        </div>
+        <button class="bottom-bar-item" class:active={mobilePage === 'attendance'} on:click={() => mobilePage = 'attendance'}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>
+          <span>HR</span>
+        </button>
+        <button class="bottom-bar-item" class:active={mobilePage === 'jobs'} on:click={() => { mobilePage = 'jobs'; loadMobileJobs(); }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
+          <span>My Jobs</span>
+        </button>
         <div class="bottom-bar-item">
           <span class="placeholder-icon"></span>
           <span>&nbsp;</span>
@@ -592,6 +1199,16 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
                     <span>Fixed Assets</span>
                   </button>
+                  <!-- Finance > Manage > Job Card -->
+                  <button class="nav-item" on:click={() => openWindow('finance-job-card', 'Job Card')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
+                    <span>Job Card</span>
+                  </button>
+                  <!-- Finance > Manage > My Job Cards -->
+                  <button class="nav-item" on:click={() => openWindow('finance-my-jobs', 'My Job Cards')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+                    <span>My Job Cards</span>
+                  </button>
                 </div>
               {/if}
 
@@ -607,10 +1224,20 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                     <span>Sales</span>
                   </button>
+                  <!-- Finance > Operations > Sales Return -->
+                  <button class="nav-item" on:click={() => openWindow('finance-sales-return', 'Sales Return')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    <span>Sales Return</span>
+                  </button>
                   <!-- Finance > Operations > Purchase -->
                   <button class="nav-item" on:click={() => openWindow('finance-purchase', 'Purchase')}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
                     <span>Purchase</span>
+                  </button>
+                  <!-- Finance > Operations > Purchase Return -->
+                  <button class="nav-item" on:click={() => openWindow('finance-purchase-return', 'Purchase Return')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    <span>Purchase Return</span>
                   </button>
                   <!-- Finance > Operations > Receipts -->
                   <button class="nav-item" on:click={() => openWindow('finance-receipt', 'Receipts')}>
@@ -667,6 +1294,11 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
                     <span>Balance Sheet</span>
                   </button>
+                  <!-- Finance > Reports > Job Cards -->
+                  <button class="nav-item" on:click={() => openWindow('finance-job-card-report', 'Job Cards Report')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
+                    <span>Job Cards</span>
+                  </button>
                 </div>
               {/if}
             </div>
@@ -711,7 +1343,7 @@
               </button>
               {#if expandedSubs['products-operations']}
                 <div class="sub-items">
-                  <!-- Products > Operations items go here -->
+                  <div class="nav-item-placeholder">Coming Soon</div>
                 </div>
               {/if}
 
@@ -751,7 +1383,7 @@
               </button>
               {#if expandedSubs['hr-manage']}
                 <div class="sub-items">
-                  <!-- HR > Manage items go here -->
+                  <div class="nav-item-placeholder">Coming Soon</div>
                 </div>
               {/if}
 
@@ -762,7 +1394,7 @@
               </button>
               {#if expandedSubs['hr-operations']}
                 <div class="sub-items">
-                  <!-- HR > Operations items go here -->
+                  <div class="nav-item-placeholder">Coming Soon</div>
                 </div>
               {/if}
 
@@ -822,7 +1454,7 @@
               </button>
               {#if expandedSubs['appcontrol-operations']}
                 <div class="sub-items">
-                  <!-- App Control > Operations items go here -->
+                  <div class="nav-item-placeholder">Coming Soon</div>
                 </div>
               {/if}
 
@@ -928,6 +1560,12 @@
               {:else if win.id === 'finance-purchase'}
                 <!-- Finance > Operations > Purchase Window -->
                 <PurchaseWindow />
+              {:else if win.id === 'finance-sales-return'}
+                <!-- Finance > Operations > Sales Return Window -->
+                <SalesReturnWindow />
+              {:else if win.id === 'finance-purchase-return'}
+                <!-- Finance > Operations > Purchase Return Window -->
+                <PurchaseReturnWindow />
               {:else if win.id === 'finance-receipt'}
                 <!-- Finance > Operations > Receipt Window -->
                 <ReceiptWindow />
@@ -962,6 +1600,12 @@
                 <StockReportWindow />
               {:else if win.id === 'hr-attendance-report'}
                 <AttendanceReportWindow />
+              {:else if win.id === 'finance-job-card'}
+                <JobCardWindow />
+              {:else if win.id === 'finance-job-card-report'}
+                <JobCardReportWindow />
+              {:else if win.id === 'finance-my-jobs'}
+                <MyJobCardsWindow />
               {/if}
             </AppWindow>
           {/each}
@@ -1062,6 +1706,125 @@
     padding: 16px;
   }
 
+  /* ---- MOBILE ATTENDANCE PAGE ---- */
+  .ma-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .ma-back-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #374151;
+    display: flex;
+    align-items: center;
+  }
+  .ma-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    flex: 1;
+  }
+  .ma-spacer {
+    width: 28px;
+  }
+  .ma-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ma-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .ma-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .ma-card-header svg {
+    color: #C41E3A;
+  }
+  .ma-card-header h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+  }
+  .ma-card-desc {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0 0 12px;
+  }
+  .ma-btn-primary {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #C41E3A;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .ma-btn-primary:hover {
+    background: #a71830;
+  }
+  .ma-punches {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .punch-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 80px 1fr;
+    gap: 8px;
+    padding: 8px;
+    background: #f9fafb;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .punch-label {
+    font-weight: 600;
+    color: #6b7280;
+  }
+  .punch-time {
+    color: #111827;
+  }
+  .ma-total-hours {
+    padding: 10px 12px;
+    background: #fbf8f3;
+    border-left: 3px solid #C41E3A;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+  }
+  .ma-no-punches {
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #9ca3af;
+    text-align: center;
+  }
+
   .mobile-bottom-bar {
     height: 64px;
     background: rgba(255, 255, 255, 0.85);
@@ -1104,16 +1867,6 @@
   .bottom-bar-item svg {
     width: 24px;
     height: 24px;
-  }
-
-  .bottom-bar-item.qr-scan-btn {
-    color: #111827;
-    font-weight: 600;
-  }
-
-  .bottom-bar-item.qr-scan-btn:hover {
-    background: rgba(196, 30, 58, 0.08);
-    color: #C41E3A;
   }
 
   .placeholder-icon {
@@ -1218,6 +1971,9 @@
   }
   .attend-in { color: #16a34a; }
   .attend-out { color: #2563eb; }
+  .m-card-punches { display: flex; flex-direction: column; gap: 2px; }
+  .punch-row { display: flex; gap: 8px; font-size: 12px; font-weight: 600; }
+  .total-hrs { font-weight: 700; color: #C41E3A; font-size: 13px; margin-top: 2px; }
   .m-card-label {
     font-size: 11px;
     font-weight: 600;
@@ -1424,6 +2180,18 @@
     color: white;
     border-color: #C41E3A;
     box-shadow: 0 4px 12px rgba(196, 30, 58, 0.25);
+  }
+
+  .nav-item-placeholder {
+    padding: 10px 12px;
+    width: 100%;
+    color: #999;
+    font-size: 12px;
+    font-style: italic;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 4px;
+    border: 1px dashed #ddd;
   }
 
   .nav-item svg {
@@ -1776,4 +2544,544 @@
   .scan-toast.success { background: rgba(220, 252, 231, 0.9); color: #166534; border: 1px solid rgba(34, 197, 94, 0.3); }
   .scan-toast.error { background: rgba(254, 226, 226, 0.9); color: #991b1b; border: 1px solid rgba(239, 68, 68, 0.3); }
   @keyframes toastSlide { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+  /* ========== MOBILE JOB CARDS ========== */
+  .mj-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .mj-back-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #374151;
+    display: flex;
+    align-items: center;
+  }
+  .mj-title {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+  }
+  .mj-filter {
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    background: #fff;
+    color: #374151;
+  }
+  .mj-refresh-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #6b7280;
+  }
+  .mj-empty {
+    text-align: center;
+    padding: 40px 16px;
+    color: #9ca3af;
+    font-size: 14px;
+  }
+  .mj-list {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 80px;
+  }
+  .mj-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 14px;
+    text-align: left;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+    width: 100%;
+  }
+  .mj-card:active {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .mj-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .mj-card-no {
+    font-weight: 700;
+    font-size: 14px;
+    color: #111827;
+  }
+  .mj-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+  .mj-badge.mj-open { background: #dbeafe; color: #1e40af; }
+  .mj-badge.mj-progress { background: #fef3c7; color: #92400e; }
+  .mj-badge.mj-closed { background: #d1fae5; color: #065f46; }
+  .mj-card-customer {
+    font-size: 13px;
+    color: #374151;
+    font-weight: 600;
+  }
+  .mj-vehicle-numbers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+  }
+  .mj-vehicle-number {
+    display: inline-block;
+    padding: 2px 6px;
+    background: #fff3cd;
+    color: #856404;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid #ffc107;
+  }
+  .mj-card-vehicle {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+  }
+  .mj-card-desc {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mj-card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .mj-pri {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 6px;
+  }
+  .mj-pri-low { background: #f3f4f6; color: #6b7280; }
+  .mj-pri-normal { background: #dbeafe; color: #1d4ed8; }
+  .mj-pri-high { background: #fef3c7; color: #d97706; }
+  .mj-pri-urgent { background: #fee2e2; color: #dc2626; }
+  .mj-card-date {
+    font-size: 11px;
+    color: #9ca3af;
+  }
+
+  /* Detail View */
+  .mj-detail-scroll {
+    padding: 12px 16px;
+    padding-bottom: 80px;
+    overflow-y: auto;
+  }
+  .mj-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .mj-info-item {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .mj-info-label {
+    display: block;
+    font-size: 11px;
+    color: #9ca3af;
+    font-weight: 500;
+  }
+  .mj-info-value {
+    display: block;
+    font-size: 13px;
+    color: #111827;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .mj-desc-box {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 10px;
+    white-space: pre-wrap;
+  }
+  .mj-vehicle-box {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .mj-vehicle-model {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin-top: 2px;
+  }
+  .mj-vehicle-specs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .mj-vtag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #e0e7ff;
+    color: #3730a3;
+  }
+  .mj-details {
+    font-size: 12px;
+    color: #6b7280;
+  }
+  .mj-error {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .mj-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .mj-action-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #fff;
+    transition: opacity 0.2s;
+  }
+  .mj-action-btn:disabled { opacity: 0.6; }
+  .mj-action-btn.start { background: linear-gradient(135deg, #22c55e, #16a34a); }
+  .mj-action-btn.close-job { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+  .mj-section {
+    margin-bottom: 16px;
+  }
+  .mj-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 8px 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .mj-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mj-item-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f9fafb;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .mj-item-name {
+    flex: 1;
+    color: #374151;
+  }
+  .mj-item-type {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: capitalize;
+    background: #dbeafe;
+    color: #1e40af;
+  }
+  .mj-item-type.service { background: #ede9fe; color: #6d28d9; }
+  .mj-item-type.consumable { background: #d1fae5; color: #065f46; }
+  .mj-item-qty {
+    color: #6b7280;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .mj-item-price {
+    color: #6b7280;
+    font-size: 12px;
+  }
+  .mj-item-amt {
+    color: #111827;
+    font-weight: 700;
+    min-width: 60px;
+    text-align: right;
+  }
+  .mj-item-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-top: 2px solid #e5e7eb;
+    margin-top: 4px;
+    font-weight: 700;
+  }
+  .mj-item-total-label {
+    font-size: 14px;
+    color: #111827;
+  }
+  .mj-item-total-amt {
+    font-size: 15px;
+    color: #111827;
+  }
+  .mj-item-delete {
+    background: none;
+    border: none;
+    color: #dc2626;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mj-item-delete:hover:not(:disabled) { opacity: 0.7; }
+  .mj-item-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+  
+  /* Add item form */
+  .mj-add-item-form {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+  .mj-product-search {
+    position: relative;
+    margin-bottom: 8px;
+  }
+  .mj-product-search input {
+    width: 100%;
+  }
+  .mj-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    max-height: 120px;
+    overflow-y: auto;
+    z-index: 50;
+    margin-top: 2px;
+  }
+  .mj-dd-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 6px 10px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    text-align: left;
+  }
+  .mj-dd-item:hover { background: #f3f4f6; }
+  .mj-type-tag {
+    font-size: 10px;
+    font-weight: 600;
+    background: #dbeafe;
+    color: #1d4ed8;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .mj-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .mj-form-field label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #6b7280;
+  }
+  .mj-form-field input {
+    padding: 5px 6px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 12px;
+    outline: none;
+  }
+  .mj-form-field input:focus {
+    border-color: #C41E3A;
+    box-shadow: 0 0 0 2px rgba(196, 30, 58, 0.1);
+  }
+  .mj-form-row {
+    display: grid;
+    grid-template-columns: 60px 80px 1fr;
+    gap: 6px;
+    align-items: flex-end;
+  }
+  .mj-btn-add-item {
+    background: #C41E3A;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    height: 28px;
+  }
+  .mj-btn-add-item:hover:not(:disabled) { background: #a71830; }
+  .mj-btn-add-item:disabled { opacity: 0.5; cursor: not-allowed; }
+  .mj-form-error {
+    background: #fef2f2;
+    color: #dc2626;
+    padding: 6px;
+    border-radius: 4px;
+    font-size: 11px;
+  }
+
+  .mj-photos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .mj-photo-thumb {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+  }
+  .mj-photo-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .mj-empty-text {
+    color: #9ca3af;
+    font-size: 12px;
+    margin: 4px 0 8px;
+  }
+  .mj-upload-btn {
+    display: inline-block;
+    padding: 8px 16px;
+    background: #f3f4f6;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .mj-upload-btn:active { background: #e5e7eb; }
+  .mj-error-text {
+    color: #dc2626;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .mj-note-form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .mj-note-input {
+    flex: 1;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    resize: none;
+    font-family: inherit;
+  }
+  .mj-note-send {
+    padding: 8px 14px;
+    background: #111827;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    align-self: flex-end;
+  }
+  .mj-note-send:disabled { opacity: 0.5; }
+  .mj-notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mj-note-item {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .mj-note-meta {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-bottom: 2px;
+  }
+  .mj-note-text {
+    font-size: 13px;
+    color: #374151;
+    white-space: pre-wrap;
+  }
+  .mj-logs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mj-log-item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: baseline;
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 12px;
+  }
+  .mj-log-action {
+    font-weight: 700;
+    color: #111827;
+  }
+  .mj-log-meta {
+    color: #9ca3af;
+    font-size: 11px;
+  }
+  .mj-log-note {
+    color: #6b7280;
+    width: 100%;
+  }
 </style>
