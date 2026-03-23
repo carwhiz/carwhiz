@@ -529,9 +529,9 @@
           <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
           <span>Home</span>
         </div>
-        <button class="bottom-bar-item" on:click={startScanner}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>
-          <span>Attendance</span>
+        <button class="bottom-bar-item qr-scan-btn" on:click={startScanner}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="24" height="24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>
+          <span>QR Scan</span>
         </button>
         <div class="bottom-bar-item">
           <span class="placeholder-icon"></span>
@@ -1104,6 +1104,16 @@
   .bottom-bar-item svg {
     width: 24px;
     height: 24px;
+  }
+
+  .bottom-bar-item.qr-scan-btn {
+    color: #111827;
+    font-weight: 600;
+  }
+
+  .bottom-bar-item.qr-scan-btn:hover {
+    background: rgba(196, 30, 58, 0.08);
+    color: #C41E3A;
   }
 
   .placeholder-icon {
