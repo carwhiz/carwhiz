@@ -143,16 +143,22 @@
       const cameraId = backCam ? backCam.id : cameras[cameras.length - 1].id;
 
       await html5QrScanner.start(
-        cameraId,
+        // Use user facing camera for desktop/web testing, or let the library figure out fallback
+        { facingMode: "environment" },
         { fps: 10, qrbox: { width: 200, height: 200 } },
         onScanSuccess,
         () => {}
       );
       scanLoading = false;
     } catch (err: any) {
-      const errMsg = err?.message || err?.toString() || 'Camera access denied or not available.';
+      const errMsg = err?.message || err?.toString() || 'Camera access denied or not available. Please ensure you have granted camera permissions to this site.';
       console.error('Scanner error:', errMsg, err);
-      scanError = errMsg.includes('Failed to fetch') ? 'Network error: Failed to load camera module.' : errMsg;
+      // Give a more user friendly error if it's permission denied
+      if (err?.name === 'NotAllowedError' || errMsg.includes('Permission denied')) {
+         scanError = 'Camera access was denied. Please allow camera permissions in your browser settings and try again.';
+      } else {
+         scanError = errMsg.includes('Failed to fetch') ? 'Network error: Failed to load camera module.' : errMsg;
+      }
       showScanner = false;
       scanLoading = false;
     }

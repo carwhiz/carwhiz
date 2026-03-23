@@ -98,22 +98,16 @@
       </div>
 
       <div class="mode-toggle">
-        <button
+        <span class="mode-label" class:active={loginMode === 'mobile'}>Mobile</span>
+        <button 
+          class="toggle-switch" 
+          class:desktop={loginMode === 'desktop'}
+          on:click={() => loginMode = loginMode === 'mobile' ? 'desktop' : 'mobile'}
           type="button"
-          class="mode-btn"
-          class:active={loginMode === 'desktop'}
-          on:click={() => (loginMode = 'desktop')}
         >
-          Desktop
+          <div class="toggle-knob"></div>
         </button>
-        <button
-          type="button"
-          class="mode-btn"
-          class:active={loginMode === 'mobile'}
-          on:click={() => (loginMode = 'mobile')}
-        >
-          Mobile
-        </button>
+        <span class="mode-label" class:active={loginMode === 'desktop'}>Desktop</span>
       </div>
 
       <form on:submit|preventDefault={handleLogin}>
@@ -123,7 +117,7 @@
             {#each codeDigits as digit, index}
               <input
                 bind:this={inputRefs[index]}
-                type="text"
+                type="password"
                 inputmode="numeric"
                 maxlength="1"
                 class="code-box"
@@ -135,7 +129,6 @@
               />
             {/each}
           </div>
-          <p class="code-hint">Enter your 6-digit access code</p>
         </div>
 
         {#if error}
@@ -152,7 +145,7 @@
       </form>
 
       <div class="auth-footer">
-        <p>Contact your administrator for an access code</p>
+        <p>&copy; 2026 CarWhizz. All rights reserved.</p>
         <button 
           type="button"
           class="privacy-link"
@@ -172,118 +165,122 @@
     justify-content: center;
     min-height: 100vh;
     min-height: 100dvh;
-    background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8f9fa;
+    font-family: 'Segoe UI', Roboto, sans-serif;
   }
 
   .auth-container {
     width: 100%;
-    max-width: 400px;
+    max-width: 480px;
     padding: 1rem;
   }
 
   .auth-box {
     background: white;
-    border-radius: 8px;
-    padding: 2rem;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 3rem 4rem;
+    box-shadow: 0 4px 40px rgba(0, 0, 0, 0.05);
   }
 
   .auth-header {
     text-align: center;
-    margin-bottom: 1rem;
+    margin-bottom: 2.5rem;
   }
 
   .auth-logo {
-    width: 80px;
-    height: 80px;
-    border-radius: 12px;
+    width: 200px;
+    height: auto;
     object-fit: contain;
     margin: 0 auto;
   }
 
-  .auth-title {
-    margin: 0 0 0.5rem 0;
-    text-align: center;
-    font-size: 2rem;
-    color: #f97316;
-  }
-
-  .auth-subtitle {
-    margin: 0 0 2rem 0;
-    text-align: center;
-    font-size: 0.9rem;
-    color: #6b7280;
-  }
-
   .mode-toggle {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    background: #f3f4f6;
-    padding: 0.25rem;
-    border-radius: 6px;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
   }
 
-  .mode-btn {
-    flex: 1;
-    padding: 0.5rem 1rem;
+  .mode-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #9ca3af;
+    transition: color 0.2s;
+  }
+
+  .mode-label.active {
+    color: #c91e3a;
+  }
+
+  .toggle-switch {
+    width: 48px;
+    height: 24px;
+    background: #e5e7eb;
+    border-radius: 24px;
+    position: relative;
     border: none;
-    background: transparent;
-    color: #6b7280;
-    font-weight: 500;
-    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background 0.2s;
+    padding: 0;
   }
 
-  .mode-btn.active {
+  .toggle-switch .toggle-knob {
+    width: 20px;
+    height: 20px;
     background: white;
-    color: #f97316;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
-  .mode-btn:hover {
-    color: #f97316;
+  .toggle-switch.desktop .toggle-knob {
+    transform: translateX(24px);
   }
 
   .form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
   }
 
   label {
     display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: #1f2937;
+    margin-bottom: 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #4b5563;
+    text-align: left;
   }
 
   .code-inputs {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
     justify-content: center;
     margin-bottom: 0.5rem;
   }
 
   .code-box {
-    width: 3rem;
-    height: 3rem;
+    width: 3.2rem;
+    height: 4rem;
     padding: 0;
-    font-size: 1.5rem;
+    font-size: 2.5rem;
     text-align: center;
-    font-weight: 700;
-    border: 2px solid #d1d5db;
+    font-weight: 600;
+    border: 1.5px solid #e5e7eb;
     border-radius: 8px;
     box-sizing: border-box;
     transition: all 0.2s;
-    background: white;
+    background: transparent;
     color: #1f2937;
   }
 
   .code-box:focus {
     outline: none;
-    border-color: #f97316;
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    border-color: #c91e3a;
+    box-shadow: 0 0 0 2px rgba(201, 30, 58, 0.1);
+    background: white;
   }
 
   .code-box:disabled {
@@ -291,40 +288,36 @@
     cursor: not-allowed;
   }
 
-  .code-hint {
-    margin: 0.5rem 0 0 0;
-    font-size: 0.8rem;
-    color: #9ca3af;
-    text-align: center;
-  }
-
   .error-message {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     padding: 0.75rem;
     background: #fee2e2;
     color: #dc2626;
-    border-radius: 4px;
+    border-radius: 8px;
     font-size: 0.9rem;
+    text-align: center;
   }
 
   .btn {
     width: 100%;
-    padding: 0.75rem;
+    padding: 1rem;
     border: none;
-    border-radius: 4px;
-    font-size: 1rem;
+    border-radius: 8px;
+    font-size: 1.1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
   }
 
   .btn-primary {
-    background: #f97316;
+    background: #d46b7a; /* Muted pinkish red to match image */
     color: white;
+    box-shadow: 0 4px 14px rgba(212, 107, 122, 0.4);
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: #ea580c;
+    background: #c55a69;
+    box-shadow: 0 6px 20px rgba(212, 107, 122, 0.5);
   }
 
   .btn:disabled {
@@ -333,26 +326,29 @@
   }
 
   .auth-footer {
-    margin: 1.5rem 0 0 0;
+    margin: 2rem 0 0 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid #f3f4f6;
     text-align: center;
-    font-size: 0.85rem;
-    color: #9ca3af;
+    font-size: 0.8rem;
+    color: #6b7280;
   }
 
   .privacy-link {
     display: block;
-    margin: 1rem 0 0 0;
+    margin: 0.5rem auto 0;
     background: none;
     border: none;
-    color: #f97316;
+    color: #c91e3a;
+    font-weight: 600;
     font-size: 0.85rem;
     cursor: pointer;
-    text-decoration: underline;
+    text-decoration: none;
     transition: color 0.2s;
   }
 
   .privacy-link:hover {
-    color: #ea580c;
+    color: #a01830;
   }
 
   .auth-footer p {
