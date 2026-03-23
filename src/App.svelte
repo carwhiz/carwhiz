@@ -51,25 +51,37 @@
     // Check for updates on app load and periodically
     const checkForUpdates = async () => {
       try {
-        const response = await fetch('/version.json?cache_bust=' + Date.now(), {
+        // Use network-only fetch to bypass all caches
+        const response = await fetch('/version.json', {
           cache: 'no-store',
-          headers: { 'pragma': 'no-cache', 'cache-control': 'no-cache' }
+          headers: { 
+            'pragma': 'no-cache', 
+            'cache-control': 'no-cache, no-store, must-revalidate',
+            'expires': '0'
+          }
         });
+        
+        if (!response.ok) {
+          console.log('[AUTO-UPDATE] Failed to fetch version.json:', response.status);
+          return;
+        }
+        
         const newVersion = await response.json();
         const storedVersion = localStorage.getItem('app_version');
         
         console.log('[AUTO-UPDATE] Current stored version:', storedVersion);
-        console.log('[AUTO-UPDATE] New version from server:', newVersion.timestamp);
+        console.log('[AUTO-UPDATE] New version from server:', newVersion.version, newVersion.timestamp);
         
-        if (storedVersion && storedVersion !== newVersion.timestamp.toString()) {
-          console.log('[AUTO-UPDATE] VERSION MISMATCH DETECTED - RELOADING NOW');
+        if (storedVersion && storedVersion !== newVersion.version) {
+          console.log('[AUTO-UPDATE] VERSION MISMATCH - Old:', storedVersion, 'New:', newVersion.version, 'RELOADING');
+          localStorage.setItem('app_version', newVersion.version);
           // New version detected, reload immediately
           window.location.reload();
         } else if (!storedVersion) {
-          console.log('[AUTO-UPDATE] First time - storing version:', newVersion.timestamp);
-          localStorage.setItem('app_version', newVersion.timestamp.toString());
+          console.log('[AUTO-UPDATE] First time - storing version:', newVersion.version);
+          localStorage.setItem('app_version', newVersion.version);
         } else {
-          console.log('[AUTO-UPDATE] Version matches, no reload needed');
+          console.log('[AUTO-UPDATE] Version matches:', newVersion.version);
         }
       } catch (error) {
         console.log('[AUTO-UPDATE] Update check failed:', error);

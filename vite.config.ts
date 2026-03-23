@@ -91,6 +91,14 @@ export default defineConfig({
               networkTimeoutSeconds: 3,
             },
           },
+          {
+            // NEVER cache version.json - always fetch fresh
+            urlPattern: /\/version\.json$/,
+            handler: 'NetworkOnly',
+            options: {
+              cacheName: 'version-cache',
+            },
+          },
         ],
       },
       devOptions: {
