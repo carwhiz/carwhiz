@@ -355,4 +355,46 @@
   .auth-footer p {
     margin: 0;
   }
+
+  /* ========== MOBILE OPTIMIZATIONS ========== */
+  @media (max-width: 480px) {
+    .auth-container {
+      padding: 1rem;
+    }
+  
+    .auth-box {
+      padding: 2rem 1.25rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      border-radius: 10px;
+    }
+    
+    .auth-logo {
+      width: 140px;
+      margin-bottom: 0.5rem;
+    }
+
+    .code-inputs {
+      gap: 0.35rem;
+    }
+
+    .code-box {
+      width: 2.5rem;
+      height: 3.2rem;
+      font-size: 1.8rem;
+      border-radius: 6px;
+    }
+
+    .mode-toggle {
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .auth-header {
+      margin-bottom: 1.5rem;
+    }
+  }
 </style>

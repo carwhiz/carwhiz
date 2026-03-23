@@ -143,9 +143,13 @@
       const cameraId = backCam ? backCam.id : cameras[cameras.length - 1].id;
 
       await html5QrScanner.start(
-        // Use user facing camera for desktop/web testing, or let the library figure out fallback
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 200, height: 200 } },
+        cameraId,
+        { 
+          fps: 10, 
+          // Scale down the qrbox slightly for small screens
+          qrbox: { width: 200, height: 200 },
+          aspectRatio: 1.0 // Force a square aspect ratio to prevent iOS collapse
+        },
         onScanSuccess,
         () => {}
       );
@@ -331,7 +335,7 @@
                 <p>Initializing camera...</p>
               </div>
             {/if}
-            <div id="qr-reader" style="width:100%;min-height:260px;"></div>
+            <div id="qr-reader" style="width:100%; height:300px; display:flex; justify-content:center; align-items:center; overflow:hidden; border-radius:12px; background:#000;"></div>
           </div>
         </div>
       </div>
@@ -765,7 +769,7 @@
     border-radius: 14px;
     font-size: 14px;
     font-weight: 600;
-    z-index: 200;
+    z-index: 9999;
     cursor: pointer;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     backdrop-filter: blur(8px);
