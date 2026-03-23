@@ -58,15 +58,21 @@
         const newVersion = await response.json();
         const storedVersion = localStorage.getItem('app_version');
         
+        console.log('[AUTO-UPDATE] Current stored version:', storedVersion);
+        console.log('[AUTO-UPDATE] New version from server:', newVersion.timestamp);
+        
         if (storedVersion && storedVersion !== newVersion.timestamp.toString()) {
-          console.log('New version detected, reloading...');
+          console.log('[AUTO-UPDATE] VERSION MISMATCH DETECTED - RELOADING NOW');
           // New version detected, reload immediately
           window.location.reload();
         } else if (!storedVersion) {
+          console.log('[AUTO-UPDATE] First time - storing version:', newVersion.timestamp);
           localStorage.setItem('app_version', newVersion.timestamp.toString());
+        } else {
+          console.log('[AUTO-UPDATE] Version matches, no reload needed');
         }
       } catch (error) {
-        console.log('Update check failed:', error);
+        console.log('[AUTO-UPDATE] Update check failed:', error);
       }
     };
 
