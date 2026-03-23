@@ -50,7 +50,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,jpeg,jpg,woff,woff2}'],
-        globIgnores: ['**/node_modules/**/*', '**/.*/**/*'],
+        globIgnores: ['**/node_modules/**/*', '**/.*/**/*', '**/version.json'],
         cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
         navigateFallbackAllowlist: [/^(?!\/__)/],

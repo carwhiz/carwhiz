@@ -48,6 +48,34 @@
       isInitializing = false;
     })();
 
+    // Check for updates on app load and periodically
+    const checkForUpdates = async () => {
+      try {
+        const response = await fetch('/version.json?cache_bust=' + Date.now(), {
+          cache: 'no-store',
+          headers: { 'pragma': 'no-cache', 'cache-control': 'no-cache' }
+        });
+        const newVersion = await response.json();
+        const storedVersion = localStorage.getItem('app_version');
+        
+        if (storedVersion && storedVersion !== newVersion.timestamp.toString()) {
+          console.log('New version detected, reloading...');
+          // New version detected, reload immediately
+          window.location.reload();
+        } else if (!storedVersion) {
+          localStorage.setItem('app_version', newVersion.timestamp.toString());
+        }
+      } catch (error) {
+        console.log('Update check failed:', error);
+      }
+    };
+
+    // Check immediately on load
+    checkForUpdates();
+    
+    // Check every 30 seconds
+    const updateInterval = setInterval(checkForUpdates, 30000);
+
     // Setup Service Worker update handler to auto-reload when new version available
     if ('serviceWorker' in navigator) {
       const refreshing = { current: false };
@@ -60,16 +88,19 @@
       });
 
       // Poll for updates every 60 seconds
-      setInterval(() => {
-        navigator.serviceWorker.getRegistration().then((registration) => {
-          if (registration) {
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        if (registration) {
+          setInterval(() => {
             registration.update();
-          }
-        });
-      }, 60000);
+          }, 60000);
+        }
+      });
     }
 
-    return unsubscribe;
+    return () => {
+      clearInterval(updateInterval);
+      unsubscribe();
+    };
   });
 </script>
 
