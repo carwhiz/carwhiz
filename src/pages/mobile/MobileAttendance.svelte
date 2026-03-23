@@ -318,14 +318,15 @@
             <h3>Scan Attendance QR</h3>
             <button class="qr-close-btn" on:click={stopScanner}>&times;</button>
           </div>
-          {#if scanLoading}
-            <div class="qr-loading">
-              <div class="spinner"></div>
-              <p>Initializing camera...</p>
-            </div>
-          {:else}
+          <div class="qr-reader-wrapper">
+            {#if scanLoading}
+              <div class="qr-loading">
+                <div class="spinner"></div>
+                <p>Initializing camera...</p>
+              </div>
+            {/if}
             <div id="qr-reader" style="width:100%;min-height:260px;"></div>
-          {/if}
+          </div>
         </div>
       </div>
     {/if}
@@ -604,6 +605,12 @@
     background: rgba(196, 30, 58, 0.2);
   }
 
+  .qr-reader-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 260px;
+  }
+
   .qr-msg {
     text-align: center;
     color: #6b7280;
@@ -618,6 +625,16 @@
     justify-content: center;
     min-height: 260px;
     gap: 16px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    border-radius: 8px;
+    z-index: 10;
   }
 
   .spinner {
