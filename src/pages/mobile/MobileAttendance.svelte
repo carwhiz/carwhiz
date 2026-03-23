@@ -184,21 +184,24 @@
     scanLoading = true;
     await stopScanner();
     try {
-      const payload = JSON.parse(decodedText);
-      scannedToken = payload.t;
-      if (!$authStore.user?.id) { 
-        scanError = 'Not logged in.'; 
-        scanLoading = false; 
-        return; 
+      // The QR generator creates a string like: "userId|1711200000000"
+      // not a JSON object, so we verify it contains a pipe character
+      if (typeof decodedText === 'string' && decodedText.includes('|')) {
+        scannedToken = decodedText;
+      } else {
+        // Fallback in case it was accidentally generated as JSON elsewhere
+        const payload = JSON.parse(decodedText);
+        scannedToken = payload.t || decodedText;
+      }
+      
+      if (!$authStore.user?.id) {
+        scanError = 'Not logged in.';
+        scanLoading = false;
+        return;
       }
       showPunchChoice = true;
     } catch {
-      scanError = 'Invalid QR code.';
-    }
-    scanLoading = false;
-  }
-
-  async function doPunch(action: 'check_in' | 'check_out') {
+      scanError = 'Invalid QR code format.';
     showPunchChoice = false;
     scanLoading = true;
     try {
