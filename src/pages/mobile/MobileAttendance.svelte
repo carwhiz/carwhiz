@@ -5,6 +5,7 @@
   import { navigateTo } from '../../routes/navigation';
   import { setMobilePage } from '../../stores/mobilePageStore';
   import MobilePageWrapper from '../../components/shared/MobilePageWrapper.svelte';
+  import { Html5Qrcode } from 'html5-qrcode';
 
   interface AttendanceRecord {
     id: string;
@@ -115,32 +116,26 @@
     showPunchChoice = false;
     scannedToken = '';
     showScanner = true;
+    scanLoading = true;  // Show loading indicator
+    
     await tick();
-    await new Promise(r => setTimeout(r, 500));
 
     const readerEl = document.getElementById('qr-reader');
     if (!readerEl) { 
       scanError = 'Scanner element not found.'; 
       showScanner = false; 
+      scanLoading = false;
       return; 
     }
 
     try {
-      let Html5Qrcode;
-      try {
-        ({ Html5Qrcode } = await import('html5-qrcode'));
-      } catch (importErr: any) {
-        console.error('Initial import failed, retrying...', importErr);
-        await new Promise(r => setTimeout(r, 1000));
-        ({ Html5Qrcode } = await import('html5-qrcode'));
-      }
-      
       html5QrScanner = new Html5Qrcode('qr-reader');
 
       const cameras = await Html5Qrcode.getCameras();
       if (!cameras || cameras.length === 0) {
         scanError = 'No camera found on this device.';
         showScanner = false;
+        scanLoading = false;
         return;
       }
 
@@ -153,11 +148,13 @@
         onScanSuccess,
         () => {}
       );
+      scanLoading = false;
     } catch (err: any) {
       const errMsg = err?.message || err?.toString() || 'Camera access denied or not available.';
       console.error('Scanner error:', errMsg, err);
       scanError = errMsg.includes('Failed to fetch') ? 'Network error: Failed to load camera module.' : errMsg;
       showScanner = false;
+      scanLoading = false;
     }
   }
 
@@ -321,8 +318,14 @@
             <h3>Scan Attendance QR</h3>
             <button class="qr-close-btn" on:click={stopScanner}>&times;</button>
           </div>
-          <div id="qr-reader" style="width:100%;min-height:260px;"></div>
-          {#if scanLoading}<p class="qr-msg">Processing...</p>{/if}
+          {#if scanLoading}
+            <div class="qr-loading">
+              <div class="spinner"></div>
+              <p>Initializing camera...</p>
+            </div>
+          {:else}
+            <div id="qr-reader" style="width:100%;min-height:260px;"></div>
+          {/if}
         </div>
       </div>
     {/if}
@@ -606,6 +609,34 @@
     color: #6b7280;
     font-size: 13px;
     margin-top: 8px;
+  }
+
+  .qr-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 260px;
+    gap: 16px;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(196, 30, 58, 0.2);
+    border-top-color: #C41E3A;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .qr-loading p {
+    color: #6b7280;
+    font-size: 13px;
+    margin: 0;
   }
 
   /* ========== PUNCH CHOICE POPUP ========== */
