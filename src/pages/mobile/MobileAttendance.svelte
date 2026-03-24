@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { supabase } from '../../lib/supabaseClient';
   import { authStore } from '../../stores/authStore';
   import { navigateTo } from '../../routes/navigation';
@@ -248,6 +248,16 @@
     setMobilePage('attendance', 'Attendance');
     loadAttendance();
     loadMonthlySummary();
+  });
+
+  onDestroy(() => {
+    // Clean up QR scanner when leaving the page
+    if (html5QrScanner) {
+      try { 
+        html5QrScanner.stop().catch(() => {}); 
+      } catch {}
+    }
+    showScanner = false;
   });
 </script>
 
