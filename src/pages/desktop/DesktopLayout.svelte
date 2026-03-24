@@ -6,6 +6,7 @@
   import { windowStore } from '../../stores/windowStore';
   import { interfaceStore } from '../../stores/interfaceStore';
   import { logout } from '../../lib/services/authService';
+  import { canUserViewResource } from '../../lib/services/permissionService';
   import AppWindow from '../../components/AppWindow.svelte';
   import Taskbar from '../../components/desktop/Taskbar.svelte';
   import logoPath from '../../assets/CARWHIZ.jpeg';
@@ -77,6 +78,10 @@
   let qrDataUrl: string = '';
   let qrGeneratedAt: Date = new Date();
   let qrRefreshInterval: any = null;
+  
+  // Permission denied message
+  let permissionDeniedMsg = '';
+  let showPermissionDenied = false;
 
   onMount(async () => {
     generateDashboardQR();
@@ -184,8 +189,39 @@
     expandedSubs[key] = !expandedSubs[key];
   }
 
-  function openWindow(id: string, title: string) {
-    windowStore.open(id, title);
+  async function openWindow(id: string, title: string) {
+    // Check permission before opening window
+    const userId = $authStore.user?.id;
+    const userRole = $authStore.user?.role;
+    
+    if (!userId) {
+      permissionDeniedMsg = 'Please log in first';
+      showPermissionDenied = true;
+      setTimeout(() => showPermissionDenied = false, 3000);
+      return;
+    }
+
+    console.log(`[Window Access] User: ${userId}, Role: ${userRole}, Window: ${id}`);
+
+    try {
+      const hasPermission = await canUserViewResource(userId, id);
+      
+      if (!hasPermission) {
+        permissionDeniedMsg = `Access Denied: You don't have permission to access "${title}"`;
+        showPermissionDenied = true;
+        console.warn(`[DENIED] User ${userId} blocked from accessing ${id}`);
+        setTimeout(() => showPermissionDenied = false, 4000);
+        return;
+      }
+      
+      console.log(`[ALLOWED] User ${userId} granted access to ${id}`);
+      windowStore.open(id, title);
+    } catch (error) {
+      console.error(`[Error] Permission check failed for ${id}:`, error);
+      permissionDeniedMsg = `Error checking permissions. Please try again.`;
+      showPermissionDenied = true;
+      setTimeout(() => showPermissionDenied = false, 3000);
+    }
   }
 </script>
 
@@ -402,6 +438,13 @@
 
   <!-- Main Content -->
   <div class="desktop-main">
+    <!-- Permission Denied Notification -->
+    {#if showPermissionDenied}
+      <div style="position: fixed; top: 20px; right: 20px; background: #dc2626; color: white; padding: 16px 20px; border-radius: 8px; box-shadow: 0 6px 12px rgba(220, 38, 38, 0.3); z-index: 9999; max-width: 350px; word-wrap: break-word; font-weight: 600; font-size: 14px; border-left: 4px solid #991b1b;">
+        🚫 {permissionDeniedMsg}
+      </div>
+    {/if}
+
     <!-- Windows Container -->
     <div class="windows-container">
       {#each $windowStore as window (window.id)}

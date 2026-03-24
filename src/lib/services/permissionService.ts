@@ -14,9 +14,12 @@ export interface UserPermission {
 /**
  * Cache for user permissions to avoid repeated queries
  * Key: userId, Value: Map of resource -> permission
+ * 
+ * NOTE: Cache duration is SHORT (10 seconds) to ensure permission changes
+ * are reflected quickly when admins revoke/grant permissions
  */
 const permissionCache = new Map<string, Map<string, UserPermission>>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 10 * 1000; // Only 10 seconds - permissions change frequently
 const cacheTimestamps = new Map<string, number>();
 
 /**
@@ -28,8 +31,11 @@ export async function loadUserPermissions(userId: string): Promise<Map<string, U
   const cachedPerms = permissionCache.get(userId);
   const cacheTime = cacheTimestamps.get(userId);
   if (cachedPerms && cacheTime && Date.now() - cacheTime < CACHE_DURATION) {
+    console.log(`[Permission] Cache HIT for user ${userId}, cached permissions:`, Array.from(cachedPerms.entries()));
     return cachedPerms;
   }
+
+  console.log(`[Permission] Cache MISS for user ${userId}, fetching from DB...`);
 
   // Fetch from database
   const { data, error } = await supabase
@@ -42,6 +48,8 @@ export async function loadUserPermissions(userId: string): Promise<Map<string, U
     return new Map();
   }
 
+  console.log(`[Permission] DB Query result for user ${userId}:`, data);
+
   // Build permission map
   const permMap = new Map<string, UserPermission>();
   (data as UserPermission[]).forEach(perm => {
@@ -51,6 +59,8 @@ export async function loadUserPermissions(userId: string): Promise<Map<string, U
   // Cache results
   permissionCache.set(userId, permMap);
   cacheTimestamps.set(userId, Date.now());
+
+  console.log(`[Permission] Built permission map for user ${userId}:`, Array.from(permMap.entries()));
 
   return permMap;
 }
@@ -64,7 +74,17 @@ export async function loadUserPermissions(userId: string): Promise<Map<string, U
 export async function canUserViewResource(userId: string, resourceId: string): Promise<boolean> {
   const permissions = await loadUserPermissions(userId);
   const perm = permissions.get(resourceId);
-  return perm?.can_view ?? false;
+  const result = perm?.can_view ?? false;
+  
+  console.log(`[Permission CHECK] User: ${userId}, Resource: ${resourceId}`, {
+    permissionExists: !!perm,
+    permissionRecord: perm || 'NO RECORD',
+    can_view: perm?.can_view,
+    finalResult: result,
+    accessAllowed: result ? 'ALLOWED' : 'DENIED'
+  });
+  
+  return result;
 }
 
 /**

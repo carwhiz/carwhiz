@@ -9,6 +9,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '../../../../lib/supabaseClient';
   import { authStore } from '../../../../stores/authStore';
+  import { clearUserPermissionCache } from '../../../../lib/services/permissionService';
 
   interface UserRow {
     id: string;
@@ -160,6 +161,7 @@
         created_by: currentUserId
       });
     }
+    clearUserPermissionCache(selectedUserId);
     await loadPermissions();
   }
 
@@ -180,6 +182,7 @@
         created_by: currentUserId
       });
     }
+    clearUserPermissionCache(selectedUserId);
     await loadPermissions();
   }
 
@@ -187,6 +190,9 @@
     saving = true; error = ''; success = '';
     const currentUserId = $authStore.user?.id || null;
     const allResources = resourceGroups.flatMap(g => g.resources.map(r => r.id));
+
+    console.log(`[PermissionsWindow] Starting ${grant ? 'GRANT ALL' : 'REVOKE ALL'} for user ${selectedUserId}`);
+    console.log(`[PermissionsWindow] Total resources: ${allResources.length}`);
 
     const toUpdate: string[] = [];
     const toInsert: string[] = [];
@@ -199,25 +205,35 @@
       }
     }
 
+    console.log(`[PermissionsWindow] Existing records to update: ${toUpdate.length}, New records to create: ${toInsert.length}`);
+
     if (toUpdate.length > 0) {
+      console.log(`[PermissionsWindow] Updating ${toUpdate.length} existing records to ${grant}`);
       await supabase.from('permissions').update({
         can_view: grant, can_create: grant, can_edit: grant, can_delete: grant,
         updated_at: new Date().toISOString(), updated_by: currentUserId
       }).in('id', toUpdate);
+      console.log(`[PermissionsWindow] Updated ${toUpdate.length} records`);
     }
 
     if (toInsert.length > 0) {
+      console.log(`[PermissionsWindow] Creating ${toInsert.length} new permission records with grant=${grant}`);
       const rows = toInsert.map(res => ({
         user_id: selectedUserId, resource: res,
         can_view: grant, can_create: grant, can_edit: grant, can_delete: grant,
         created_by: currentUserId
       }));
       await supabase.from('permissions').insert(rows);
+      console.log(`[PermissionsWindow] Created ${toInsert.length} new records`);
     }
 
+    clearUserPermissionCache(selectedUserId);
+    console.log(`[PermissionsWindow] Cleared permission cache for user ${selectedUserId}`);
+    
     await loadPermissions();
     saving = false;
     success = grant ? 'All permissions granted' : 'All permissions revoked';
+    console.log(`[PermissionsWindow] ${success}`);
     setTimeout(() => success = '', 2000);
   }
 </script>
