@@ -78,7 +78,19 @@
       resources: [
         { id: 'appcontrol-users', label: 'Users' },
         { id: 'appcontrol-permissions', label: 'Permissions' },
-        { id: 'appcontrol-audit-log', label: 'Audit Logs' },
+        { id: 'appcontrol-auditlog', label: 'Audit Logs' },
+      ]
+    },
+    {
+      group: 'HR — Operations',
+      resources: [
+        { id: 'hr-attendance-qr', label: 'Attendance QR' },
+      ]
+    },
+    {
+      group: 'HR — Reports',
+      resources: [
+        { id: 'hr-attendance-report', label: 'Attendance Report' },
       ]
     },
     {
