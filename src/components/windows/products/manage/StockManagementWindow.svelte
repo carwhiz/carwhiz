@@ -267,23 +267,23 @@
           {#if selectedProduct}
             <div class="product-details">
               <div class="detail-row">
-                <label>Product Name:</label>
+                <span class="detail-label">Product Name:</span>
                 <span>{selectedProduct.product_name}</span>
               </div>
               <div class="detail-row">
-                <label>Barcode:</label>
+                <span class="detail-label">Barcode:</span>
                 <span>{selectedProduct.barcode || '-'}</span>
               </div>
               <div class="detail-row">
-                <label>Unit:</label>
+                <span class="detail-label">Unit:</span>
                 <span>{selectedProduct.units?.name || '-'}</span>
               </div>
               <div class="detail-row">
-                <label>Unit Qty:</label>
+                <span class="detail-label">Unit Qty:</span>
                 <span>{selectedProduct.unit_qty}</span>
               </div>
               <div class="detail-row">
-                <label>Current Stock:</label>
+                <span class="detail-label">Current Stock:</span>
                 <span class="highlight">{selectedProduct.current_stock}</span>
               </div>
             </div>
@@ -616,7 +616,7 @@
     border-bottom: none;
   }
 
-  .detail-row label {
+  .detail-row .detail-label {
     font-weight: 600;
     color: #555;
     flex: 0 0 140px;
