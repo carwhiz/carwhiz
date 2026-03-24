@@ -20,19 +20,6 @@
     user_name: string;
   }
 
-  interface DayGroup {
-    date: string;
-    user_id: string;
-    user_email: string;
-    user_name: string;
-    punches: PunchRecord[];
-    totalMs: number;
-    totalHours: string;
-    firstIn: string | null;
-    lastOut: string | null;
-    status: 'complete' | 'working' | 'absent';
-  }
-
   let records: PunchRecord[] = [];
   let loading = true;
 
@@ -41,19 +28,10 @@
   let toDate = '';
   let userSearch = '';
 
-  $: grouped = groupByUserDate(applyFilters(records, fromDate, toDate, userSearch));
-  $: totalDays = grouped.length;
-  $: totalComplete = grouped.filter(g => g.status === 'complete').length;
-  $: totalWorking = grouped.filter(g => g.status === 'working').length;
-  $: grandTotalMs = grouped.reduce((sum, g) => sum + g.totalMs, 0);
-  $: grandTotalHours = formatMs(grandTotalMs);
-
-  // Expand/collapse
-  let expandedKey = '';
-
-  function toggleExpand(key: string) {
-    expandedKey = expandedKey === key ? '' : key;
-  }
+  $: filtered = applyFilters(records, fromDate, toDate, userSearch);
+  $: totalPunches = filtered.length;
+  $: totalHoursMs = filtered.reduce((sum, r) => sum + calcPunchMs(r.check_in, r.check_out), 0);
+  $: totalHoursFormatted = formatMs(totalHoursMs);
 
   onMount(() => {
     setDefaultDates();
@@ -125,40 +103,10 @@
     return result;
   }
 
-  function groupByUserDate(list: PunchRecord[]): DayGroup[] {
-    const map = new Map<string, PunchRecord[]>();
-    for (const r of list) {
-      const key = `${r.user_id}_${r.date}`;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(r);
-    }
-    const groups: DayGroup[] = [];
-    for (const [, punches] of map) {
-      const sorted = punches.sort((a, b) => a.punch_order - b.punch_order);
-      let totalMs = 0;
-      for (const p of sorted) {
-        totalMs += calcPunchMs(p.check_in, p.check_out);
-      }
-      const firstIn = sorted.find(p => p.check_in)?.check_in || null;
-      const lastCompleted = [...sorted].reverse().find(p => p.check_out);
-      const lastOut = lastCompleted?.check_out || null;
-      const hasOpen = sorted.some(p => p.check_in && !p.check_out);
-      groups.push({
-        date: sorted[0].date,
-        user_id: sorted[0].user_id,
-        user_email: sorted[0].user_email,
-        user_name: sorted[0].user_name,
-        punches: sorted,
-        totalMs,
-        totalHours: formatMs(totalMs),
-        firstIn,
-        lastOut,
-        status: hasOpen ? 'working' : (firstIn ? 'complete' : 'absent'),
-      });
-    }
-    // Sort by date desc, then user
-    groups.sort((a, b) => b.date.localeCompare(a.date) || a.user_email.localeCompare(b.user_email));
-    return groups;
+  function getStatus(record: PunchRecord): string {
+    if (!record.check_in) return 'absent';
+    if (!record.check_out) return 'working';
+    return 'complete';
   }
 
   function clearFilters() {
@@ -183,10 +131,8 @@
 
   <!-- Summary Cards -->
   <div class="summary-row">
-    <div class="s-card"><span class="s-label">Days</span><span class="s-val">{totalDays}</span></div>
-    <div class="s-card green"><span class="s-label">Complete</span><span class="s-val">{totalComplete}</span></div>
-    <div class="s-card blue"><span class="s-label">Working</span><span class="s-val">{totalWorking}</span></div>
-    <div class="s-card red"><span class="s-label">Total Hours</span><span class="s-val">{grandTotalHours}</span></div>
+    <div class="s-card"><span class="s-label">Punches</span><span class="s-val">{totalPunches}</span></div>
+    <div class="s-card red"><span class="s-label">Total Hours</span><span class="s-val">{totalHoursFormatted}</span></div>
   </div>
 
   <!-- Filters -->
@@ -200,7 +146,7 @@
   <!-- Table -->
   {#if loading}
     <div class="loading">Loading...</div>
-  {:else if grouped.length === 0}
+  {:else if filtered.length === 0}
     <div class="empty">No attendance records found</div>
   {:else}
     <div class="table-wrap">
@@ -209,56 +155,33 @@
           <tr>
             <th>Date</th>
             <th>User</th>
-            <th>Punches</th>
-            <th>First In</th>
-            <th>Last Out</th>
-            <th>Total Hours</th>
+            <th>Punch #</th>
+            <th>Check In</th>
+            <th>Check Out</th>
+            <th>Hours</th>
             <th>Status</th>
           </tr>
         </thead>
         <tbody>
-          {#each grouped as g}
-            {@const key = `${g.user_id}_${g.date}`}
-            <tr class="group-row" class:expanded={expandedKey === key} on:click={() => toggleExpand(key)}>
-              <td>{formatDate(g.date)}</td>
-              <td class="user-col">{g.user_name || g.user_email}</td>
-              <td class="num">{g.punches.length}</td>
-              <td class="num">{formatTime(g.firstIn)}</td>
-              <td class="num">{formatTime(g.lastOut)}</td>
-              <td class="num total-hrs">{g.totalHours}</td>
+          {#each filtered as record (record.id)}
+            <tr class="punch-row">
+              <td>{formatDate(record.date)}</td>
+              <td class="user-col">{record.user_name || record.user_email}</td>
+              <td class="num">{record.punch_order}</td>
+              <td class="num">{formatTime(record.check_in)}</td>
+              <td class="num">{formatTime(record.check_out)}</td>
+              <td class="num">{formatMs(calcPunchMs(record.check_in, record.check_out))}</td>
               <td>
-                {#if g.status === 'complete'}
+                {@const status = getStatus(record)}
+                {#if status === 'complete'}
                   <span class="badge done">Complete</span>
-                {:else if g.status === 'working'}
+                {:else if status === 'working'}
                   <span class="badge active">Working</span>
                 {:else}
                   <span class="badge absent">Absent</span>
                 {/if}
               </td>
             </tr>
-            {#if expandedKey === key && g.punches.length > 0}
-              <tr class="detail-row">
-                <td colspan="7">
-                  <div class="punch-details">
-                    <table class="punch-table">
-                      <thead>
-                        <tr><th>#</th><th>Check In</th><th>Check Out</th><th>Hours</th></tr>
-                      </thead>
-                      <tbody>
-                        {#each g.punches as p, pi}
-                          <tr>
-                            <td>{pi + 1}</td>
-                            <td>{formatTime(p.check_in)}</td>
-                            <td>{p.check_out ? formatTime(p.check_out) : '—'}</td>
-                            <td>{calcPunchMs(p.check_in, p.check_out) > 0 ? formatMs(calcPunchMs(p.check_in, p.check_out)) : '—'}</td>
-                          </tr>
-                        {/each}
-                      </tbody>
-                    </table>
-                  </div>
-                </td>
-              </tr>
-            {/if}
           {/each}
         </tbody>
       </table>
@@ -304,15 +227,7 @@
   .badge.active { background: #dbeafe; color: #1e40af; }
   .badge.absent { background: #fee2e2; color: #991b1b; }
 
-  .group-row { cursor: pointer; }
-  .group-row:hover td { background: #fffbf5; }
-  .group-row.expanded td { background: #fef3c7; }
+  .punch-row { cursor: default; }
+  .punch-row:hover td { background: #fffbf5; }
   .user-col { font-weight: 600; }
-  .total-hrs { font-weight: 700; color: #C41E3A; }
-
-  .detail-row td { padding: 0; background: #fafafa; }
-  .punch-details { padding: 8px 14px 12px; }
-  .punch-table { width: auto; min-width: 350px; border-collapse: collapse; font-size: 12px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; }
-  .punch-table th { background: #f3f4f6; padding: 6px 12px; font-size: 11px; text-transform: uppercase; color: #6b7280; border-bottom: 1px solid #e5e7eb; text-align: left; }
-  .punch-table td { padding: 6px 12px; border-bottom: 1px solid #f3f4f6; color: #374151; }
 </style>
