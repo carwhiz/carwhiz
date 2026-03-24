@@ -47,7 +47,7 @@ DECLARE
   secret TEXT := 'CARWHIZZ_HR_2026_SECRET';
   valid_token TEXT;
   prev_token TEXT;
-  today DATE := CURRENT_DATE;
+  today DATE := DATE(now() AT TIME ZONE 'Asia/Kolkata');
   open_punch RECORD;
   punch_cnt INT;
 BEGIN
