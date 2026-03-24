@@ -235,10 +235,7 @@
       saveError = 'Product Type is required';
       return;
     }
-    if (product_type === 'service' && serviceComponents.length === 0) {
-      saveError = 'Add at least one consumable product for the service';
-      return;
-    }
+    // Consumable products are now optional for services
 
     saving = true;
     saveError = '';
@@ -357,7 +354,7 @@
           <polyline points="15 18 9 12 15 6"/>
         </svg>
       </button>
-      <h2>Create Product</h2>
+      <h2>Create Product/Services</h2>
     </div>
   </div>
 
@@ -374,11 +371,11 @@
       <!-- Row 1: Product Name + Product Type -->
       <div class="form-row two-col">
         <div class="field">
-          <label for="product-name">Product Name</label>
-          <input id="product-name" type="text" bind:value={product_name} placeholder="Enter product name" />
+          <label for="product-name">Name</label>
+          <input id="product-name" type="text" bind:value={product_name} placeholder="Enter product/service name" />
         </div>
         <div class="field">
-          <label for="product-type">Product Type</label>
+          <label for="product-type">Type</label>
           <select id="product-type" bind:value={product_type}>
             <option value="">Select type...</option>
             <option value="product">Product</option>
