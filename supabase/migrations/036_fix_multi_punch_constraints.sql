@@ -36,7 +36,8 @@ DROP FUNCTION IF EXISTS public.fn_attendance_punch(text, uuid);
 CREATE OR REPLACE FUNCTION public.fn_attendance_punch(
   p_token TEXT,
   p_user_id UUID,
-  p_action TEXT DEFAULT NULL
+  p_action TEXT DEFAULT NULL,
+  p_date DATE DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -47,7 +48,7 @@ DECLARE
   secret TEXT := 'CARWHIZZ_HR_2026_SECRET';
   valid_token TEXT;
   prev_token TEXT;
-  today DATE := DATE(now() AT TIME ZONE 'Asia/Kolkata');
+  today DATE := COALESCE(p_date, DATE(now() AT TIME ZONE 'Asia/Kolkata'));
   open_punch RECORD;
   punch_cnt INT;
 BEGIN

@@ -298,7 +298,8 @@
       const { data, error: punchError } = await supabase.rpc('fn_attendance_punch', {
         p_token: scannedToken,
         p_user_id: userId,
-        p_action: action
+        p_action: action,
+        p_date: selectedDate  // ← Pass IST date from mobile
       });
       
       if (punchError) { 
@@ -323,6 +324,7 @@
 
   onMount(() => {
     setMobilePage('attendance', 'Attendance');
+    // Always load today's attendance (IST date)
     loadAttendance();
     loadMonthlySummary();
   });
