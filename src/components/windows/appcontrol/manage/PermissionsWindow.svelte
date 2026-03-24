@@ -37,7 +37,7 @@
         { id: 'finance-ledger', label: 'Ledger' },
         { id: 'finance-assets', label: 'Fixed Assets' },
         { id: 'finance-job-card', label: 'Job Card' },
-        { id: 'finance-my-jobs', label: 'My Job Cards' },
+        { id: 'finance-job-card-report', label: 'My Job Card' },
       ]
     },
     {
@@ -61,7 +61,6 @@
         { id: 'finance-trial-balance', label: 'Trial Balance' },
         { id: 'finance-profit-loss', label: 'Profit & Loss' },
         { id: 'finance-balance-sheet', label: 'Balance Sheet' },
-        { id: 'finance-job-card-report', label: 'Job Cards Report' },
       ]
     },
     {

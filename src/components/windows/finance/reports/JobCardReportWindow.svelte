@@ -42,6 +42,19 @@
   let editSaving = false;
   let editError = '';
 
+  // Add items in edit mode
+  let allProducts: any[] = [];
+  let productSearch = '';
+  let filteredProducts: any[] = [];
+  let showProductDropdown = false;
+  let selectedProduct: any = null;
+  let itemQty = 1;
+  let itemPrice = '';
+  let itemDiscount = 0;
+  let itemNotes = '';
+  let addingItem = false;
+  let itemError = '';
+
   $: filteredJobs = applyFilters(jobCards, fromDate, toDate, statusFilter, customerSearch, userFilter);
 
   onMount(async () => {
@@ -55,7 +68,7 @@
       permView = v; permEdit = e; permDelete = d;
       if (!permView) { loading = false; return; }
     }
-    await Promise.all([loadJobCards(), loadUsers()]);
+    await Promise.all([loadJobCards(), loadUsers(), loadProducts()]);
   });
 
   function formatDate(dt: string): string {
@@ -94,6 +107,85 @@
   async function loadUsers() {
     const { data } = await supabase.from('users').select('id, email, phone_number, role, created_at').order('email');
     users = data || [];
+  }
+
+  async function loadProducts() {
+    const { data } = await supabase.from('products').select('id, product_name, product_type, sales_price').order('product_name');
+    allProducts = data || [];
+  }
+
+  function handleProductSearch() {
+    const q = productSearch.toLowerCase().trim();
+    if (!q) { filteredProducts = []; showProductDropdown = false; return; }
+    filteredProducts = allProducts.filter(p =>
+      p.product_name.toLowerCase().includes(q)
+    ).slice(0, 10);
+    showProductDropdown = filteredProducts.length > 0;
+  }
+
+  function selectProduct(p: any) {
+    selectedProduct = p;
+    itemPrice = (p.sales_price || 0).toString();
+    productSearch = '';
+    showProductDropdown = false;
+    itemError = '';
+  }
+
+  async function addItemToJobCard() {
+    if (!selectedProduct) { itemError = 'Please select a product'; return; }
+    if (itemQty <= 0) { itemError = 'Quantity must be greater than 0'; return; }
+    
+    const price = parseFloat(itemPrice) || 0;
+    const discount = itemDiscount || 0;
+    const total = (itemQty * price) - discount;
+
+    addingItem = true;
+    itemError = '';
+
+    const { error } = await supabase.from('job_card_items').insert([{
+      job_card_id: selectedJC.id,
+      item_type: selectedProduct.product_type || 'product',
+      item_id: selectedProduct.id,
+      name: selectedProduct.product_name,
+      qty: itemQty,
+      price: price,
+      discount: discount,
+      total: total,
+      notes: itemNotes,
+      created_by: $authStore.user?.id || null,
+      updated_by: $authStore.user?.id || null,
+    }]);
+
+    if (error) {
+      itemError = 'Failed to add item: ' + error.message;
+      addingItem = false;
+      return;
+    }
+
+    // Reset form
+    selectedProduct = null;
+    itemQty = 1;
+    itemPrice = '';
+    itemDiscount = 0;
+    itemNotes = '';
+    addingItem = false;
+
+    // Reload items
+    const { data } = await supabase.from('job_card_items').select('*').eq('job_card_id', selectedJC.id).order('created_at');
+    jcItems = data || [];
+  }
+
+  async function removeItemFromJobCard(itemId: string) {
+    if (!confirm('Remove this item from the job card?')) return;
+
+    const { error } = await supabase.from('job_card_items').delete().eq('id', itemId);
+    if (error) {
+      alert('Failed to remove item: ' + error.message);
+      return;
+    }
+
+    const { data } = await supabase.from('job_card_items').select('*').eq('job_card_id', selectedJC.id).order('created_at');
+    jcItems = data || [];
   }
 
   function applyFilters(list: any[], from: string, to: string, status: string, search: string, user: string) {
@@ -474,17 +566,88 @@
           </div>
         </div>
 
-        <!-- Items (read-only in edit mode) -->
+        <!-- Items -->
         <div class="detail-section">
           <h4>Items ({jcItems.length})</h4>
+          
+          <!-- Add Item Form -->
+          <div class="add-item-form">
+            {#if itemError}<div class="form-error">{itemError}</div>{/if}
+
+            <!-- Product Search -->
+            <div class="form-row">
+              <div class="form-field">
+                <label>Product / Service *</label>
+                <div class="search-box">
+                  <input type="text" placeholder="Search product or service..." bind:value={productSearch} on:input={handleProductSearch} on:focus={handleProductSearch} />
+                  {#if showProductDropdown}
+                    <div class="dropdown">
+                      {#each filteredProducts as p}
+                        <button class="dd-item" on:click={() => selectProduct(p)}>
+                          <strong>{p.product_name}</strong>
+                          <span class="type-tag" class:service={p.product_type === 'service'} class:consumable={p.product_type === 'consumable'}>{p.product_type}</span>
+                          <span>₹{(p.sales_price || 0).toFixed(2)}</span>
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+                {#if selectedProduct}
+                  <div class="selected-product">✓ {selectedProduct.product_name}</div>
+                {/if}
+              </div>
+              <div class="form-field">
+              <button class="btn-create-product" on:click={() => windowStore.open('products-create-product', 'Create Product/Services')} title="Create new product or service">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Create Product/Services
+                </button>
+              </div>
+            </div>
+
+            <!-- Item Details -->
+            <div class="form-row">
+              <div class="form-field">
+                <label>Qty *</label>
+                <input type="number" bind:value={itemQty} min="1" step="1" />
+              </div>
+              <div class="form-field">
+                <label>Price *</label>
+                <input type="number" bind:value={itemPrice} min="0" step="0.01" />
+              </div>
+              <div class="form-field">
+                <label>Discount</label>
+                <input type="number" bind:value={itemDiscount} min="0" step="0.01" />
+              </div>
+              <div class="form-field">
+                <label>Notes</label>
+                <input type="text" bind:value={itemNotes} placeholder="Notes..." />
+              </div>
+            </div>
+
+            <button class="btn-add-item" on:click={addItemToJobCard} disabled={addingItem || !selectedProduct}>
+              {addingItem ? 'Adding...' : '+ Add Item'}
+            </button>
+          </div>
+
+          <!-- Items Table -->
           {#if jcItems.length > 0}
             <table class="detail-table">
-              <thead><tr><th>#</th><th>Type</th><th>Name</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th></tr></thead>
+              <thead><tr><th>#</th><th>Type</th><th>Name</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Discount</th><th class="num">Total</th><th></th></tr></thead>
               <tbody>
                 {#each jcItems as it, idx}
-                  <tr><td>{idx+1}</td><td>{it.item_type}</td><td>{it.name}</td><td class="num">{it.qty}</td><td class="num">₹{(it.price||0).toFixed(2)}</td><td class="num">₹{(it.total||0).toFixed(2)}</td></tr>
+                  <tr>
+                    <td>{idx+1}</td>
+                    <td>{it.item_type}</td>
+                    <td>{it.name}</td>
+                    <td class="num">{it.qty}</td>
+                    <td class="num">₹{(it.price||0).toFixed(2)}</td>
+                    <td class="num">₹{(it.discount||0).toFixed(2)}</td>
+                    <td class="num"><strong>₹{(it.total||0).toFixed(2)}</strong></td>
+                    <td><button class="btn-remove" on:click={() => removeItemFromJobCard(it.id)} title="Remove">×</button></td>
+                  </tr>
                 {/each}
               </tbody>
+              <tfoot><tr><td colspan="6" class="num"><strong>Total</strong></td><td class="num"><strong>₹{jcItems.reduce((s, i) => s + (i.total || 0), 0).toFixed(2)}</strong></td><td></td></tr></tfoot>
             </table>
           {/if}
         </div>
@@ -586,6 +749,32 @@
   .type-tag.service { background: #f3e8ff; color: #7c3aed; }
   .type-tag.consumable { background: #dcfce7; color: #16a34a; }
 
+  /* Add item form */
+  .add-item-form { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 10px; }
+  .form-field { display: flex; flex-direction: column; gap: 4px; }
+  .form-field label { font-size: 12px; font-weight: 600; color: #374151; }
+  .form-field input { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; outline: none; }
+  .form-field input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+  .search-box { position: relative; }
+  .search-box input { width: 100%; }
+  .dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; z-index: 10; }
+  .dd-item { display: block; width: 100%; padding: 8px 10px; text-align: left; border: none; background: none; cursor: pointer; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .dd-item:hover { background: #f3f4f6; }
+  .dd-item strong { font-weight: 600; }
+  .dd-item span { font-size: 11px; color: #6b7280; }
+  .selected-product { margin-top: 4px; padding: 6px 8px; background: #dbeafe; color: #1d4ed8; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .btn-add-item { padding: 8px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-add-item:hover:not(:disabled) { background: #1d4ed8; }
+  .btn-add-item:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-remove { background: none; border: none; color: #dc2626; font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+  .btn-remove:hover { color: #991b1b; }
+  .form-error { color: #dc2626; font-size: 12px; padding: 8px; background: #fee2e2; border-radius: 4px; margin-bottom: 8px; }
+  .btn-create-product { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #C41E3A; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 24px; }
+  .btn-create-product:hover { background: #a71830; }
+  .btn-ghost { padding: 8px 16px; background: none; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; color: #374151; }
+  .btn-ghost:hover { background: #f3f4f6; }
+
   /* Photo grid */
   .photo-grid { display: flex; gap: 10px; flex-wrap: wrap; }
   .photo-thumb { width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; position: relative; }
@@ -614,7 +803,6 @@
   .form-field input, .form-field select, .form-field textarea { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box; }
   .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: #C41E3A; box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.1); }
   .form-field textarea { resize: vertical; font-family: inherit; }
-  .form-actions { display: flex; gap: 8px; }
 
   .btn-primary { display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; background: #C41E3A; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
   .btn-primary:hover:not(:disabled) { background: #a71830; }

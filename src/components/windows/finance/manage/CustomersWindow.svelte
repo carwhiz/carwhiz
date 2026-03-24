@@ -5,7 +5,7 @@
      ============================================================ -->
 
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { supabase } from '../../../../lib/supabaseClient';
   import { windowStore } from '../../../../stores/windowStore';
 
@@ -33,7 +33,18 @@
       )
     : customers;
 
-  onMount(() => { loadCustomers(); });
+  onMount(() => {
+    loadCustomers();
+    window.addEventListener('customersUpdated', handleCustomersUpdated);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener('customersUpdated', handleCustomersUpdated);
+  });
+
+  function handleCustomersUpdated() {
+    loadCustomers();
+  }
 
   async function loadCustomers() {
     loading = true;
@@ -54,6 +65,10 @@
 
   function openCreate() {
     windowStore.open('finance-create-customer', 'Create Customer');
+  }
+
+  function openEdit(customerId: string) {
+    windowStore.open(`finance-edit-customer-${customerId}`, 'Edit Customer');
   }
 
   export { loadCustomers };
@@ -107,7 +122,7 @@
               <td>{c.gender ? c.gender.charAt(0).toUpperCase() + c.gender.slice(1) : '—'}</td>
               <td>{c.customer_vehicle_numbers.map(v => v.vehicle_number).join(', ') || '—'}</td>
               <td class="actions">
-                <button class="btn-edit" title="Edit">
+                <button class="btn-edit" title="Edit" on:click={() => openEdit(c.id)}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   Edit
                 </button>

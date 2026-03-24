@@ -20,6 +20,7 @@
   import PaymentWindow from '../../components/windows/finance/operations/PaymentWindow.svelte';
   import CustomersWindow from '../../components/windows/finance/manage/CustomersWindow.svelte';
   import CreateCustomerWindow from '../../components/windows/finance/manage/CreateCustomerWindow.svelte';
+  import EditCustomerWindow from '../../components/windows/finance/manage/EditCustomerWindow.svelte';
   import VendorsWindow from '../../components/windows/finance/manage/VendorsWindow.svelte';
   import CreateVendorWindow from '../../components/windows/finance/manage/CreateVendorWindow.svelte';
   import LedgerWindow from '../../components/windows/finance/manage/LedgerWindow.svelte';
@@ -29,7 +30,6 @@
   import CreateAssetWindow from '../../components/windows/finance/manage/CreateAssetWindow.svelte';
   import CreateEmployeeWindow from '../../components/windows/finance/manage/CreateEmployeeWindow.svelte';
   import JobCardWindow from '../../components/windows/finance/manage/JobCardWindow.svelte';
-  import MyJobCardsWindow from '../../components/windows/finance/manage/MyJobCardsWindow.svelte';
   import SalesReportWindow from '../../components/windows/finance/reports/SalesReportWindow.svelte';
   import PurchaseReportWindow from '../../components/windows/finance/reports/PurchaseReportWindow.svelte';
   import LedgerBalanceWindow from '../../components/windows/finance/reports/LedgerBalanceWindow.svelte';
@@ -125,7 +125,6 @@
     'finance-assets': AssetsWindow,
     'finance-create-asset': CreateAssetWindow,
     'finance-job-card': JobCardWindow,
-    'finance-my-jobs': MyJobCardsWindow,
     // Finance > Operations
     'finance-sales': SalesWindow,
     'finance-purchase': PurchaseWindow,
@@ -166,6 +165,7 @@
     if (windowId.startsWith('products-edit-vehicle-')) return EditVehicleWindow;
     if (windowId.startsWith('products-edit-product-')) return EditProductWindow;
     if (windowId.startsWith('finance-edit-ledger-')) return EditLedgerWindow;
+    if (windowId.startsWith('finance-edit-customer-')) return EditCustomerWindow;
     return null;
   }
 
@@ -173,6 +173,7 @@
     if (windowId.startsWith('products-edit-vehicle-')) return { vehicleId: windowId.replace('products-edit-vehicle-', '') };
     if (windowId.startsWith('products-edit-product-')) return { productId: windowId.replace('products-edit-product-', '') };
     if (windowId.startsWith('finance-edit-ledger-')) return { ledgerId: windowId.replace('finance-edit-ledger-', '') };
+    if (windowId.startsWith('finance-edit-customer-')) return { customerId: windowId.replace('finance-edit-customer-', '') };
     return {};
   }
 
@@ -254,7 +255,7 @@
               <button class="nav-item" on:click={() => openWindow('finance-ledger', 'Ledger')}>Ledger</button>
               <button class="nav-item" on:click={() => openWindow('finance-assets', 'Fixed Assets')}>Fixed Assets</button>
               <button class="nav-item" on:click={() => openWindow('finance-job-card', 'Job Card')}>Job Card</button>
-              <button class="nav-item" on:click={() => openWindow('finance-my-jobs', 'My Job Cards')}>My Job Cards</button>
+              <button class="nav-item" on:click={() => openWindow('finance-job-card-report', 'My Job Card')}>My Job Card</button>
             </div>
           {/if}
 
@@ -288,7 +289,6 @@
               <button class="nav-item" on:click={() => openWindow('finance-trial-balance', 'Trial Balance')}>Trial Balance</button>
               <button class="nav-item" on:click={() => openWindow('finance-profit-loss', 'Profit & Loss')}>Profit & Loss</button>
               <button class="nav-item" on:click={() => openWindow('finance-balance-sheet', 'Balance Sheet')}>Balance Sheet</button>
-              <button class="nav-item" on:click={() => openWindow('finance-job-card-report', 'Job Cards Report')}>Job Cards</button>
             </div>
           {/if}
         </div>

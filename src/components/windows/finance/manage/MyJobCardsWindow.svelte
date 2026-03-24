@@ -13,9 +13,11 @@
   import { canUserViewResource } from '../../../../lib/services/permissionService';
 
   let myJobs: any[] = [];
+  let filteredJobs: any[] = [];
   let loading = true;
   let permDenied = false;
   let statusFilter = '';
+  let searchQuery = '';
 
   // Detail view
   let viewingJob: any = null;
@@ -49,7 +51,22 @@
   let actionLoading = false;
   let actionError = '';
 
-  $: filteredJobs = statusFilter ? myJobs.filter(j => j.status === statusFilter) : myJobs;
+  function applyFilters() {
+    let result = myJobs;
+    if (statusFilter) result = result.filter(j => j.status?.toLowerCase() === statusFilter.toLowerCase());
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(j =>
+        j.customer_name.toLowerCase().includes(q) ||
+        j.vehicle_name.toLowerCase().includes(q) ||
+        (j.job_card_no || '').toLowerCase().includes(q)
+      );
+    }
+    console.log('[MyJobCards] Applying filters:', { statusFilter, searchQuery, resultCount: result.length });
+    filteredJobs = result;
+  }
+
+  $: statusFilter, searchQuery, applyFilters();
 
   onMount(async () => {
     const userId = $authStore.user?.id;
@@ -80,21 +97,46 @@
     const userId = $authStore.user?.id;
     if (!userId) { loading = false; return; }
 
-    const { data } = await supabase
-      .from('job_cards')
-      .select('id, job_card_no, status, priority, description, details, expected_date, created_at, customer_id, vehicle_id, vehicle_number, customers(name, place), vehicles(model_name, makes(name))')
-      .eq('assigned_user_id', userId)
-      .in('status', ['Open', 'In Progress'])
-      .order('created_at', { ascending: false });
-    
-    myJobs = (data || []).map((j: any) => ({
-      ...j,
-      customer_name: j.customers?.name || '—',
-      customer_place: j.customers?.place || '',
-      vehicle_name: j.vehicles?.model_name || '—',
-      vehicle_make: j.vehicles?.makes?.name || '',
-    }));
-    loading = false;
+    try {
+      const { data, error } = await supabase
+        .from('job_cards')
+        .select('id, job_card_no, status, priority, description, details, expected_date, created_at, customer_id, vehicle_id, assigned_user_id, customers(name), vehicles(model_name), users:assigned_user_id(email)')
+        .eq('assigned_user_id', userId)
+        .order('created_at', { ascending: false });
+      
+      console.log('[MyJobCards Query] Raw response:', { userId, dataCount: data?.length, error });
+      
+      if (error) {
+        console.error('Failed to load jobs:', error);
+        actionError = `Query failed: ${error.message}`;
+        loading = false;
+        return;
+      }
+      
+      myJobs = (data || []).map((j: any) => ({
+        ...j,
+        customer_name: j.customers?.name || '—',
+        vehicle_name: j.vehicles?.model_name || '—',
+        assigned_name: j.users?.email || '—',
+      }));
+      
+      const statusBreakdown = {
+        Open: myJobs.filter(j => j.status === 'Open').length,
+        'In Progress': myJobs.filter(j => j.status === 'In Progress').length,
+        Closed: myJobs.filter(j => j.status === 'Closed').length,
+        Billed: myJobs.filter(j => j.status === 'Billed').length,
+      };
+      console.log('[MyJobCards] Loaded jobs:', myJobs);
+      console.log('[MyJobCards] Status breakdown:', statusBreakdown);
+      console.log('[MyJobCards] Raw statuses:', myJobs.map(j => ({ id: j.id, job_card_no: j.job_card_no, status: j.status })));
+      
+      applyFilters();
+    } catch (err) {
+      console.error('Exception in loadMyJobs:', err);
+      actionError = 'Failed to load jobs: ' + (err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      loading = false;
+    }
   }
 
   async function openJobDetail(job: any) {
@@ -368,6 +410,7 @@
         <h2>My Job Cards</h2>
       </div>
       <div class="header-right">
+        <input type="text" placeholder="Search..." class="search-input" bind:value={searchQuery} />
         <select class="filter-select" bind:value={statusFilter}>
           <option value="">All</option>
           <option value="Open">Open</option>
@@ -594,6 +637,8 @@
   .back-btn { background: none; border: none; cursor: pointer; color: #6b7280; padding: 4px; border-radius: 6px; display: flex; }
   .back-btn:hover { background: #f3f4f6; color: #111827; }
   .filter-select { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; }
+  .search-input { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; min-width: 200px; }
+  .search-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
   .btn-refresh { background: none; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px; cursor: pointer; display: flex; color: #6b7280; }
   .btn-refresh:hover { background: #f3f4f6; }
 
