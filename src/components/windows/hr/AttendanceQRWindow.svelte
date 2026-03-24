@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import QRCode from 'qrcode';
+  import md5 from 'md5';
   import { authStore } from '../../../stores/authStore';
 
   let qrDataUrl: string = '';
@@ -9,7 +10,7 @@
 
   onMount(async () => {
     generateQR();
-    // Regenerate QR code every 10 seconds for security
+    // Regenerate QR code every 10 seconds for security (sync with server time slots)
     refreshInterval = setInterval(generateQR, 10000);
   });
 
@@ -19,7 +20,13 @@
 
   async function generateQR() {
     try {
-      const token = `${$authStore.user?.id}|${new Date().getTime()}`;
+      // Generate token matching server's MD5 hash format
+      // Server calculates: md5(timeSlot || 'CARWHIZZ_HR_2026_SECRET')
+      // where timeSlot = EXTRACT(EPOCH FROM now())::BIGINT / 10
+      const secret = 'CARWHIZZ_HR_2026_SECRET';
+      const timeSlot = Math.floor(Date.now() / 1000 / 10); // Convert ms to seconds, then divide by 10
+      const token = md5(String(timeSlot) + secret);
+      
       qrDataUrl = await QRCode.toDataURL(token, {
         width: 250,
         margin: 2,

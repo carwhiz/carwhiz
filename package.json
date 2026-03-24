@@ -25,6 +25,7 @@
     "@supabase/supabase-js": "^2.99.2",
     "@types/qrcode": "^1.5.6",
     "html5-qrcode": "^2.3.8",
+    "md5": "^2.3.0",
     "page": "^1.11.6",
     "qrcode": "^1.5.4"
   }

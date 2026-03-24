@@ -184,14 +184,15 @@
     scanLoading = true;
     await stopScanner();
     try {
-      // The QR generator creates a string like: "userId|1711200000000"
-      // not a JSON object, so we verify it contains a pipe character
-      if (typeof decodedText === 'string' && decodedText.includes('|')) {
-        scannedToken = decodedText;
-      } else {
-        // Fallback in case it was accidentally generated as JSON elsewhere
-        const payload = JSON.parse(decodedText);
-        scannedToken = payload.t || decodedText;
+      // QR now contains MD5 hash token (32 hex chars)
+      // Format: md5(timeSlot + 'CARWHIZZ_HR_2026_SECRET')
+      scannedToken = decodedText.trim();
+      
+      // Validate it looks like an MD5 hash (32 hex characters)
+      if (!/^[a-f0-9]{32}$/.test(scannedToken)) {
+        scanError = 'Invalid QR code format (not a valid hash).';
+        scanLoading = false;
+        return;
       }
       
       if (!$authStore.user?.id) {
