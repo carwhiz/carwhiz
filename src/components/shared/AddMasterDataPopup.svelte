@@ -57,8 +57,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="popup-overlay" on:click|self={handleClose}>
+<div class="popup-overlay" role="button" tabindex="0" on:click|self={handleClose} on:keydown|self={(e) => e.key === 'Escape' && handleClose()}>
   <div class="popup-card">
     <div class="popup-header">
       <h3>{title}</h3>
@@ -66,8 +65,9 @@
     </div>
 
     <div class="popup-body">
-      <label class="field-label">Name</label>
+      <label class="field-label" for="name-input">Name</label>
       <input
+        id="name-input"
         type="text"
         bind:value={name}
         placeholder="Enter name..."
