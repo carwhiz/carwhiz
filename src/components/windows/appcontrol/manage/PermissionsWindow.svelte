@@ -64,10 +64,10 @@
       ]
     },
     {
-      group: 'Products',
+      group: 'Product/Services',
       resources: [
         { id: 'products-vehicles', label: 'Vehicles' },
-        { id: 'products-products', label: 'Products' },
+        { id: 'products-products', label: 'Product/Services' },
         { id: 'products-stock-management', label: 'Stock Management' },
         { id: 'products-stock-report', label: 'Stock Report' },
       ]
