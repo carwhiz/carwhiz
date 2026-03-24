@@ -6,17 +6,17 @@
 -- 1. Find and drop UNIQUE constraint if it exists
 DO $$ 
 DECLARE
-  constraint_name TEXT;
+  v_constraint_name TEXT;
 BEGIN
-  SELECT constraint_name INTO constraint_name
-  FROM information_schema.table_constraints
-  WHERE table_name = 'attendance' 
-    AND constraint_type = 'UNIQUE'
-    AND table_schema = 'public'
+  SELECT tc.constraint_name INTO v_constraint_name
+  FROM information_schema.table_constraints tc
+  WHERE tc.table_name = 'attendance' 
+    AND tc.constraint_type = 'UNIQUE'
+    AND tc.table_schema = 'public'
   LIMIT 1;
   
-  IF constraint_name IS NOT NULL THEN
-    EXECUTE 'ALTER TABLE public.attendance DROP CONSTRAINT ' || quote_ident(constraint_name);
+  IF v_constraint_name IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE public.attendance DROP CONSTRAINT ' || quote_ident(v_constraint_name);
   END IF;
 END $$;
 
