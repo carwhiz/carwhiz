@@ -2382,9 +2382,6 @@
     border-radius: 50%;
     margin: 0 auto 1.5rem;
   }
-    color: #4caf50;
-    margin-bottom: 1rem;
-  }
 
   .success-title {
     font-size: 1.5rem;
