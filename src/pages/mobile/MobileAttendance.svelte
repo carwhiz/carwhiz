@@ -29,9 +29,13 @@
   
   // Initialize dates in IST (Asia/Kolkata) to match RPC queries
   function getISTDate(): string {
-    const now = new Date();
-    const istTime = new Date(now.getTime() + (330 * 60 * 1000)); // IST is UTC+5:30
-    return istTime.toISOString().split('T')[0];
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    return formatter.format(new Date());
   }
   
   let selectedDate = getISTDate();

@@ -1728,6 +1728,23 @@
           {/if}
         </div>
 
+        <!-- Order Summary -->
+        <div class="order-summary">
+          <h3>Order Summary</h3>
+          <div class="summary-row">
+            <span>Products/Services:</span>
+            <span class="amount">₹{selectedItems.reduce((sum, item) => sum + (item.sales_price * item.quantity || 0), 0).toFixed(2)}</span>
+          </div>
+          <div class="summary-row">
+            <span>Items Count:</span>
+            <span>{selectedItems.length}</span>
+          </div>
+          <div class="summary-total">
+            <span>Total Amount:</span>
+            <span class="total-amount">₹{selectedItems.reduce((sum, item) => sum + (item.sales_price * item.quantity || 0), 0).toFixed(2)}</span>
+          </div>
+        </div>
+
         {#if saveError}
           <div class="error-msg">{saveError}</div>
         {/if}
@@ -1807,12 +1824,16 @@
   .step-content {
     flex: 1;
     padding: 1.25rem;
+    padding-bottom: 140px;
     background: #ffffff;
     margin: 0.75rem;
     border-radius: 12px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     border: 1px solid #f3f4f6;
+    position: relative;
+    z-index: 1;
   }
 
   .step-content h2 {
@@ -1858,15 +1879,16 @@
   }
 
   .dropdown {
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
     background: #ffffff;
-    max-height: 250px;
+    max-height: 300px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     margin-bottom: 1.25rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
     position: relative;
-    z-index: 10;
+    z-index: 50;
   }
 
   .dropdown-item {
@@ -2053,47 +2075,40 @@
   .input-row {
     display: flex;
     gap: 0.75rem;
-    align-items: center;
-    flex-wrap: wrap;
+    align-items: stretch;
+    flex-wrap: nowrap;
   }
 
   .input-row input {
     flex: 1;
+    min-width: 0;
     padding: 1rem 1.25rem;
     border: 2px solid #d1d5db;
     border-radius: 10px;
     transition: all 0.2s ease;
     min-height: 48px;
     font-size: 1rem;
-    min-width: 150px;
   }
 
   .btn-remove {
-    padding: 0.85rem 1.25rem;
+    padding: 0.75rem 1rem;
     background: #fee2e2;
     color: #C41E3A;
     border: 2px solid #fecaca;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     font-weight: 700;
     white-space: nowrap;
     transition: all 0.2s ease;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    min-height: auto;
+    width: auto;
+    flex-shrink: 0;
     font-family: inherit;
   }
 
   .btn-remove:active {
-    transform: scale(0.96);
-    background: #C41E3A;
-    color: white;
-    border-color: #C41E3A;
-  }
-
-  .btn-remove:hover {
+    transform: scale(0.95);
     background: #C41E3A;
     color: white;
     border-color: #C41E3A;
@@ -2164,6 +2179,69 @@
     font-weight: 700;
     color: #C41E3A;
     font-size: 1.05rem;
+  }
+
+  .order-summary {
+    background: #f9fafb;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .order-summary h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 0.95rem;
+  }
+
+  .summary-row:last-of-type {
+    border-bottom: none;
+  }
+
+  .summary-row span {
+    color: #6b7280;
+    font-weight: 500;
+  }
+
+  .summary-row .amount {
+    color: #111827;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+
+  .summary-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    margin-top: 0.75rem;
+    border-top: 2px solid #C41E3A;
+    border-bottom: none;
+  }
+
+  .summary-total span {
+    color: #111827;
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+
+  .summary-total .total-amount {
+    color: #C41E3A;
+    font-size: 1.25rem;
   }
 
   .grand-total {
@@ -2323,6 +2401,12 @@
     padding: 1rem;
     background: white;
     border-top: 1px solid #ddd;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+    z-index: 100;
   }
 
   .btn-primary,
