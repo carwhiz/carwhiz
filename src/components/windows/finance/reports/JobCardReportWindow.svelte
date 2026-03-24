@@ -93,7 +93,7 @@
     loading = true;
     const { data } = await supabase
       .from('job_cards')
-      .select('id, job_card_no, status, priority, description, expected_date, created_at, customer_id, vehicle_id, assigned_user_id, customers(name), vehicles(model_name), users:assigned_user_id(email)')
+      .select('id, job_card_no, status, priority, description, details, expected_date, created_at, vehicle_number, customer_id, vehicle_id, assigned_user_id, customers!customer_id(name), vehicles!vehicle_id(model_name), users!assigned_user_id(email)')
       .order('created_at', { ascending: false });
     jobCards = (data || []).map((j: any) => ({
       ...j,
@@ -227,19 +227,149 @@
   }
 
   async function loadJobCardDetails(id: string) {
-    const [itemsRes, photosRes, notesRes, logsRes] = await Promise.all([
+    const [itemsRes, photosRes, notesRes, logsRes, jobCardRes] = await Promise.all([
       supabase.from('job_card_items').select('*').eq('job_card_id', id).order('created_at'),
       supabase.from('job_card_photos').select('*').eq('job_card_id', id).order('created_at'),
       supabase.from('job_card_notes').select('*, users:created_by(email)').eq('job_card_id', id).order('created_at', { ascending: false }),
       supabase.from('job_card_logs').select('*, users:action_by(email)').eq('job_card_id', id).order('created_at', { ascending: false }),
+      supabase.from('job_cards').select(`
+        *,
+        customers!customer_id(
+          name, 
+          place, 
+          customer_phones(phone)
+        ),
+        vehicles!vehicle_id(
+          id,
+          model_name,
+          make_id,
+          variant_id,
+          fuel_type_id,
+          body_side_id,
+          makes(name),
+          variants(name),
+          fuel_types(name),
+          body_sides(name)
+        ),
+        users!assigned_user_id(email, user_name)
+      `).eq('id', id).single()
     ]);
     jcItems = itemsRes.data || [];
     jcPhotos = photosRes.data || [];
     jcNotes = (notesRes.data || []).map((n: any) => ({ ...n, by_name: n.users?.email || '—' }));
     jcLogs = (logsRes.data || []).map((l: any) => ({ ...l, by_name: l.users?.email || '—' }));
+    
+    if (jobCardRes.data) {
+      const dbJc = jobCardRes.data;
+      console.log('Full job card data:', dbJc);
+      console.log('Vehicle data:', dbJc.vehicles);
+      console.log('Customer data:', dbJc.customers);
+      
+      let vehicleMakeName = '—';
+      let vehicleVariantName = '—';
+      let vehicleFuelName = '—';
+      let vehicleBodySideName = '—';
+      
+      if (dbJc.vehicles) {
+        if (Array.isArray(dbJc.vehicles.makes) && dbJc.vehicles.makes.length > 0) {
+          vehicleMakeName = dbJc.vehicles.makes[0]?.name || '—';
+        } else if (dbJc.vehicles.makes && typeof dbJc.vehicles.makes === 'object' && 'name' in dbJc.vehicles.makes) {
+          vehicleMakeName = dbJc.vehicles.makes.name;
+        }
+        
+        if (Array.isArray(dbJc.vehicles.variants) && dbJc.vehicles.variants.length > 0) {
+          vehicleVariantName = dbJc.vehicles.variants[0]?.name || '—';
+        } else if (dbJc.vehicles.variants && typeof dbJc.vehicles.variants === 'object' && 'name' in dbJc.vehicles.variants) {
+          vehicleVariantName = dbJc.vehicles.variants.name;
+        }
+        
+        if (Array.isArray(dbJc.vehicles.fuel_types) && dbJc.vehicles.fuel_types.length > 0) {
+          vehicleFuelName = dbJc.vehicles.fuel_types[0]?.name || '—';
+        } else if (dbJc.vehicles.fuel_types && typeof dbJc.vehicles.fuel_types === 'object' && 'name' in dbJc.vehicles.fuel_types) {
+          vehicleFuelName = dbJc.vehicles.fuel_types.name;
+        }
+        
+        if (Array.isArray(dbJc.vehicles.body_sides) && dbJc.vehicles.body_sides.length > 0) {
+          vehicleBodySideName = dbJc.vehicles.body_sides[0]?.name || '—';
+        } else if (dbJc.vehicles.body_sides && typeof dbJc.vehicles.body_sides === 'object' && 'name' in dbJc.vehicles.body_sides) {
+          vehicleBodySideName = dbJc.vehicles.body_sides.name;
+        }
+      }
+      
+      selectedJC = {
+        ...selectedJC,
+        ...dbJc,
+        customer_name: dbJc.customers?.name || '—',
+        customer_phone: dbJc.customers?.customer_phones && Array.isArray(dbJc.customers.customer_phones) && dbJc.customers.customer_phones.length > 0 ? dbJc.customers.customer_phones.map((p: any) => p.phone).join(', ') : '—',
+        customer_location: dbJc.customers?.place || '—',
+        vehicle_number: dbJc.vehicle_number || '—',
+        vehicle_model: dbJc.vehicles?.model_name || '—',
+        vehicle_make: vehicleMakeName,
+        vehicle_variant: vehicleVariantName,
+        vehicle_fuel: vehicleFuelName,
+        vehicle_body_side: vehicleBodySideName,
+        assigned_name_full: dbJc.users?.user_name || dbJc.users?.email || '—'
+      };
+      console.log('Processed selectedJC:', selectedJC);
+    } else {
+      console.error('No job card data returned');
+    }
   }
 
   function goBackToList() { viewMode = 'list'; selectedJC = null; jcItems = []; jcPhotos = []; jcNotes = []; jcLogs = []; }
+
+  async function handlePrintJobCard() {
+    if (!selectedJC) return;
+    
+    // Load logo as base64
+    let logoBase64 = '';
+    try {
+      const response = await fetch('/logo.jpeg');
+      const blob = await response.blob();
+      logoBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      console.log('Logo loading failed');
+    }
+    
+    const win = window.open('', '_blank');
+    if (!win) return;
+    
+    // Build items table HTML
+    let itemsHtml = '';
+    if (jcItems && jcItems.length > 0) {
+      itemsHtml = '<div class="info-row"><div class="title">Items & Services</div><table><thead><tr><th style="width: 25px; text-align: center;">#</th><th>Type</th><th>Description</th><th style="text-align: right; width: 40px;">Qty</th><th style="text-align: right; width: 60px;">Price</th><th style="text-align: right; width: 50px;">Disc</th><th style="text-align: right; width: 60px;">Total</th></tr></thead><tbody>';
+      let total = 0;
+      jcItems.forEach((it, idx) => {
+        const itemTotal = it.total || 0;
+        total += itemTotal;
+        const notesHtml = it.notes ? '<div style="font-size:8px; color:#555;">' + it.notes + '</div>' : '';
+        itemsHtml += '<tr><td style="text-align: center;">' + (idx + 1) + '</td><td style="text-transform: capitalize;">' + it.item_type + '</td><td>' + it.name + notesHtml + '</td><td style="text-align: right;">' + it.qty + '</td><td style="text-align: right;">₹' + (it.price || 0).toFixed(2) + '</td><td style="text-align: right;">₹' + (it.discount || 0).toFixed(2) + '</td><td style="text-align: right; font-weight: bold;">₹' + itemTotal.toFixed(2) + '</td></tr>';
+      });
+      itemsHtml += '<tfoot><tr><td colspan="6" style="text-align: right; font-weight: bold;">Grand Total</td><td style="text-align: right; font-weight: bold; color: #C41E3A;">₹' + total.toFixed(2) + '</td></tr></tfoot></tbody></table></div>';
+    }
+    
+    // Build images HTML
+    let imagesHtml = '';
+    if (jcPhotos && jcPhotos.length > 0) {
+      imagesHtml = '<div class="images-section"><div class="images-title">Images</div><div class="images-grid">';
+      jcPhotos.forEach(img => {
+        imagesHtml += '<div class="image-item"><img src="' + img.file_url + '" alt="Job card image" /><div class="image-name">' + (img.file_name || 'Image') + '</div></div>';
+      });
+      imagesHtml += '</div></div>';
+    }
+    
+    const logoHtml = logoBase64 ? '<img src="' + logoBase64 + '" alt="Logo" />' : '';
+    
+    const html = '<html><head><title>Job Card - ' + selectedJC.job_card_no + '</title><style>* { margin: 0; padding: 0; box-sizing: border-box; }@page { size: A4; margin: 10mm; }@media print { body { margin: 0; padding: 0; } .page-break { page-break-after: always; } }body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.3; color: #333; background: white; width: 100%; max-width: 800px; margin: 0 auto; padding: 15px; }.logo-header { text-align: center; margin-bottom: 12px; border-bottom: 2px solid #333; padding-bottom: 8px; }.logo-header img { max-height: 60px; max-width: 150px; }h2 { margin: 6px 0; text-align: center; font-size: 16px; font-weight: bold; }.job-info { text-align: center; margin: 6px 0; font-size: 11px; font-weight: bold; }.cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; width: 100%; }.inspection-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; width: 100%; }.card { border: 1px solid #333; padding: 8px; background: #fafafa; width: 100%; word-wrap: break-word; }.card-title { font-weight: bold; font-size: 10px; margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px; }.card-item { display: flex; margin: 2px 0; font-size: 10px; width: 100%; }.card-label { font-weight: 600; min-width: 75px; flex-shrink: 0; }.card-value { flex: 1; word-break: break-word; }.info-row { border: 1px solid #333; padding: 8px; margin: 10px 0; background: #fafafa; width: 100%; }.info-row .title { font-weight: bold; font-size: 10px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px; }.info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }.info-item { font-size: 10px; word-break: break-word; }.info-label { font-weight: bold; display: block; margin-bottom: 1px; }table { width: 100%; border-collapse: collapse; margin: 10px 0; }th, td { border: 1px solid #ccc; padding: 4px; text-align: left; font-size: 10px; word-break: break-word; }th { background: #e5e5e5; font-weight: bold; }.images-section { border: 1px solid #333; padding: 8px; margin: 10px 0; background: #fafafa; width: 100%; }.images-title { font-weight: bold; font-size: 10px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 2px; }.images-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }.image-item { border: 1px solid #ccc; padding: 2px; text-align: center; }.image-item img { max-width: 100%; height: auto; max-height: 100px; margin-bottom: 2px; }.image-name { font-size: 8px; word-break: break-word; }</style></head><body><div class="logo-header">' + logoHtml + '</div><h2>Job Card</h2><div class="job-info">' + selectedJC.job_card_no + '</div><div class="cards-row"><div class="card"><div class="card-title">Customer Details</div><div class="card-item"><span class="card-label">Name:</span><span class="card-value">' + selectedJC.customer_name + '</span></div><div class="card-item"><span class="card-label">Location:</span><span class="card-value">' + selectedJC.customer_location + '</span></div><div class="card-item"><span class="card-label">Phone:</span><span class="card-value">' + selectedJC.customer_phone + '</span></div></div><div class="card"><div class="card-title">Vehicle Details</div><div class="card-item"><span class="card-label">Number:</span><span class="card-value">' + selectedJC.vehicle_number + '</span></div><div class="card-item"><span class="card-label">Model:</span><span class="card-value">' + selectedJC.vehicle_model + '</span></div><div class="card-item"><span class="card-label">Make:</span><span class="card-value">' + selectedJC.vehicle_make + '</span></div><div class="card-item"><span class="card-label">Variant:</span><span class="card-value">' + selectedJC.vehicle_variant + '</span></div><div class="card-item"><span class="card-label">Fuel Type:</span><span class="card-value">' + selectedJC.vehicle_fuel + '</span></div><div class="card-item"><span class="card-label">Body Side:</span><span class="card-value">' + selectedJC.vehicle_body_side + '</span></div></div></div><div class="inspection-row"><div class="card"><div class="card-title">Body Inspection</div><div style="padding: 6px; line-height: 1.4; min-height: 60px;">' + (selectedJC.description || '—') + '</div></div><div class="card"><div class="card-title">Mechanical Inspection</div><div style="padding: 6px; line-height: 1.4; min-height: 60px;">' + (selectedJC.details || '—') + '</div></div></div><div class="info-row"><div class="title">Job Details</div><div class="info-grid"><div class="info-item"><span class="info-label">Assigned To:</span> ' + selectedJC.assigned_name_full + '</div><div class="info-item"><span class="info-label">Priority:</span> ' + selectedJC.priority + '</div><div class="info-item"><span class="info-label">Date:</span> ' + formatDate(selectedJC.created_at) + '</div><div class="info-item"><span class="info-label">Expected:</span> ' + (selectedJC.expected_date ? formatDate(selectedJC.expected_date) : '—') + '</div></div></div>' + itemsHtml + imagesHtml + '</body></html>';
+    
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 500);
+  }
 
   async function handleEditSave() {
     if (!editDescription.trim()) { editError = 'Description is required'; return; }
@@ -418,100 +548,153 @@
   {:else if viewMode === 'view' && selectedJC}
     <!-- ===== VIEW DETAILS ===== -->
     <div class="detail-view">
-      <div class="detail-header">
-        <button class="back-btn" on:click={goBackToList}>
+      <div class="detail-header" style="justify-content: flex-start; gap: 15px;">
+        <button class="back-btn" on:click={goBackToList} title="Back">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+          <span style="font-size: 13px; font-weight: 600; margin-left: 4px;">Back</span>
         </button>
-        <h2>Job Card: {selectedJC.job_card_no}</h2>
-        <span class="status-badge {getStatusClass(selectedJC.status)}">{selectedJC.status}</span>
+        <div style="flex: 1;" />
+        <button class="btn-secondary" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;" on:click={handlePrintJobCard}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print Estimation
+        </button>
       </div>
 
-      <div class="detail-body">
-        <div class="detail-section">
-          <div class="info-grid">
-            <div class="info-item"><span class="info-label">Customer</span><span>{selectedJC.customer_name}</span></div>
-            <div class="info-item"><span class="info-label">Vehicle</span><span>{selectedJC.vehicle_name}</span></div>
-            <div class="info-item"><span class="info-label">Assigned To</span><span>{selectedJC.assigned_name}</span></div>
-            <div class="info-item"><span class="info-label">Priority</span><span class="pri-badge {getPriorityClass(selectedJC.priority)}">{selectedJC.priority}</span></div>
-            <div class="info-item"><span class="info-label">Created</span><span>{formatDateTime(selectedJC.created_at)}</span></div>
-            {#if selectedJC.expected_date}<div class="info-item"><span class="info-label">Expected</span><span>{formatDate(selectedJC.expected_date)}</span></div>{/if}
+      <div class="detail-body" style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); color: #333; font-family: Arial, sans-serif;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="margin: 6px 0; font-size: 20px; font-weight: bold; color: #111;">Job Card</h2>
+          <div style="font-weight: bold; font-size: 14px; font-family: monospace; color: #C41E3A; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            {selectedJC.job_card_no}
+            <span class="status-badge {getStatusClass(selectedJC.status)}" style="font-size: 11px;">{selectedJC.status}</span>
           </div>
-          {#if selectedJC.description}<div class="desc-block"><strong>Description:</strong> {selectedJC.description}</div>{/if}
-          {#if selectedJC.details}<div class="desc-block"><strong>Notes:</strong> {selectedJC.details}</div>{/if}
+        </div>
+
+        <div class="cards-row" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 15px; margin: 15px 0; width: 100%;">
+          <div class="card" style="border: 1px solid #ddd; padding: 12px; background: #fafafa; border-radius: 6px;">
+            <div class="card-title" style="font-weight: bold; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Customer Details</div>
+            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Name:</span><span class="card-value" style="flex: 1; font-weight: 500; word-break: break-word;">{selectedJC.customer_name}</span></div>
+            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Location:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.customer_location}</span></div>
+            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Phone:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.customer_phone}</span></div>
+          </div>
+          <div class="card" style="border: 1px solid #ddd; padding: 12px; background: #fafafa; border-radius: 6px;">
+            <div class="card-title" style="font-weight: bold; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Vehicle Details</div>
+            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Number:</span><span class="card-value" style="flex: 1; font-weight: bold; color: #C41E3A; word-break: break-word;">{selectedJC.vehicle_number}</span></div>
+            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Model:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.vehicle_model}</span></div>
+            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Make:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.vehicle_make}</span></div>
+            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Variant:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.vehicle_variant}</span></div>
+            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Fuel Type:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.vehicle_fuel}</span></div>
+            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Body Side:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.vehicle_body_side}</span></div>
+          </div>
+        </div>
+
+        <div class="inspection-row" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 15px; margin: 15px 0; width: 100%;">
+          <div class="card" style="border: 1px solid #ddd; padding: 12px; background: #fafafa; border-radius: 6px;">
+            <div class="card-title" style="font-weight: bold; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Body Inspection</div>
+            <div style="padding: 6px 0; line-height: 1.5; min-height: 80px; font-size: 13px; white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word;">{selectedJC.description || '—'}</div>
+          </div>
+          <div class="card" style="border: 1px solid #ddd; padding: 12px; background: #fafafa; border-radius: 6px;">
+            <div class="card-title" style="font-weight: bold; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Mechanical Inspection</div>
+            <div style="padding: 6px 0; line-height: 1.5; min-height: 80px; font-size: 13px; white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word;">{selectedJC.details || '—'}</div>
+          </div>
+        </div>
+
+        <div class="info-row" style="border: 1px solid #ddd; padding: 12px; margin: 15px 0; background: #fafafa; border-radius: 6px; width: 100%;">
+          <div class="title" style="font-weight: bold; font-size: 13px; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Job Details</div>
+          <div class="info-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%;">
+            <div class="info-item" style="font-size: 13px;"><span class="info-label" style="font-weight: bold; display: block; margin-bottom: 3px; color: #555;">Assigned To:</span> {selectedJC.assigned_name_full}</div>
+            <div class="info-item" style="font-size: 13px;"><span class="info-label" style="font-weight: bold; display: block; margin-bottom: 3px; color: #555;">Priority:</span> <span class="pri-badge {getPriorityClass(selectedJC.priority)}" style="display: inline-block;">{selectedJC.priority}</span></div>
+            <div class="info-item" style="font-size: 13px;"><span class="info-label" style="font-weight: bold; display: block; margin-bottom: 3px; color: #555;">Date:</span> {formatDate(selectedJC.created_at)}</div>
+            <div class="info-item" style="font-size: 13px;"><span class="info-label" style="font-weight: bold; display: block; margin-bottom: 3px; color: #555;">Expected:</span> {selectedJC.expected_date ? formatDate(selectedJC.expected_date) : '—'}</div>
+          </div>
         </div>
 
         <!-- Items -->
-        <div class="detail-section">
-          <h4>Items ({jcItems.length})</h4>
-          {#if jcItems.length > 0}
-            <table class="detail-table">
-              <thead><tr><th>#</th><th>Type</th><th>Name</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Discount</th><th class="num">Total</th><th>Notes</th></tr></thead>
+        {#if jcItems.length > 0}
+        <div class="info-row" style="border: 1px solid #ddd; padding: 12px; margin: 15px 0; background: #fafafa; border-radius: 6px; width: 100%;">
+          <div class="title" style="font-weight: bold; font-size: 13px; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Items & Services</div>
+            <table class="detail-table" style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px;">
+              <thead>
+                <tr style="background: #eee;">
+                  <th style="border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-weight: bold; color: #333;">#</th>
+                  <th style="border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-weight: bold; color: #333;">Type</th>
+                  <th style="border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-weight: bold; color: #333;">Name</th>
+                  <th style="border: 1px solid #ccc; padding: 6px 8px; text-align: right; font-weight: bold; color: #333; width: 60px;">Qty</th>
+                  <th style="border: 1px solid #ccc; padding: 6px 8px; text-align: right; font-weight: bold; color: #333; width: 80px;">Price</th>
+                  <th style="border: 1px solid #ccc; padding: 6px 8px; text-align: right; font-weight: bold; color: #333; width: 80px;">Discount</th>
+                  <th style="border: 1px solid #ccc; padding: 6px 8px; text-align: right; font-weight: bold; color: #333; width: 90px;">Total</th>
+                </tr>
+              </thead>
               <tbody>
                 {#each jcItems as it, idx}
-                  <tr>
-                    <td>{idx+1}</td>
-                    <td><span class="type-tag" class:service={it.item_type === 'service'} class:consumable={it.item_type === 'consumable'}>{it.item_type}</span></td>
-                    <td>{it.name}</td>
-                    <td class="num">{it.qty}</td>
-                    <td class="num">₹{(it.price || 0).toFixed(2)}</td>
-                    <td class="num">₹{(it.discount || 0).toFixed(2)}</td>
-                    <td class="num"><strong>₹{(it.total || 0).toFixed(2)}</strong></td>
-                    <td>{it.notes || '—'}</td>
+                  <tr style="background: white;">
+                    <td style="border: 1px solid #ccc; padding: 6px 8px;">{idx+1}</td>
+                    <td style="border: 1px solid #ccc; padding: 6px 8px; text-transform: capitalize;">{it.item_type}</td>
+                    <td style="border: 1px solid #ccc; padding: 6px 8px;">
+                      {it.name}
+                      {#if it.notes}<div style="font-size: 10px; color: #666; margin-top: 2px;">{it.notes}</div>{/if}
+                    </td>
+                    <td style="border: 1px solid #ccc; padding: 6px 8px; text-align: right;">{it.qty}</td>
+                    <td style="border: 1px solid #ccc; padding: 6px 8px; text-align: right;">₹{(it.price || 0).toFixed(2)}</td>
+                    <td style="border: 1px solid #ccc; padding: 6px 8px; text-align: right;">₹{(it.discount || 0).toFixed(2)}</td>
+                    <td style="border: 1px solid #ccc; padding: 6px 8px; text-align: right; font-weight: bold;">₹{(it.total || 0).toFixed(2)}</td>
                   </tr>
                 {/each}
               </tbody>
-              <tfoot><tr><td colspan="6" class="num"><strong>Total</strong></td><td class="num"><strong>₹{jcItems.reduce((s: number, i: any) => s + (i.total || 0), 0).toFixed(2)}</strong></td><td></td></tr></tfoot>
+              <tfoot>
+                <tr style="background: #f9f9f9;">
+                  <td colspan="6" style="border: 1px solid #ccc; padding: 6px 8px; text-align: right; font-weight: bold; color: #333;">Grand Total</td>
+                  <td style="border: 1px solid #ccc; padding: 6px 8px; text-align: right; font-weight: bold; color: #C41E3A; font-size: 14px;">₹{jcItems.reduce((s, i) => s + (i.total || 0), 0).toFixed(2)}</td>
+                </tr>
+              </tfoot>
             </table>
-          {:else}
-            <p class="empty-text">No items.</p>
-          {/if}
         </div>
+        {/if}
 
         <!-- Photos -->
         {#if jcPhotos.length > 0}
-          <div class="detail-section">
-            <h4>Photos ({jcPhotos.length})</h4>
-            <div class="photo-grid">
+        <div class="info-row" style="border: 1px solid #ddd; padding: 12px; margin: 15px 0; background: #fafafa; border-radius: 6px; width: 100%;">
+          <div class="title" style="font-weight: bold; font-size: 13px; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Photos ({jcPhotos.length})</div>
+            <div class="photo-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px;">
               {#each jcPhotos as photo}
-                <div class="photo-thumb">
-                  <img src={photo.file_url} alt={photo.file_name || 'Photo'} />
-                  <span class="photo-name">{photo.file_name || ''}</span>
+                <div class="photo-thumb" style="border: 1px solid #eee; background: white; padding: 4px; border-radius: 4px; text-align: center;">
+                  <a href={photo.file_url} target="_blank" title="View Full Image">
+                    <img src={photo.file_url} alt={photo.file_name || 'Photo'} style="width: 100%; height: 100px; object-fit: cover; border-radius: 3px;" />
+                  </a>
+                  <div class="photo-name" style="font-size: 10px; color: #666; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{photo.file_name || 'Image'}</div>
                 </div>
               {/each}
             </div>
-          </div>
+        </div>
         {/if}
 
         <!-- Notes -->
         {#if jcNotes.length > 0}
-          <div class="detail-section">
-            <h4>Notes ({jcNotes.length})</h4>
+        <div class="info-row" style="border: 1px solid #ddd; padding: 12px; margin: 15px 0; background: #fafafa; border-radius: 6px; width: 100%;">
+          <div class="title" style="font-weight: bold; font-size: 13px; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Notes ({jcNotes.length})</div>
             {#each jcNotes as note}
-              <div class="note-card">
-                <p>{note.note}</p>
-                <span class="note-meta">{note.by_name} — {formatDateTime(note.created_at)}</span>
+              <div class="note-card" style="background: white; border: 1px solid #eee; border-left: 3px solid #C41E3A; padding: 10px; margin-bottom: 8px; border-radius: 4px;">
+                <p style="margin: 0 0 6px 0; font-size: 13px; line-height: 1.4;">{note.note}</p>
+                <div class="note-meta" style="font-size: 11px; color: #777;">Added by <strong>{note.by_name}</strong> on {formatDateTime(note.created_at)}</div>
               </div>
             {/each}
-          </div>
+        </div>
         {/if}
 
         <!-- Logs -->
         {#if jcLogs.length > 0}
-          <div class="detail-section">
-            <h4>Activity Log</h4>
-            <div class="log-list">
-              {#each jcLogs as log}
-                <div class="log-entry">
-                  <span class="log-action">{log.action}</span>
-                  {#if log.from_status && log.to_status}
-                    <span class="log-transition">{log.from_status} → {log.to_status}</span>
-                  {/if}
-                  {#if log.note}<span class="log-note">{log.note}</span>{/if}
-                  <span class="log-meta">{log.by_name} — {formatDateTime(log.created_at)}</span>
-                </div>
-              {/each}
-            </div>
+        <div class="info-row" style="border: 1px solid #ddd; padding: 12px; margin: 15px 0; background: #fafafa; border-radius: 6px; width: 100%;">
+          <div class="title" style="font-weight: bold; font-size: 13px; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Activity Log</div>
+          <div class="logs-list" style="display: flex; flex-direction: column; gap: 6px;">
+            {#each jcLogs as log}
+              <div class="log-item" style="font-size: 12px; padding: 6px; border-bottom: 1px solid #eee; display: flex; gap: 10px;">
+                <span style="color: #666; min-width: 120px;">{formatDateTime(log.created_at)}</span>
+                <strong style="color: #333; min-width: 100px;">{log.by_name}</strong>
+                <span style="display: inline-block; padding: 2px 6px; background: #eee; border-radius: 3px; font-size: 10px; font-weight: bold;">{log.action}</span>
+                {#if log.note}<span>- {log.note}</span>{/if}
+              </div>
+            {/each}
           </div>
+        </div>
         {/if}
       </div>
     </div>

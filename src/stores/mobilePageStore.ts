@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 
 export interface MobilePageState {
-  currentPage: 'home' | 'my-jobs' | 'attendance' | 'jobs' | 'job-detail';
+  currentPage: 'home' | 'my-jobs' | 'attendance' | 'jobs' | 'job-detail' | 'job-creation';
   pageTitle: string;
   selectedJobId?: string;
 }

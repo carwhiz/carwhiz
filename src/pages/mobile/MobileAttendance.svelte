@@ -450,7 +450,7 @@
   input[type='month']:focus {
     outline: none;
     border-color: var(--brand-primary);
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    box-shadow: 0 0 0 3px var(--brand-primary-light);
     background: var(--neutral-50);
   }
 
@@ -463,8 +463,8 @@
   }
 
   .error-message {
-    background: rgba(220, 38, 38, 0.08);
-    border: 1px solid rgba(220, 38, 38, 0.2);
+    background: rgba(196, 30, 58, 0.08);
+    border: 1px solid rgba(196, 30, 58, 0.2);
     border-left: 4px solid var(--status-error);
     color: var(--status-error);
     padding: 1rem;
@@ -587,7 +587,7 @@
   }
 
   .status.absent {
-    background: rgba(220, 38, 38, 0.1);
+    background: rgba(196, 30, 58, 0.1);
     color: #991b1b;
   }
 
@@ -669,7 +669,7 @@
   }
 
   .qr-close-btn {
-    background: rgba(249, 115, 22, 0.1);
+    background: var(--brand-primary-light);
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
@@ -684,7 +684,7 @@
   }
 
   .qr-close-btn:hover {
-    background: rgba(249, 115, 22, 0.2);
+    background: rgba(196, 30, 58, 0.2);
   }
 
   .qr-reader-wrapper {
@@ -723,7 +723,7 @@
   .spinner {
     width: 48px;
     height: 48px;
-    border: 4px solid rgba(249, 115, 22, 0.1);
+    border: 4px solid var(--brand-primary-light);
     border-top-color: var(--brand-primary);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
@@ -876,8 +876,8 @@
   }
 
   .scan-toast.info {
-    background: #e3f2fd;
-    color: #1565c0;
+    background: var(--brand-primary-light);
+    color: var(--brand-primary);
   }
 
   .summary-details {

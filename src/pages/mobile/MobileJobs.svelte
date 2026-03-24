@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { authStore } from '../../stores/authStore';
   import { supabase } from '../../lib/supabaseClient';
+  import { setMobilePage } from '../../stores/mobilePageStore';
 
   const dispatch = createEventDispatcher();
 
@@ -199,6 +200,10 @@
     loadMobileJobs();
     loadMobileProducts();
   });
+
+  function goToCreateJobCard() {
+    setMobilePage('job-creation', 'Create Job Card');
+  }
 </script>
 
 {#if mobileViewingJob}
@@ -279,6 +284,11 @@
 {:else}
   <!-- Job List View -->
   <div class="mj-list">
+    <div class="mj-header-actions">
+      <button class="btn-create" on:click={goToCreateJobCard}>
+        ➕ Create Job Card
+      </button>
+    </div>
     {#if mjLoading}
       <p>Loading jobs...</p>
     {:else if mobileJobs.length === 0}
@@ -305,6 +315,28 @@
     padding: 1rem;
   }
 
+  .mj-header-actions {
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-create {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--brand-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-create:active {
+    background: var(--brand-secondary);
+    transform: translateY(2px);
+  }
+
   .mj-job-card {
     display: block;
     width: 100%;
@@ -320,7 +352,7 @@
 
   .mj-job-card:active {
     background: #f3f4f6;
-    border-color: #f97316;
+    border-color: var(--brand-primary);
   }
 
   .mj-job-header {
@@ -450,7 +482,7 @@
   .mj-item-delete {
     background: #fee2e2;
     border: none;
-    color: #dc2626;
+    color: #C41E3A;
     width: 28px;
     height: 28px;
     border-radius: 4px;
@@ -484,7 +516,7 @@
   .mj-add-btn {
     width: 100%;
     padding: 0.5rem;
-    background: #f97316;
+    background: var(--brand-primary);
     color: white;
     border: none;
     border-radius: 4px;

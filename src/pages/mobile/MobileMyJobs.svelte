@@ -171,6 +171,10 @@
     loadJobs();
   }
 
+  function goToCreateJobCard() {
+    setMobilePage('job-creation', 'Create Job Card');
+  }
+
   onMount(() => {
     setMobilePage('my-jobs', 'My Jobs');
     loadJobs();
@@ -179,6 +183,11 @@
 
 <MobilePageWrapper>
   <div class="my-jobs-content">
+    <div class="jobs-action-header">
+      <button class="btn-create-job" on:click={goToCreateJobCard}>
+        ➕ Create Job Card
+      </button>
+    </div>
     <div class="filters">
       <select value={selectedStatus} on:change={handleStatusChange} class="status-filter">
         {#each statusOptions as option}
@@ -232,6 +241,36 @@
     background: var(--neutral-50);
   }
 
+  .jobs-action-header {
+    padding: 1rem;
+    background: white;
+    border-bottom: 1px solid var(--neutral-200);
+    flex-shrink: 0;
+  }
+
+  .btn-create-job {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(249, 115, 22, 0.2);
+  }
+
+  .btn-create-job:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(249, 115, 22, 0.15);
+  }
+
+  .btn-create-job:hover {
+    background: linear-gradient(135deg, var(--brand-secondary) 0%, var(--brand-primary) 100%);
+  }
+
   .filters {
     padding: 1rem;
     background: white;
@@ -255,7 +294,7 @@
   .status-filter:focus {
     outline: none;
     border-color: var(--brand-primary);
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    box-shadow: 0 0 0 3px var(--brand-primary-light);
     background: var(--neutral-50);
   }
 
@@ -279,7 +318,7 @@
 
   .error {
     color: var(--status-error);
-    background: rgba(220, 38, 38, 0.05);
+    background: rgba(196, 30, 58, 0.05);
     border-left: 4px solid var(--status-error);
     padding: 1.5rem;
     border-radius: 8px;
@@ -592,7 +631,7 @@
   .item-total {
     font-weight: 600;
     font-size: 13px;
-    color: #f97316;
+    color: var(--brand-primary);
   }
 
   .add-note-section {
@@ -612,7 +651,7 @@
 
   .add-note-btn {
     padding: 8px 16px;
-    background: #f97316;
+    background: var(--brand-primary);
     color: white;
     border: none;
     border-radius: 6px;
@@ -694,12 +733,12 @@
   }
 
   .btn-primary {
-    background: #f97316;
+    background: var(--brand-primary);
     color: white;
   }
 
   .btn-primary:hover {
-    background: #ea580c;
+    background: var(--brand-secondary);
   }
 
   .btn-success {

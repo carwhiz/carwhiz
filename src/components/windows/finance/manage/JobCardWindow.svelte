@@ -11,6 +11,9 @@
   import { windowStore } from '../../../../stores/windowStore';
   import { authStore } from '../../../../stores/authStore';
   import { canUserCreateResource } from '../../../../lib/services/permissionService';
+  import SearchableDropdown from '../../../shared/SearchableDropdown.svelte';
+  import AddMasterDataPopup from '../../../shared/AddMasterDataPopup.svelte';
+  import EditMasterDataPopup from '../../../shared/EditMasterDataPopup.svelte';
 
   let step = 1;
   let permDenied = false;
@@ -57,6 +60,16 @@
   let vehSaving = false;
   let vehError = '';
 
+  // ---- Vehicle Master Data Popups ----
+  let addPopupOpen = false;
+  let addPopupTable = '';
+  let addPopupTitle = '';
+  let editPopupOpen = false;
+  let editPopupTable = '';
+  let editPopupTitle = '';
+  let editPopupItemId = '';
+  let editPopupItemName = '';
+
   // ---- Step 3: Products/Services ----
   let productSearch = '';
   let allProducts: any[] = [];
@@ -90,6 +103,22 @@
   let expectedDate = '';
   let priority = 'Normal';
 
+  // ---- Step 4: Image Upload ----
+  interface UploadedImage {
+    id: string;
+    file: File;
+    preview: string;
+    uploading: boolean;
+  }
+  let uploadedImages: UploadedImage[] = [];
+  let savedImages: any[] = []; // Images saved to DB
+  let cameraInput: HTMLInputElement | undefined;
+  let showCameraPreview = false;
+  let cameraStream: MediaStream | null = null;
+  let videoElement: HTMLVideoElement | undefined;
+  let canvasElement: HTMLCanvasElement | undefined;
+  let isMobile = false;
+
   // ---- Save state ----
   let saving = false;
   let saveError = '';
@@ -102,6 +131,10 @@
       const allowed = await canUserCreateResource(userId, 'finance-job-card');
       if (!allowed) { permDenied = true; return; }
     }
+    
+    // Detect if mobile
+    isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
     await Promise.all([
       loadCustomers(),
       loadVehicles(),
@@ -110,6 +143,100 @@
       loadVehicleMasterData(),
     ]);
   });
+
+  // ---- Mobile Detection & Camera ----
+  function detectMobile(): boolean {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  }
+
+  function openCamera() {
+    onCameraClick();
+  }
+
+  async function onCameraClick() {
+    // Check if mobile
+    if (detectMobile()) {
+      // Mobile: use native capture
+      if (cameraInput) {
+        cameraInput.value = '';
+        cameraInput.click();
+      }
+    } else {
+      // Desktop: use WebRTC
+      await startDesktopCamera();
+    }
+  }
+
+  async function startDesktopCamera() {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Your browser does not support camera access. Please use a modern browser like Chrome, Firefox, or Edge.');
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+
+      cameraStream = stream;
+      showCameraPreview = true;
+
+      // Wait for videoElement to be in DOM
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      if (videoElement) {
+        videoElement.srcObject = stream;
+        videoElement.play().catch(err => console.error('Play error:', err));
+      }
+    } catch (err: any) {
+      console.error('Camera error:', err);
+      if (err.name === 'NotAllowedError') {
+        alert('Camera access was denied. Please allow camera access in your browser settings.');
+      } else if (err.name === 'NotFoundError') {
+        alert('No camera found on this device.');
+      } else {
+        alert('Error accessing camera: ' + err.message);
+      }
+    }
+  }
+
+  function capturePhoto() {
+    if (!canvasElement || !videoElement) return;
+
+    const ctx = canvasElement.getContext('2d');
+    if (!ctx) return;
+
+    canvasElement.width = videoElement.videoWidth;
+    canvasElement.height = videoElement.videoHeight;
+    ctx.drawImage(videoElement, 0, 0);
+
+    canvasElement.toBlob((blob) => {
+      if (!blob) return;
+
+      const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        uploadedImages = [...uploadedImages, {
+          id: Math.random().toString(36),
+          file,
+          preview: evt.target?.result as string,
+          uploading: false
+        }];
+      };
+      reader.readAsDataURL(blob);
+    }, 'image/jpeg', 0.95);
+  }
+
+  function stopCamera() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+    }
+    showCameraPreview = false;
+  }
 
   // ---- Data loaders ----
   async function loadCustomers() {
@@ -165,6 +292,130 @@
       const { data } = await supabase.from(t.table).select('id, name').order('name');
       t.setter(data || []);
     }
+  }
+
+  // ---- Vehicle Master Data Handlers ----
+  function handleAddMake() {
+    addPopupTable = 'makes';
+    addPopupTitle = 'Add Make';
+    addPopupOpen = true;
+  }
+
+  function handleEditMake(e: CustomEvent<{ id: string; name: string }>) {
+    editPopupTable = 'makes';
+    editPopupTitle = 'Edit Make';
+    editPopupItemId = e.detail.id;
+    editPopupItemName = e.detail.name;
+    editPopupOpen = true;
+  }
+
+  function handleAddGeneration() {
+    addPopupTable = 'generations';
+    addPopupTitle = 'Add Generation';
+    addPopupOpen = true;
+  }
+
+  function handleEditGeneration(e: CustomEvent<{ id: string; name: string }>) {
+    editPopupTable = 'generations';
+    editPopupTitle = 'Edit Generation';
+    editPopupItemId = e.detail.id;
+    editPopupItemName = e.detail.name;
+    editPopupOpen = true;
+  }
+
+  function handleAddType() {
+    addPopupTable = 'generation_types';
+    addPopupTitle = 'Add Type';
+    addPopupOpen = true;
+  }
+
+  function handleEditType(e: CustomEvent<{ id: string; name: string }>) {
+    editPopupTable = 'generation_types';
+    editPopupTitle = 'Edit Type';
+    editPopupItemId = e.detail.id;
+    editPopupItemName = e.detail.name;
+    editPopupOpen = true;
+  }
+
+  function handleAddVariant() {
+    addPopupTable = 'variants';
+    addPopupTitle = 'Add Variant';
+    addPopupOpen = true;
+  }
+
+  function handleEditVariant(e: CustomEvent<{ id: string; name: string }>) {
+    editPopupTable = 'variants';
+    editPopupTitle = 'Edit Variant';
+    editPopupItemId = e.detail.id;
+    editPopupItemName = e.detail.name;
+    editPopupOpen = true;
+  }
+
+  function handleAddGearbox() {
+    addPopupTable = 'gearboxes';
+    addPopupTitle = 'Add Gearbox';
+    addPopupOpen = true;
+  }
+
+  function handleEditGearbox(e: CustomEvent<{ id: string; name: string }>) {
+    editPopupTable = 'gearboxes';
+    editPopupTitle = 'Edit Gearbox';
+    editPopupItemId = e.detail.id;
+    editPopupItemName = e.detail.name;
+    editPopupOpen = true;
+  }
+
+  function handleAddFuelType() {
+    addPopupTable = 'fuel_types';
+    addPopupTitle = 'Add Fuel Type';
+    addPopupOpen = true;
+  }
+
+  function handleEditFuelType(e: CustomEvent<{ id: string; name: string }>) {
+    editPopupTable = 'fuel_types';
+    editPopupTitle = 'Edit Fuel Type';
+    editPopupItemId = e.detail.id;
+    editPopupItemName = e.detail.name;
+    editPopupOpen = true;
+  }
+
+  function handleAddBodySide() {
+    addPopupTable = 'body_sides';
+    addPopupTitle = 'Add Body Side';
+    addPopupOpen = true;
+  }
+
+  function handleEditBodySide(e: CustomEvent<{ id: string; name: string }>) {
+    editPopupTable = 'body_sides';
+    editPopupTitle = 'Edit Body Side';
+    editPopupItemId = e.detail.id;
+    editPopupItemName = e.detail.name;
+    editPopupOpen = true;
+  }
+
+  // Generic handlers for popup completion
+  function handleMasterCreated() {
+    addPopupOpen = false;
+    // Reload the appropriate table
+    if (addPopupTable === 'makes') loadVehicleMasterData().then(() => allMakes = allMakes);
+    else if (addPopupTable === 'generations') loadVehicleMasterData().then(() => allGenerations = allGenerations);
+    else if (addPopupTable === 'generation_types') loadVehicleMasterData().then(() => allGenTypes = allGenTypes);
+    else if (addPopupTable === 'variants') loadVehicleMasterData().then(() => allVariants = allVariants);
+    else if (addPopupTable === 'gearboxes') loadVehicleMasterData().then(() => allGearboxes = allGearboxes);
+    else if (addPopupTable === 'fuel_types') loadVehicleMasterData().then(() => allFuelTypes = allFuelTypes);
+    else if (addPopupTable === 'body_sides') loadVehicleMasterData().then(() => allBodySides = allBodySides);
+  }
+
+  function handleMasterUpdated() {
+    editPopupOpen = false;
+    // Reload the appropriate table
+    if (editPopupTable === 'makes') loadVehicleMasterData().then(() => allMakes = allMakes);
+    else if (editPopupTable === 'generations') loadVehicleMasterData().then(() => allGenerations = allGenerations);
+    else if (editPopupTable === 'generation_types') loadVehicleMasterData().then(() => allGenTypes = allGenTypes);
+    else if (editPopupTable === 'variants') loadVehicleMasterData().then(() => allVariants = allVariants);
+    else if (editPopupTable === 'gearboxes') loadVehicleMasterData().then(() => allGearboxes = allGearboxes);
+    else if (editPopupTable === 'fuel_types') loadVehicleMasterData().then(() => allFuelTypes = allFuelTypes);
+    else if (editPopupTable === 'body_sides') loadVehicleMasterData().then(() => allBodySides = allBodySides);
   }
 
   // ---- Step 1: Customer ----
@@ -401,6 +652,91 @@
     if (s === 4 && selectedCustomer && selectedVehicleNumber && selectedVehicle && items.length > 0) { step = 4; return; }
   }
 
+  // ---- Image Upload ----
+  function handleImageSelect(e: any) {
+    const files = Array.from(e.target.files || []) as File[];
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        alert('Please select image files only');
+        continue;
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert(`${file.name} is too large (max 5MB)`);
+        continue;
+      }
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        uploadedImages = [...uploadedImages, {
+          id: Math.random().toString(36),
+          file,
+          preview: evt.target?.result as string,
+          uploading: false
+        }];
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = ''; // Reset input
+  }
+
+  function removeUploadedImage(id: string) {
+    uploadedImages = uploadedImages.filter(img => img.id !== id);
+  }
+
+  function removeSavedImage(id: string) {
+    savedImages = savedImages.filter(img => img.id !== id);
+  }
+
+  async function uploadImagesToStorage(jobCardId: string) {
+    const uploadResults = [];
+    
+    for (const imgObj of uploadedImages) {
+      imgObj.uploading = true;
+      try {
+        const fileName = `${jobCardId}/${Date.now()}-${imgObj.file.name}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('job-card-photos')
+          .upload(fileName, imgObj.file, { upsert: false });
+
+        if (uploadErr) {
+          console.error('Upload error:', uploadErr);
+          continue;
+        }
+
+        // Get public URL
+        const { data: publicUrlData } = supabase.storage
+          .from('job-card-photos')
+          .getPublicUrl(fileName);
+
+        // Save metadata to DB
+        const { error: dbErr } = await supabase.from('job_card_photos').insert({
+          job_card_id: jobCardId,
+          file_url: publicUrlData.publicUrl,
+          file_name: imgObj.file.name,
+          uploaded_by: $authStore.user?.id || null,
+          created_by: $authStore.user?.id || null,
+        });
+
+        if (dbErr) {
+          console.error('DB error:', dbErr);
+          continue;
+        }
+
+        uploadResults.push({
+          id: imgObj.id,
+          file_url: publicUrlData.publicUrl,
+          file_name: imgObj.file.name
+        });
+      } catch (err) {
+        console.error('Upload exception:', err);
+      }
+      imgObj.uploading = false;
+    }
+
+    savedImages = uploadResults;
+    uploadedImages = [];
+    return uploadResults.length;
+  }
+
   // ---- Save Job Card ----
   async function handleSaveJobCard() {
     if (!selectedCustomer) { saveError = 'Customer is required'; return; }
@@ -408,23 +744,33 @@
     if (!selectedVehicle) { saveError = 'Vehicle is required'; return; }
     if (items.length === 0) { saveError = 'At least one item is required'; return; }
     if (!assignedUserId) { saveError = 'Assigned user is required'; return; }
-    if (!description.trim()) { saveError = 'Description is required'; return; }
+    if (!description.trim()) { saveError = 'Body Inspection is required'; return; }
     if (!expectedDate) { saveError = 'Expected date is required'; return; }
 
     saving = true;
     saveError = '';
 
-    // Generate job card number: JC-DD-MM-YYYY-HH:MM AM/PM - (vehicle_number)
+    // Generate job card number: DDMMYYYY + sequential number
+    // Example: 250320261 (first card), 250320262 (second card), 2503202610 (tenth card)
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
-    const displayHours = now.getHours() % 12 || 12;
-    
-    const jobCardNo = `JC-${day}${month}${year}${String(displayHours).padStart(2, '0')}${minutes}-${selectedVehicleNumber}`;
+    const year = String(now.getFullYear()); // Full 4-digit year
+    const datePrefix = `${day}${month}${year}`; // e.g., "250320026" for 25-03-2026
+
+    // Get today's date range for querying
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    // Query existing job cards created today
+    const { data: todayCards, error: queryErr } = await supabase
+      .from('job_cards')
+      .select('id', { count: 'exact' })
+      .gte('created_at', startOfDay.toISOString())
+      .lt('created_at', endOfDay.toISOString());
+
+    const sequenceNumber = (todayCards?.length || 0) + 1;
+    const jobCardNo = `${datePrefix}${sequenceNumber}`;
 
     const { data: jc, error: jcErr } = await supabase.from('job_cards').insert({
       job_card_no: jobCardNo,
@@ -481,6 +827,11 @@
       created_by: $authStore.user?.id || null,
     });
 
+    // Upload images
+    if (uploadedImages.length > 0) {
+      await uploadImagesToStorage(jc.id);
+    }
+
     saving = false;
     savedJobCardNo = jc.job_card_no;
     showSuccess = true;
@@ -499,6 +850,8 @@
     details = '';
     expectedDate = '';
     priority = 'Normal';
+    uploadedImages = [];
+    savedImages = [];
     saveError = '';
     savedJobCardNo = '';
     showSuccess = false;
@@ -525,25 +878,249 @@
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.write(`
-      <html><head><title>Job Card - ${savedJobCardNo}</title>
-      <style>
-        body { font-family: Arial, sans-serif; padding: 20px; font-size: 13px; margin: 0; }
-        .logo-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-        .logo-header img { max-height: 80px; max-width: 200px; }
-        h2 { margin: 10px 0; text-align: center; }
-        .job-info { text-align: center; margin: 10px 0; font-weight: bold; font-size: 14px; }
-        .cards-row { display: flex; gap: 20px; margin: 15px 0; }
-        .card { flex: 1; border: 1px solid #333; padding: 12px; }
-        .card-title { font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 4px; }
-        .card-item { display: flex; margin: 6px 0; }
-        .card-label { font-weight: 600; min-width: 90px; }
-        .card-value { flex: 1; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 12px; }
-        th { background: #f5f5f5; font-weight: bold; }
-        .sig { margin-top: 20px; border-top: 1px solid #333; width: 150px; text-align: center; padding-top: 4px; }
-      </style></head><body>
-      <div class="logo-header">
+      <html>
+      <head>
+        <title>Job Card - ${savedJobCardNo}</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          
+          @page { 
+            size: A4; 
+            margin: 10mm;
+          }
+          
+          @media print {
+            body { margin: 0; padding: 0; }
+            .page-break { page-break-after: always; }
+          }
+          
+          body { 
+            font-family: Arial, sans-serif; 
+            font-size: 12px; 
+            line-height: 1.3;
+            color: #333;
+            background: white;
+            width: 100%;
+            margin: 0;
+            padding: 15px;
+          }
+          
+          .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+          }
+          
+          .logo-header { 
+            text-align: center; 
+            margin-bottom: 12px; 
+            border-bottom: 2px solid #333; 
+            padding-bottom: 8px; 
+          }
+          .logo-header img { 
+            max-height: 60px; 
+            max-width: 150px; 
+          }
+          
+          h2 { 
+            margin: 6px 0; 
+            text-align: center; 
+            font-size: 16px; 
+            font-weight: bold;
+          }
+          
+          .job-info { 
+            text-align: center; 
+            margin: 6px 0; 
+            font-size: 11px; 
+            font-weight: bold;
+            word-break: break-all;
+          }
+          
+          /* Two column layout - constrained width */
+          .cards-row { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 8px; 
+            margin: 10px 0;
+            width: 100%;
+          }
+          
+          .inspection-row { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 8px; 
+            margin: 10px 0;
+            width: 100%;
+          }
+          
+          .card { 
+            border: 1px solid #333; 
+            padding: 8px; 
+            background: #fafafa;
+            width: 100%;
+            overflow: hidden;
+            word-wrap: break-word;
+          }
+          
+          .card-title { 
+            font-weight: bold; 
+            font-size: 10px; 
+            margin-bottom: 4px; 
+            border-bottom: 1px solid #333; 
+            padding-bottom: 2px;
+          }
+          
+          .card-item { 
+            display: flex; 
+            margin: 2px 0; 
+            font-size: 10px;
+            width: 100%;
+          }
+          
+          .card-label { 
+            font-weight: 600; 
+            min-width: 75px;
+            flex-shrink: 0;
+          }
+          
+          .card-value { 
+            flex: 1; 
+            word-break: break-word;
+            overflow: hidden;
+          }
+          
+          .info-row { 
+            border: 1px solid #333; 
+            padding: 8px; 
+            margin: 10px 0; 
+            background: #fafafa;
+            width: 100%;
+          }
+          
+          .info-row .title { 
+            font-weight: bold; 
+            font-size: 10px; 
+            margin-bottom: 6px; 
+            border-bottom: 1px solid #333; 
+            padding-bottom: 2px;
+          }
+          
+          .info-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 6px;
+            width: 100%;
+          }
+          
+          .info-item { 
+            font-size: 10px;
+            word-break: break-word;
+            overflow: hidden;
+          }
+          
+          .info-label { 
+            font-weight: bold; 
+            display: block;
+            margin-bottom: 1px;
+          }
+          
+          table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 10px 0;
+            table-layout: fixed;
+          }
+          
+          th, td { 
+            border: 1px solid #ccc; 
+            padding: 4px 3px; 
+            text-align: left; 
+            font-size: 10px;
+            word-break: break-word;
+          }
+          
+          th { 
+            background: #e5e5e5; 
+            font-weight: bold;
+          }
+          
+          .images-section { 
+            border: 1px solid #333; 
+            padding: 8px; 
+            margin: 10px 0; 
+            background: #fafafa;
+            width: 100%;
+          }
+          
+          .images-title { 
+            font-weight: bold; 
+            font-size: 10px; 
+            margin-bottom: 6px; 
+            border-bottom: 1px solid #333; 
+            padding-bottom: 2px;
+          }
+          
+          .images-grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 6px; 
+            margin-top: 6px;
+            width: 100%;
+          }
+          
+          .image-item { 
+            border: 1px solid #ccc; 
+            padding: 2px; 
+            text-align: center;
+            word-break: break-word;
+          }
+          
+          .image-item img { 
+            max-width: 100%; 
+            height: auto; 
+            max-height: 100px; 
+            margin-bottom: 2px; 
+            display: block;
+          }
+          
+          .image-name { 
+            font-size: 8px; 
+            word-break: break-word; 
+            color: #666;
+          }
+          
+          .signature-block {
+            margin-top: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            font-size: 10px;
+            width: 100%;
+          }
+          
+          .sig-item {
+            text-align: center;
+          }
+          
+          .sig-line {
+            height: 40px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 3px;
+          }
+          
+          /* Ensure no horizontal scroll */
+          html, body {
+            width: 100%;
+            overflow-x: hidden;
+          }
+        </style>
+      </head>
+      <body>
+      <div class="container">
         ${logoBase64 ? `<img src="${logoBase64}" alt="CarWhizz Logo" />` : ''}
       </div>
       <h2>Job Card</h2>
@@ -565,17 +1142,42 @@
           <div class="card-item"><span class="card-label">Body Side:</span><span class="card-value">${selectedVehicle?.body_side_name || '—'}</span></div>
         </div>
       </div>
-      <div class="card" style="margin: 15px 0;">
-        <div class="card-title">Description</div>
-        <div style="padding: 8px; line-height: 1.5;">${description || '—'}</div>
+      
+      <!-- Row 1: Body Inspection & Mechanical Inspection (Side by Side) -->
+      <div class="inspection-row">
+        <div class="card">
+          <div class="card-title">Body Inspection</div>
+          <div style="padding: 6px; line-height: 1.4; min-height: 60px;">${description || '—'}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Mechanical Inspection</div>
+          <div style="padding: 6px; line-height: 1.4; min-height: 60px;">${details || '—'}</div>
+        </div>
       </div>
-      <div style="border: 1px solid #333; padding: 10px; margin: 15px 0;">
-        <div style="margin: 6px 0;"><strong>Assigned To:</strong> ${users.find(u => u.id === assignedUserId)?.user_name || users.find(u => u.id === assignedUserId)?.email || ''}</div>
-        <div style="margin: 6px 0;"><strong>Priority:</strong> ${priority}</div>
-        ${details ? `<div style="margin: 6px 0;"><strong>Notes:</strong> ${details}</div>` : ''}
-        <div style="margin: 6px 0;"><strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}</div>
-        ${expectedDate ? `<div style="margin: 6px 0;"><strong>Expected Date:</strong> ${expectedDate}</div>` : ''}
+      
+      <!-- Row 2: Job Details (Assigned To, Priority, Date) -->
+      <div class="info-row">
+        <div class="title">Job Details</div>
+        <div class="info-grid">
+          <div class="info-item"><span class="info-label">Assigned To:</span> ${users.find(u => u.id === assignedUserId)?.user_name || users.find(u => u.id === assignedUserId)?.email || '—'}</div>
+          <div class="info-item"><span class="info-label">Priority:</span> ${priority}</div>
+          <div class="info-item"><span class="info-label">Date:</span> ${new Date().toLocaleDateString('en-IN')}</div>
+          <div class="info-item"><span class="info-label">Expected:</span> ${expectedDate ? (() => { const [y, m, d] = expectedDate.split('-'); return `${d}-${m}-${y}`; })() : '—'}</div>
+        </div>
       </div>
+      ${savedImages && savedImages.length > 0 ? `
+      <div class="images-section">
+        <div class="images-title">Images</div>
+        <div class="images-grid">
+          ${savedImages.map(img => `
+            <div class="image-item">
+              <img src="${img.file_url}" alt="Job card image" />
+              <div class="image-name">${img.file_name || 'Image'}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
       ${printContent.innerHTML}</body></html>
     `);
     win.document.close();
@@ -596,7 +1198,7 @@
         <div class="success-actions">
           <button class="btn-primary" on:click={handlePrint}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            Print
+            Print Estimation
           </button>
           <button class="btn-secondary" on:click={handleNewJobCard}>New Job Card</button>
           <button class="btn-ghost" on:click={() => windowStore.close('finance-job-card')}>Close</button>
@@ -605,17 +1207,49 @@
 
       <!-- Hidden print content (items table only) -->
       <div id="job-card-print" style="display:none;">
-        <h3>Items</h3>
-        <table>
-          <thead><tr><th>#</th><th>Type</th><th>Item</th><th>Qty</th><th>Price</th><th>Discount</th><th>Total</th><th>Notes</th></tr></thead>
-          <tbody>
-            {#each items as it, idx}
-              <tr><td>{idx+1}</td><td>{it.item_type}</td><td>{it.name}</td><td>{it.qty}</td><td>₹{it.price.toFixed(2)}</td><td>₹{it.discount.toFixed(2)}</td><td>₹{it.total.toFixed(2)}</td><td>{it.notes || ''}</td></tr>
-            {/each}
-          </tbody>
-        </table>
-        <div style="margin-top: 10px; font-weight: bold;">Grand Total: ₹{grandTotal.toFixed(2)}</div>
-        <div style="margin-top: 30px; border-top: 1px solid #333; width: 150px; text-align: center; padding-top: 4px;">Signature</div>
+        <div style="border: 1px solid #333; padding: 10px; margin: 12px 0; background: #fafafa;">
+          <div style="font-weight: bold; font-size: 11px; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 3px;">Items & Services</div>
+          <table style="width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 11px;">
+            <thead>
+              <tr style="background: #e5e5e5;">
+                <th style="border: 1px solid #ccc; padding: 4px; text-align: center; width: 25px;">#</th>
+                <th style="border: 1px solid #ccc; padding: 4px;">Type</th>
+                <th style="border: 1px solid #ccc; padding: 4px;">Description</th>
+                <th style="border: 1px solid #ccc; padding: 4px; text-align: right; width: 50px;">Qty</th>
+                <th style="border: 1px solid #ccc; padding: 4px; text-align: right; width: 60px;">Price</th>
+                <th style="border: 1px solid #ccc; padding: 4px; text-align: right; width: 60px;">Discount</th>
+                <th style="border: 1px solid #ccc; padding: 4px; text-align: right; width: 60px;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each items as it, idx}
+                <tr>
+                  <td style="border: 1px solid #ccc; padding: 4px; text-align: center;">{idx+1}</td>
+                  <td style="border: 1px solid #ccc; padding: 4px; font-size: 10px;">{it.item_type}</td>
+                  <td style="border: 1px solid #ccc; padding: 4px;">{it.name}</td>
+                  <td style="border: 1px solid #ccc; padding: 4px; text-align: right;">{it.qty}</td>
+                  <td style="border: 1px solid #ccc; padding: 4px; text-align: right;">₹{it.price.toFixed(2)}</td>
+                  <td style="border: 1px solid #ccc; padding: 4px; text-align: right;">₹{it.discount.toFixed(2)}</td>
+                  <td style="border: 1px solid #ccc; padding: 4px; text-align: right; font-weight: bold;">₹{it.total.toFixed(2)}</td>
+                </tr>
+              {/each}
+              <tr style="background: #e5e5e5; font-weight: bold;">
+                <td colspan="6" style="border: 1px solid #ccc; padding: 6px; text-align: right;">GRAND TOTAL:</td>
+                <td style="border: 1px solid #ccc; padding: 6px; text-align: right; font-size: 12px;">₹{grandTotal.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 10px;">
+          <div style="text-align: center;">
+            <div style="height: 50px; border-bottom: 1px solid #333; margin-bottom: 4px;"></div>
+            <div>Authorized By</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="height: 50px; border-bottom: 1px solid #333; margin-bottom: 4px;"></div>
+            <div>Customer Signature</div>
+          </div>
+        </div>
       </div>
     </div>
   {:else}
@@ -820,60 +1454,87 @@
                   <label>Model Name *</label>
                   <input type="text" bind:value={newVehModelName} placeholder="Vehicle model name" />
                 </div>
-                <div class="form-field">
-                  <label>Make</label>
-                  <select bind:value={newVehMakeId}>
-                    <option value="">Select</option>
-                    {#each allMakes as m}<option value={m.id}>{m.name}</option>{/each}
-                  </select>
-                </div>
-                <div class="form-field">
-                  <label>Generation</label>
-                  <select bind:value={newVehGenId}>
-                    <option value="">Select</option>
-                    {#each allGenerations as g}<option value={g.id}>{g.name}</option>{/each}
-                  </select>
-                </div>
-                <div class="form-field">
-                  <label>Type</label>
-                  <select bind:value={newVehGenTypeId}>
-                    <option value="">Select</option>
-                    {#each allGenTypes as t}<option value={t.id}>{t.name}</option>{/each}
-                  </select>
-                </div>
-                <div class="form-field">
-                  <label>Variant</label>
-                  <select bind:value={newVehVariantId}>
-                    <option value="">Select</option>
-                    {#each allVariants as v}<option value={v.id}>{v.name}</option>{/each}
-                  </select>
-                </div>
-                <div class="form-field">
-                  <label>Gearbox</label>
-                  <select bind:value={newVehGearboxId}>
-                    <option value="">Select</option>
-                    {#each allGearboxes as g}<option value={g.id}>{g.name}</option>{/each}
-                  </select>
-                </div>
-                <div class="form-field">
-                  <label>Fuel Type</label>
-                  <select bind:value={newVehFuelTypeId}>
-                    <option value="">Select</option>
-                    {#each allFuelTypes as f}<option value={f.id}>{f.name}</option>{/each}
-                  </select>
-                </div>
-                <div class="form-field">
-                  <label>Body Side</label>
-                  <select bind:value={newVehBodySideId}>
-                    <option value="">Select</option>
-                    {#each allBodySides as b}<option value={b.id}>{b.name}</option>{/each}
-                  </select>
-                </div>
+                <SearchableDropdown
+                  items={allMakes}
+                  bind:value={newVehMakeId}
+                  placeholder="Select or type..."
+                  label="Make"
+                  on:add={() => handleAddMake()}
+                  on:edit={(e) => handleEditMake(e)}
+                />
+                <SearchableDropdown
+                  items={allGenerations}
+                  bind:value={newVehGenId}
+                  placeholder="Select or type..."
+                  label="Generation"
+                  on:add={() => handleAddGeneration()}
+                  on:edit={(e) => handleEditGeneration(e)}
+                />
+                <SearchableDropdown
+                  items={allGenTypes}
+                  bind:value={newVehGenTypeId}
+                  placeholder="Select or type..."
+                  label="Type"
+                  on:add={() => handleAddType()}
+                  on:edit={(e) => handleEditType(e)}
+                />
+                <SearchableDropdown
+                  items={allVariants}
+                  bind:value={newVehVariantId}
+                  placeholder="Select or type..."
+                  label="Variant"
+                  on:add={() => handleAddVariant()}
+                  on:edit={(e) => handleEditVariant(e)}
+                />
+                <SearchableDropdown
+                  items={allGearboxes}
+                  bind:value={newVehGearboxId}
+                  placeholder="Select or type..."
+                  label="Gearbox"
+                  on:add={() => handleAddGearbox()}
+                  on:edit={(e) => handleEditGearbox(e)}
+                />
+                <SearchableDropdown
+                  items={allFuelTypes}
+                  bind:value={newVehFuelTypeId}
+                  placeholder="Select or type..."
+                  label="Fuel Type"
+                  on:add={() => handleAddFuelType()}
+                  on:edit={(e) => handleEditFuelType(e)}
+                />
+                <SearchableDropdown
+                  items={allBodySides}
+                  bind:value={newVehBodySideId}
+                  placeholder="Select or type..."
+                  label="Body Side"
+                  on:add={() => handleAddBodySide()}
+                  on:edit={(e) => handleEditBodySide(e)}
+                />
               </div>
               <div class="form-actions">
                 <button class="btn-primary" on:click={saveInlineVehicle} disabled={vehSaving}>{vehSaving ? 'Saving...' : 'Save Vehicle'}</button>
                 <button class="btn-ghost" on:click={() => { showCreateVehicle = false; vehError = ''; }}>Cancel</button>
               </div>
+
+              {#if addPopupOpen}
+                <AddMasterDataPopup
+                  table={addPopupTable}
+                  title={addPopupTitle}
+                  on:created={handleMasterCreated}
+                  on:close={() => addPopupOpen = false}
+                />
+              {/if}
+
+              {#if editPopupOpen}
+                <EditMasterDataPopup
+                  table={editPopupTable}
+                  title={editPopupTitle}
+                  itemId={editPopupItemId}
+                  itemName={editPopupItemName}
+                  on:updated={handleMasterUpdated}
+                  on:close={() => editPopupOpen = false}
+                />
+              {/if}
             </div>
           {/if}
         </div>
@@ -1000,12 +1661,102 @@
             </div>
           </div>
           <div class="form-field full-width">
-            <label>Description *</label>
-            <textarea bind:value={description} rows="3" placeholder="Job description (required)"></textarea>
+            <label>Body Inspection *</label>
+            <textarea bind:value={description} rows="3" placeholder="Body inspection details (required)"></textarea>
           </div>
           <div class="form-field full-width">
-            <label>Additional Notes</label>
-            <textarea bind:value={details} rows="2" placeholder="Additional notes (optional)"></textarea>
+            <label>Mechanical Inspection</label>
+            <textarea bind:value={details} rows="2" placeholder="Mechanical inspection details (optional)"></textarea>
+          </div>
+
+          <!-- Image Upload Section -->
+          <div class="form-field full-width">
+            <label>Upload Images</label>
+            <div class="image-upload-box">
+              <div class="upload-buttons">
+                <label class="file-input-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                  From Gallery
+                  <input 
+                    type="file" 
+                    multiple 
+                    accept="image/*" 
+                    on:change={handleImageSelect}
+                    style="display: none;"
+                  />
+                </label>
+                <button type="button" class="file-input-label camera-btn" on:click={openCamera}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  Take Photo
+                </button>
+                <input 
+                  bind:this={cameraInput}
+                  id="camera-capture"
+                  type="file" 
+                  capture="environment"
+                  on:change={handleImageSelect}
+                  style="display: none;"
+                />
+              </div>
+              <p class="upload-hint">Max 5MB per image, PNG/JPG/JPEG</p>
+            </div>
+
+            <!-- Camera Preview (Desktop only) -->
+            {#if showCameraPreview}
+              <div class="camera-preview-container">
+                <div class="camera-preview-card">
+                  <h4>Camera</h4>
+                  <video 
+                    bind:this={videoElement}
+                    class="camera-video"
+                    autoplay
+                    playsinline
+                  ></video>
+                  <canvas bind:this={canvasElement} style="display: none;"></canvas>
+                  <div class="camera-actions">
+                    <button type="button" class="btn-primary" on:click={capturePhoto}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/></svg>
+                      Capture
+                    </button>
+                    <button type="button" class="btn-ghost" on:click={stopCamera}>Close</button>
+                  </div>
+                </div>
+              </div>
+            {/if}
+
+            <!-- Uploading images preview -->
+            {#if uploadedImages.length > 0}
+              <div class="images-preview">
+                <h4>Images to Upload ({uploadedImages.length})</h4>
+                <div class="preview-grid">
+                  {#each uploadedImages as img (img.id)}
+                    <div class="preview-item">
+                      <div class="preview-img" style="background-image: url({img.preview})"></div>
+                      <button 
+                        class="preview-remove" 
+                        on:click={() => removeUploadedImage(img.id)}
+                        disabled={img.uploading}
+                      >×</button>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+
+            <!-- Saved images display -->
+            {#if savedImages.length > 0}
+              <div class="images-saved">
+                <h4>Uploaded Images ({savedImages.length})</h4>
+                <div class="preview-grid">
+                  {#each savedImages as img (img.id)}
+                    <div class="preview-item">
+                      <img src={img.file_url} alt={img.file_name} />
+                      <button class="preview-remove" on:click={() => removeSavedImage(img.id)}>×</button>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
           </div>
 
           <!-- Summary -->
@@ -1137,6 +1888,38 @@
   .summary-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
   .summary-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
   .summary-row:last-child { border-bottom: none; }
+
+  /* Image Upload */
+  .image-upload-box { border: 2px dashed #d1d5db; border-radius: 8px; padding: 24px; text-align: center; background: #f9fafb; }
+  .upload-buttons { display: flex; gap: 12px; justify-content: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .file-input-label { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; color: #C41E3A; font-weight: 600; font-size: 14px; transition: all 0.2s; padding: 12px 16px; border: 1px solid #C41E3A; border-radius: 6px; background: white; }
+  .file-input-label:hover { background: #fef2f2; transform: translateY(-2px); }
+  .file-input-label.camera-btn { background: #fef2f2; }
+  .file-input-label.camera-btn:hover { background: white; border-color: #C41E3A; }
+  
+  button.file-input-label { cursor: pointer; color: #C41E3A; font-weight: 600; font-size: 14px; padding: 12px 16px; border: 1px solid #C41E3A; border-radius: 6px; background: white; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  button.file-input-label:hover { background: #fef2f2; transform: translateY(-2px); }
+  button.file-input-label.camera-btn { background: #fef2f2; }
+  button.file-input-label.camera-btn:hover { background: white; }
+  
+  .upload-hint { font-size: 11px; color: #6b7280; margin: 0; }
+  
+  .images-preview, .images-saved { margin-top: 12px; }
+  .images-preview h4, .images-saved h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #374151; }
+  .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; }
+  .preview-item { position: relative; width: 100%; aspect-ratio: 1 / 1; }
+  .preview-img { width: 100%; height: 100%; background-size: cover; background-position: center; border-radius: 6px; border: 1px solid #e5e7eb; }
+  .preview-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; }
+  .preview-remove { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; background: #dc2626; color: white; border: none; border-radius: 50%; font-size: 18px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+  .preview-remove:hover:not(:disabled) { background: #b91c1c; }
+  .preview-remove:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* Camera Preview */
+  .camera-preview-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .camera-preview-card { background: white; border-radius: 12px; padding: 20px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3); }
+  .camera-preview-card h4 { margin: 0 0 12px 0; font-size: 16px; font-weight: 700; }
+  .camera-video { width: 100%; height: auto; border-radius: 8px; background: #000; display: block; margin-bottom: 12px; }
+  .camera-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
   /* Footer */
   .step-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: white; border-top: 1px solid #e5e7eb; flex-shrink: 0; }

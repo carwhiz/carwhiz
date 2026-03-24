@@ -1,7 +1,7 @@
 <!-- ============================================================
-     MOBILE > JOB CARD DETAIL MANAGEMENT PAGE
-     Purpose: Full-page job card editor with products, photos, notes
-     Replaces the modal popup with full-page navigation
+     MOBILE > JOB CARD DETAIL VIEW PAGE
+     Purpose: View-only full-page job card details
+     Displays vehicle, customer, items, and photos (no editing)
      ============================================================ -->
 
 <script lang="ts">
@@ -13,6 +13,9 @@
 
   let jobId = '';
   let mobilePageValue: any;
+
+  // Check if user is admin
+  $: isAdmin = $authStore.user?.role === 'admin';
 
   interface JobDetail {
     id: string;
@@ -45,22 +48,9 @@
 
   // Items management
   let items: any[] = [];
-  let products: any[] = [];
-  let filteredProducts: any[] = [];
-  let productSearch = '';
-  let showProductDropdown = false;
-  let selectedProduct: any = null;
-  let itemQty = 1;
-  let itemPrice: number | null = null;
-  let itemNotes = '';
-  let itemError = '';
-  let itemSaving = false;
-  let deletingItemId: string | null = null;
 
   // Photos
   let photos: any[] = [];
-  let photoUploading = false;
-  let photoError = '';
 
   // Notes
   let notes: any[] = [];
@@ -136,7 +126,7 @@
         expected_date: jobData.expected_date
       };
 
-      await Promise.all([loadItems(), loadPhotos(), loadNotes(), loadProducts()]);
+      await Promise.all([loadItems(), loadPhotos(), loadNotes()]);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load job details';
     } finally {
@@ -221,8 +211,14 @@
   }
 
   async function addItem() {
-    if (!selectedProduct || itemQty <= 0 || itemPrice === null) {
-      itemError = 'Please select a product and enter qty and price';
+    if (!selectedProduct || itemQty <= 0) {
+      itemError = 'Please select a product and enter quantity';
+      return;
+    }
+
+    // Admin users must provide price, non-admin users default to 0
+    if (isAdmin && itemPrice === null) {
+      itemError = 'Please enter price for this item';
       return;
     }
 
@@ -230,14 +226,15 @@
     itemError = '';
 
     try {
+      const price = isAdmin ? itemPrice : 0;
       const { error: err } = await supabase.from('job_card_items').insert({
         job_card_id: jobId,
         item_type: selectedProduct.product_type || 'product',
         item_id: selectedProduct.id,
         name: selectedProduct.product_name,
         qty: itemQty,
-        price: itemPrice,
-        total: itemQty * itemPrice,
+        price: price,
+        total: itemQty * price,
         discount: 0,
         notes: itemNotes || null,
         created_by: $authStore.user?.id
@@ -419,12 +416,12 @@
 
   function getStatusColor(status: string): string {
     const colors: Record<string, string> = {
-      'Open': '#FF6B6B',
-      'In Progress': '#4ECDC4',
-      'Closed': '#95E1D3',
-      'Billed': '#A8E6CF'
+      'Open': '#f59e0b',
+      'In Progress': '#10b981',
+      'Closed': '#C41E3A',
+      'Billed': '#3b82f6'
     };
-    return colors[status] || '#CCCCCC';
+    return colors[status] || '#9ca3af';
   }
 
   function goBack() {
@@ -470,15 +467,9 @@
             <span class="value">{job.priority}</span>
           </div>
         </div>
-        {#if job.description}
-          <div class="description">
-            <strong>Description:</strong>
-            <p>{job.description}</p>
-          </div>
-        {/if}
       </div>
 
-      <!-- Customer Details Section -->
+      <!-- 1. Customer Details Section -->
       <div class="details-section">
         <h3>Customer Details</h3>
         <div class="details-grid">
@@ -507,7 +498,7 @@
         </div>
       </div>
 
-      <!-- Vehicle Details Section -->
+      <!-- 2. Vehicle Details Section -->
       <div class="details-section">
         <h3>Vehicle Details</h3>
         <div class="details-grid">
@@ -549,83 +540,10 @@
           </div>
         </div>
       </div>
-      <div class="action-buttons">
-        {#if actionError}
-          <div class="error-msg">{actionError}</div>
-        {/if}
-        {#if job.status === 'Open'}
-          <button class="btn btn-primary" on:click={startJob} disabled={actionLoading}>
-            {actionLoading ? 'Starting...' : 'Start Job'}
-          </button>
-        {/if}
-        {#if job.status === 'In Progress'}
-          <button class="btn btn-success" on:click={closeJob} disabled={actionLoading}>
-            {actionLoading ? 'Closing...' : 'Close Job'}
-          </button>
-        {/if}
-      </div>
 
-      <!-- Items Section -->
+      <!-- 3. Services & Products Section -->
       <div class="section">
         <h3>Products & Services ({items.length})</h3>
-
-        {#if job.status !== 'Closed'}
-          <div class="add-item-form">
-            <div class="form-field">
-              <label>Search & Select Product</label>
-              <div class="search-box">
-                <input
-                  type="text"
-                  placeholder="Search product..."
-                  bind:value={productSearch}
-                  on:input={handleProductSearch}
-                  on:focus={handleProductSearch}
-                />
-                {#if showProductDropdown}
-                  <div class="dropdown">
-                    {#each filteredProducts as p}
-                      <button class="dropdown-item" on:click={() => selectProduct(p)}>
-                        <strong>{p.product_name}</strong>
-                        <span class="product-type">{p.product_type}</span>
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            </div>
-
-            {#if selectedProduct}
-              <div class="selected-product">
-                <div class="product-name">{selectedProduct.product_name}</div>
-                <div class="form-row">
-                  <div class="form-field">
-                    <label>Qty</label>
-                    <input type="number" min="1" step="0.01" bind:value={itemQty} />
-                  </div>
-                  <div class="form-field">
-                    <label>Price (₹)</label>
-                    <input type="number" min="0" step="0.01" bind:value={itemPrice} />
-                  </div>
-                </div>
-                <div class="form-field">
-                  <label>Notes (optional)</label>
-                  <input type="text" placeholder="Add notes..." bind:value={itemNotes} />
-                </div>
-                {#if itemError}
-                  <div class="error-msg">{itemError}</div>
-                {/if}
-                <div class="button-group">
-                  <button class="btn btn-small btn-add-item" on:click={addItem} disabled={itemSaving}>
-                    {itemSaving ? 'Adding...' : '+ Add Item'}
-                  </button>
-                  <button class="btn btn-small btn-cancel" on:click={clearProductSelection}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            {/if}
-          </div>
-        {/if}
 
         {#if items.length > 0}
           <div class="items-list">
@@ -638,22 +556,15 @@
                 <div class="item-details">
                   <div class="detail-row">
                     <span>Qty: {item.qty}</span>
-                    <span>Price: ₹{parseFloat(item.price).toFixed(2)}</span>
-                    <span>Total: ₹{parseFloat(item.total).toFixed(2)}</span>
+                    {#if isAdmin}
+                      <span>Price: ₹{parseFloat(item.price).toFixed(2)}</span>
+                      <span>Total: ₹{parseFloat(item.total).toFixed(2)}</span>
+                    {/if}
                   </div>
                   {#if item.notes}
                     <div class="item-notes">{item.notes}</div>
                   {/if}
                 </div>
-                {#if job.status !== 'Closed'}
-                  <button
-                    class="btn btn-remove-item"
-                    on:click={() => removeItem(item.id)}
-                    disabled={deletingItemId === item.id}
-                  >
-                    {deletingItemId === item.id ? 'Removing...' : '✕ Remove'}
-                  </button>
-                {/if}
               </div>
             {/each}
           </div>
@@ -662,28 +573,30 @@
         {/if}
       </div>
 
-      <!-- Photos Section -->
-      <div class="section">
-        <h3>Photos ({photos.length})</h3>
-
-        {#if job.status !== 'Closed'}
-          <div class="photo-upload-section">
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              on:change={handlePhotoUpload}
-              disabled={photoUploading}
-              id="photo-input"
-            />
-            <label for="photo-input" class="btn btn-upload" class:uploading={photoUploading}>
-              {photoUploading ? 'Uploading...' : '📷 Add Photos'}
-            </label>
-            {#if photoError}
-              <div class="error-msg">{photoError}</div>
+      <!-- 4. Body Inspection & Mechanical Inspection Section -->
+      {#if job.description || job.details}
+        <div class="section">
+          <h3>Inspections</h3>
+          <div class="inspections-info">
+            {#if job.description}
+              <div class="inspection-item">
+                <strong>Body Inspection:</strong>
+                <p>{job.description}</p>
+              </div>
+            {/if}
+            {#if job.details}
+              <div class="inspection-item">
+                <strong>Mechanical Inspection:</strong>
+                <p>{job.details}</p>
+              </div>
             {/if}
           </div>
-        {/if}
+        </div>
+      {/if}
+
+      <!-- 5. Photos Section (Images) -->
+      <div class="section">
+        <h3>Photos ({photos.length})</h3>
 
         {#if photos.length > 0}
           <div class="photos-grid">
@@ -702,26 +615,26 @@
         {/if}
       </div>
 
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        {#if actionError}
+          <div class="error-msg">{actionError}</div>
+        {/if}
+        {#if job.status === 'Open'}
+          <button class="btn btn-primary" on:click={startJob} disabled={actionLoading}>
+            {actionLoading ? 'Starting...' : 'Start Job'}
+          </button>
+        {/if}
+        {#if job.status === 'In Progress'}
+          <button class="btn btn-success" on:click={closeJob} disabled={actionLoading}>
+            {actionLoading ? 'Closing...' : 'Close Job'}
+          </button>
+        {/if}
+      </div>
+
       <!-- Notes Section -->
       <div class="section">
         <h3>Notes ({notes.length})</h3>
-
-        {#if job.status !== 'Closed'}
-          <div class="notes-form">
-            <input
-              type="text"
-              placeholder="Add a note..."
-              bind:value={newNote}
-              on:keydown={e => e.key === 'Enter' && addNote()}
-            />
-            <button class="btn btn-small btn-add-note" on:click={addNote} disabled={isAddingNote || !newNote.trim()}>
-              {isAddingNote ? '...' : 'Add'}
-            </button>
-            {#if noteError}
-              <div class="error-msg">{noteError}</div>
-            {/if}
-          </div>
-        {/if}
 
         {#if notes.length > 0}
           <div class="notes-list">
@@ -756,7 +669,7 @@
   }
 
   .error-state {
-    background: rgba(220, 38, 38, 0.08);
+    background: rgba(196, 30, 58, 0.08);
     color: var(--status-error);
   }
 
@@ -830,24 +743,41 @@
     color: var(--neutral-900);
   }
 
-  .description {
+  .inspections-info {
     margin-top: 1rem;
     padding-top: 1rem;
     border-top: 1px solid var(--neutral-200);
-    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+    min-width: 0;
   }
 
-  .description strong {
+  .inspection-item {
+    font-size: 0.9rem;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .inspection-item strong {
     display: block;
     margin-bottom: 0.5rem;
     color: var(--neutral-700);
     font-weight: 700;
   }
 
-  .description p {
+  .inspection-item p {
     margin: 0;
     color: var(--neutral-700);
     line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    width: 100%;
   }
 
   .action-buttons {
@@ -942,7 +872,7 @@
   .form-field input:focus {
     outline: none;
     border-color: var(--brand-primary);
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    box-shadow: 0 0 0 3px var(--brand-primary-light);
   }
 
   .search-box {
@@ -1102,9 +1032,9 @@
   .btn-remove-item {
     width: 100%;
     padding: 0.625rem;
-    background: rgba(220, 38, 38, 0.1);
+    background: rgba(196, 30, 58, 0.1);
     color: var(--status-error);
-    border: 1px solid rgba(220, 38, 38, 0.2);
+    border: 1px solid rgba(196, 30, 58, 0.2);
     border-radius: 6px;
     font-size: 0.85rem;
     cursor: pointer;
@@ -1113,7 +1043,7 @@
   }
 
   .btn-remove-item:hover:not(:disabled) {
-    background: rgba(220, 38, 38, 0.15);
+    background: rgba(196, 30, 58, 0.15);
   }
 
   /* Photos Section */
@@ -1191,7 +1121,7 @@
   .notes-form input:focus {
     outline: none;
     border-color: var(--brand-primary);
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    box-shadow: 0 0 0 3px var(--brand-primary-light);
   }
 
   .btn-add-note {
@@ -1248,7 +1178,7 @@
   }
 
   .error-msg {
-    background: rgba(220, 38, 38, 0.08);
+    background: rgba(196, 30, 58, 0.08);
     color: var(--status-error);
     padding: 0.75rem;
     border-radius: 6px;

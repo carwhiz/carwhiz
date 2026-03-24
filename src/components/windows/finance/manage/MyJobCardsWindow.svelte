@@ -100,7 +100,7 @@
     try {
       const { data, error } = await supabase
         .from('job_cards')
-        .select('id, job_card_no, status, priority, description, details, expected_date, created_at, customer_id, vehicle_id, assigned_user_id, customers(name), vehicles(model_name), users:assigned_user_id(email)')
+        .select('id, job_card_no, status, priority, description, details, expected_date, created_at, customer_id, vehicle_id, vehicle_number, assigned_user_id, customers(name, place, customer_phones(phone)), vehicles(model_name, makes(name), variants(name), fuel_types(name), body_sides(name)), users:assigned_user_id(email, user_name)')
         .eq('assigned_user_id', userId)
         .order('created_at', { ascending: false });
       
@@ -116,8 +116,14 @@
       myJobs = (data || []).map((j: any) => ({
         ...j,
         customer_name: j.customers?.name || '—',
+        customer_place: j.customers?.place || '',
+        customer_phone: (j.customers?.customer_phones || []).map((p: any) => p.phone).join(', ') || '—',
         vehicle_name: j.vehicles?.model_name || '—',
-        assigned_name: j.users?.email || '—',
+        vehicle_make: j.vehicles?.makes?.name || '—',
+        vehicle_variant: j.vehicles?.variants?.name || '—',
+        vehicle_fuel: j.vehicles?.fuel_types?.name || '—',
+        vehicle_body: j.vehicles?.body_sides?.name || '—',
+        assigned_name: j.users?.user_name || j.users?.email || '—',
       }));
       
       const statusBreakdown = {
@@ -465,19 +471,45 @@
 
     <div class="detail-body">
       <!-- Info -->
-      <div class="detail-section">
-        <div class="info-grid">
-          <div class="info-item"><span class="info-label">Customer</span><span>{viewingJob.customer_name}{viewingJob.customer_place ? ` (${viewingJob.customer_place})` : ''}</span></div>
-          <div class="info-item"><span class="info-label">Vehicle</span><span>{viewingJob.vehicle_name}</span></div>
-          {#if viewingJob.vehicle_number}
-            <div class="info-item"><span class="info-label">Vehicle Number</span><span><strong>{viewingJob.vehicle_number}</strong></span></div>
-          {/if}
-          <div class="info-item"><span class="info-label">Priority</span><span class="pri-badge {getPriorityClass(viewingJob.priority)}">{viewingJob.priority}</span></div>
-          <div class="info-item"><span class="info-label">Created</span><span>{formatDateTime(viewingJob.created_at)}</span></div>
-          {#if viewingJob.expected_date}<div class="info-item"><span class="info-label">Expected</span><span>{formatDate(viewingJob.expected_date)}</span></div>{/if}
+      <div class="cards-row">
+        <div class="card">
+          <div class="card-title">Customer Details</div>
+          <div class="card-item"><span class="card-label">Name:</span><span class="card-value">{viewingJob.customer_name}</span></div>
+          <div class="card-item"><span class="card-label">Location:</span><span class="card-value">{viewingJob.customer_place || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Phone:</span><span class="card-value">{viewingJob.customer_phone || '—'}</span></div>
         </div>
-        <div class="desc-block"><strong>Description:</strong> {viewingJob.description}</div>
-        {#if viewingJob.details}<div class="desc-block"><strong>Notes:</strong> {viewingJob.details}</div>{/if}
+        <div class="card">
+          <div class="card-title">Vehicle Details</div>
+          <div class="card-item"><span class="card-label">Number:</span><span class="card-value">{viewingJob.vehicle_number || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Model:</span><span class="card-value">{viewingJob.vehicle_name || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Make:</span><span class="card-value">{viewingJob.vehicle_make || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Variant:</span><span class="card-value">{viewingJob.vehicle_variant || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Fuel Type:</span><span class="card-value">{viewingJob.vehicle_fuel || '—'}</span></div>
+          <div class="card-item"><span class="card-label">Body Side:</span><span class="card-value">{viewingJob.vehicle_body || '—'}</span></div>
+        </div>
+      </div>
+
+      <!-- Inspections -->
+      <div class="inspection-row">
+        <div class="card">
+          <div class="card-title">Body Inspection</div>
+          <div class="card-desc">{viewingJob.description || '—'}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Mechanical Inspection</div>
+          <div class="card-desc">{viewingJob.details || '—'}</div>
+        </div>
+      </div>
+
+      <!-- Job Details -->
+      <div class="card" style="margin-bottom: 12px;">
+        <div class="card-title">Job Details</div>
+        <div class="info-grid">
+          <div class="info-item"><span class="info-label">Assigned To:</span><span>{viewingJob.assigned_name}</span></div>
+          <div class="info-item"><span class="info-label">Priority:</span><span>{viewingJob.priority}</span></div>
+          <div class="info-item"><span class="info-label">Created:</span><span>{formatDate(viewingJob.created_at)}</span></div>
+          <div class="info-item"><span class="info-label">Expected:</span><span>{viewingJob.expected_date ? formatDate(viewingJob.expected_date) : '—'}</span></div>
+        </div>
       </div>
 
       <!-- Action buttons -->
@@ -496,78 +528,9 @@
         {/if}
       </div>
 
-      <!-- Items -->
-      <div class="detail-section">
-        <h4>Items ({jcItems.length})</h4>
-        {#if viewingJob.status !== 'Closed'}
-          <div class="add-item-form">
-            <div class="form-row">
-              <div class="form-field">
-                <label>Search & Select Product</label>
-                <div class="search-box">
-                  <input type="text" placeholder="Search product..." bind:value={productSearch} on:input={handleProductSearch} on:focus={handleProductSearch} />
-                  {#if showProductDropdown}
-                    <div class="dropdown">
-                      {#each filteredProducts as p}
-                        <button class="dd-item" on:click={() => selectProduct(p)}>
-                          <strong>{p.product_name}</strong>
-                          <span class="type-tag" class:service={p.product_type === 'service'} class:consumable={p.product_type === 'consumable'}>{p.product_type}</span>
-                        </button>
-                      {/each}
-                    </div>
-                  {/if}
-                </div>
-              </div>
-              <div class="form-field">
-                <label>Qty</label>
-                <input type="number" min="1" bind:value={itemQty} />
-              </div>
-              <div class="form-field">
-                <label>Price</label>
-                <input type="number" min="0" step="0.01" bind:value={itemPrice} />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-field full">
-                <label>Notes</label>
-                <input type="text" placeholder="Optional notes..." bind:value={itemNotes} />
-              </div>
-            </div>
-            {#if itemError}<div class="form-error">{itemError}</div>{/if}
-            <button class="btn-add-item" on:click={addItemToJob} disabled={itemSaving || !productSearch.trim()}>
-              {itemSaving ? 'Adding...' : '+ Add Item'}
-            </button>
-          </div>
-        {/if}
-        {#if jcItems.length > 0}
-          <table class="detail-table">
-            <thead><tr><th>#</th><th>Type</th><th>Name</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th><th></th></tr></thead>
-            <tbody>
-              {#each jcItems as it, idx}
-                <tr>
-                  <td>{idx+1}</td>
-                  <td><span class="type-tag" class:service={it.item_type === 'service'} class:consumable={it.item_type === 'consumable'}>{it.item_type}</span></td>
-                  <td>{it.name}</td>
-                  <td class="num">{it.qty}</td>
-                  <td class="num">₹{(it.price||0).toFixed(2)}</td>
-                  <td class="num">₹{(it.total||0).toFixed(2)}</td>
-                  <td class="action-cell">
-                    {#if viewingJob.status !== 'Closed'}
-                      <button class="btn-remove-item" on:click={() => removeItem(it.id)} disabled={deletingItemId === it.id} title="Remove item">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                      </button>
-                    {/if}
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        {/if}
-      </div>
-
-      <!-- Photos -->
-      <div class="detail-section">
-        <h4>Photos ({jcPhotos.length})</h4>
+      <!-- Photos (Images) -->
+      <div class="card" style="margin-bottom: 12px;">
+        <div class="card-title">Images</div>
         {#if jcPhotos.length > 0}
           <div class="photo-grid">
             {#each jcPhotos as photo}
@@ -589,9 +552,95 @@
         {/if}
       </div>
 
+      <!-- Items & Services -->
+      <div class="card" style="margin-bottom: 12px; padding: 0; overflow: hidden;">
+        <div class="card-title" style="padding: 14px 14px 6px 14px; margin-bottom: 0;">Items & Services</div>
+        {#if viewingJob.status !== 'Closed'}
+          <div class="add-item-form" style="margin: 10px 14px; background: white; border: none; padding: 0;">
+            <div class="form-row">
+              <div class="form-field">
+                <label>Search & Select Product</label>
+                <div class="search-box">
+                  <input type="text" placeholder="Search product..." bind:value={productSearch} on:input={handleProductSearch} on:focus={handleProductSearch} />
+                  {#if showProductDropdown}
+                    <div class="dropdown">
+                      {#each filteredProducts as p}
+                        <button class="dd-item" on:click={() => selectProduct(p)}>
+                          <strong>{p.product_name}</strong>
+                          <span class="type-tag" class:service={p.product_type === 'service'} class:consumable={p.product_type === 'consumable'}>{p.product_type}</span>
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              </div>
+              <div class="form-field" style="max-width: 80px;">
+                <label>Qty</label>
+                <input type="number" min="1" bind:value={itemQty} />
+              </div>
+              <div class="form-field" style="max-width: 100px;">
+                <label>Price</label>
+                <input type="number" min="0" step="0.01" bind:value={itemPrice} />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field full">
+                <label>Notes</label>
+                <input type="text" placeholder="Optional notes..." bind:value={itemNotes} />
+              </div>
+            </div>
+            {#if itemError}<div class="form-error">{itemError}</div>{/if}
+            <button class="btn-add-item" on:click={addItemToJob} disabled={itemSaving || !productSearch.trim()} style="width: auto; padding: 6px 16px;">
+              {itemSaving ? 'Adding...' : '+ Add Item'}
+            </button>
+          </div>
+        {/if}
+        {#if jcItems.length > 0}
+          <table class="detail-table" style="margin-top: 10px;">
+            <thead>
+              <tr style="background: #e5e5e5; font-size: 11px; text-transform: uppercase; color: #374151;">
+                <th style="width: 40px; text-align: center;">#</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th class="num">Qty</th>
+                <th class="num">Price</th>
+                <th class="num">Discount</th>
+                <th class="num">Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each jcItems as it, idx}
+                <tr>
+                  <td style="text-align: center;">{idx+1}</td>
+                  <td style="font-size: 11px;">{it.item_type}</td>
+                  <td>{it.name}</td>
+                  <td class="num">{it.qty}</td>
+                  <td class="num">₹{(it.price||0).toFixed(2)}</td>
+                  <td class="num">₹{(it.discount||0).toFixed(2)}</td>
+                  <td class="num" style="font-weight: 600;">₹{(it.total||0).toFixed(2)}</td>
+                  <td class="action-cell">
+                    {#if viewingJob.status !== 'Closed'}
+                      <button class="btn-remove-item" on:click={() => removeItem(it.id)} disabled={deletingItemId === it.id} title="Remove item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                      </button>
+                    {/if}
+                  </td>
+                </tr>
+              {/each}
+              <tr style="background: #f9fafb; font-weight: 700;">
+                <td colspan="6" style="text-align: right; padding: 10px;">GRAND TOTAL:</td>
+                <td class="num" style="padding: 10px;">₹{jcItems.reduce((sum, item) => sum + (item.total || 0), 0).toFixed(2)}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        {/if}
+      </div>
+
       <!-- Notes -->
-      <div class="detail-section">
-        <h4>Notes ({jcNotes.length})</h4>
+      <div class="card" style="margin-bottom: 12px;">
+        <div class="card-title">Notes ({jcNotes.length})</div>
         {#if viewingJob.status !== 'Closed'}
           <div class="add-note">
             <textarea bind:value={newNote} rows="2" placeholder="Add a note..."></textarea>
@@ -610,8 +659,8 @@
 
       <!-- Activity Log -->
       {#if jcLogs.length > 0}
-        <div class="detail-section">
-          <h4>Activity Log</h4>
+        <div class="card" style="margin-bottom: 12px;">
+          <div class="card-title">Activity Log</div>
           {#each jcLogs as log}
             <div class="log-entry">
               <span class="log-action">{log.action}</span>
@@ -672,6 +721,14 @@
 
   /* Detail body */
   .detail-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+  .cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .inspection-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .card { background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; }
+  .card-title { font-weight: 700; font-size: 13px; color: #111827; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb; }
+  .card-item { display: flex; margin-bottom: 4px; font-size: 13px; }
+  .card-label { font-weight: 600; color: #6b7280; min-width: 80px; }
+  .card-value { color: #111827; }
+  .card-desc { font-size: 13px; color: #374151; white-space: pre-wrap; }
   .detail-section { background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
   .detail-section h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
   .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 10px; }

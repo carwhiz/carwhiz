@@ -8,9 +8,9 @@
 
 <style>
   .mobile-page-content {
-    padding: 1rem;
-    overflow-y: auto;
     background: var(--neutral-50);
+    width: 100%;
+    height: 100%;
   }
 </style>
 

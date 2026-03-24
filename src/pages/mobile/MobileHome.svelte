@@ -321,7 +321,7 @@
 
   .m-date-btn:hover {
     color: var(--brand-primary);
-    background: rgba(249, 115, 22, 0.1);
+    background: var(--brand-primary-light);
   }
 
   .m-date-btn:active {
