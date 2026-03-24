@@ -172,10 +172,9 @@
               <td class="num">{formatTime(record.check_out)}</td>
               <td class="num">{formatMs(calcPunchMs(record.check_in, record.check_out))}</td>
               <td>
-                {@const status = getStatus(record)}
-                {#if status === 'complete'}
+                {#if getStatus(record) === 'complete'}
                   <span class="badge done">Complete</span>
-                {:else if status === 'working'}
+                {:else if getStatus(record) === 'working'}
                   <span class="badge active">Working</span>
                 {:else}
                   <span class="badge absent">Absent</span>
