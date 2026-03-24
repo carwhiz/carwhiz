@@ -1,10 +1,9 @@
 -- Migration 036: Fix Multi-Punch Attendance Constraints
 -- =======================================================
 -- Issue: UNIQUE(user_id, date) constraint from migration 019 prevents multiple punches per day
--- Solution: Explicitly remove constraint and verify multi-punch setup
+-- Solution: Drop the constraint and ensure multi-punch setup is correct
 
--- 1. Find and drop the UNIQUE constraint by its actual name
--- PostgreSQL auto-names constraints, so we query to find it
+-- 1. Find and drop UNIQUE constraint if it exists
 DO $$ 
 DECLARE
   constraint_name TEXT;
@@ -13,13 +12,11 @@ BEGIN
   FROM information_schema.table_constraints
   WHERE table_name = 'attendance' 
     AND constraint_type = 'UNIQUE'
-    AND table_schema = 'public';
+    AND table_schema = 'public'
+  LIMIT 1;
   
   IF constraint_name IS NOT NULL THEN
-    EXECUTE 'ALTER TABLE public.attendance DROP CONSTRAINT ' || constraint_name;
-    RAISE NOTICE 'Dropped constraint: %', constraint_name;
-  ELSE
-    RAISE NOTICE 'No UNIQUE constraint found on attendance table';
+    EXECUTE 'ALTER TABLE public.attendance DROP CONSTRAINT ' || quote_ident(constraint_name);
   END IF;
 END $$;
 
@@ -32,8 +29,7 @@ DROP INDEX IF EXISTS idx_attendance_user_date_order;
 CREATE INDEX idx_attendance_user_date_order 
 ON public.attendance(user_id, date, punch_order);
 
--- 4. Verify the function is updated for multi-punch
--- This replaces any old version with the correct multi-punch logic
+-- 4. Drop old function signatures and recreate
 DROP FUNCTION IF EXISTS public.fn_attendance_punch(text, uuid, text);
 DROP FUNCTION IF EXISTS public.fn_attendance_punch(text, uuid);
 
@@ -107,37 +103,3 @@ BEGIN
   END IF;
 END;
 $$;
-
--- 5. Verify the setup
--- Display current state (use with SELECT)
-DO $$ 
-DECLARE
-  constraint_count INT;
-  punch_order_exists BOOLEAN;
-  idx_exists BOOLEAN;
-BEGIN
-  -- Check if UNIQUE constraints remain
-  SELECT COUNT(*) INTO constraint_count
-  FROM information_schema.table_constraints
-  WHERE table_name = 'attendance' 
-    AND constraint_type = 'UNIQUE'
-    AND table_schema = 'public';
-  
-  RAISE NOTICE 'Unique constraints on attendance: %', constraint_count;
-  
-  -- Check if punch_order column exists
-  SELECT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'attendance' AND column_name = 'punch_order'
-  ) INTO punch_order_exists;
-  
-  RAISE NOTICE 'punch_order column exists: %', punch_order_exists;
-  
-  -- Check if index exists
-  SELECT EXISTS (
-    SELECT 1 FROM pg_indexes 
-    WHERE tablename = 'attendance' AND indexname = 'idx_attendance_user_date_order'
-  ) INTO idx_exists;
-  
-  RAISE NOTICE 'Index idx_attendance_user_date_order exists: %', idx_exists;
-END $$;
