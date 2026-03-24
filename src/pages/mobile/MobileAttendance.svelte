@@ -874,7 +874,8 @@
       transform: translateX(-50%) translateY(0);
     }
   }
-</style>
+
+  .scan-toast.info {
     background: #e3f2fd;
     color: #1565c0;
   }
