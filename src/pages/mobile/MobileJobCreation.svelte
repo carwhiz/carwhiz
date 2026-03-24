@@ -1837,19 +1837,24 @@
 
   .search-box input, select, textarea {
     width: 100%;
-    padding: 0.875rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
     font-size: 1rem;
     color: #111827;
     background: #ffffff;
     transition: all 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: 48px;
+    font-family: inherit;
   }
 
   .search-box input:focus, select:focus, textarea:focus {
     border-color: #C41E3A;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.1);
+    box-shadow: 0 0 0 4px rgba(196, 30, 58, 0.1);
+    background: #fef9f8;
   }
 
   .dropdown {
@@ -1915,10 +1920,18 @@
     border: none;
     color: #C41E3A;
     cursor: pointer;
-    font-size: 0.95rem;
-    font-weight: 600;
-    padding: 0.5rem 0;
-    margin-top: 0.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.75rem 0;
+    margin-top: 1rem;
+    text-decoration: none;
+    display: block;
+    width: 100%;
+    text-align: left;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    font-family: inherit;
   }
 
   .btn-link:hover {
@@ -1999,63 +2012,85 @@
   }
 
   .phone-inputs input {
-    padding: 0.875rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    border: 2px solid #d1d5db;
+    border-radius: 10px;
+    min-height: 48px;
+    font-size: 1rem;
   }
 
   .phone-inputs label {
-    font-weight: 600;
-    font-size: 0.95rem;
+    font-weight: 700;
+    font-size: 1rem;
     color: #374151;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
+    display: block;
   }
 
   .vehicle-inputs {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem;
     margin-top: 1.25rem;
   }
 
   .vehicle-inputs input {
-    padding: 0.875rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    border: 2px solid #d1d5db;
+    border-radius: 10px;
+    min-height: 48px;
+    font-size: 1rem;
   }
 
   .vehicle-inputs label {
-    font-weight: 600;
-    font-size: 0.95rem;
+    font-weight: 700;
+    font-size: 1rem;
     color: #374151;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
+    display: block;
   }
 
   .input-row {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
     align-items: center;
+    flex-wrap: wrap;
   }
 
   .input-row input {
     flex: 1;
-    padding: 0.875rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    border: 2px solid #d1d5db;
+    border-radius: 10px;
     transition: all 0.2s ease;
+    min-height: 48px;
+    font-size: 1rem;
+    min-width: 150px;
   }
 
   .btn-remove {
-    padding: 0.75rem 1rem;
+    padding: 0.85rem 1.25rem;
     background: #fee2e2;
     color: #C41E3A;
-    border: 1px solid #fecaca;
+    border: 2px solid #fecaca;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 600;
+    font-size: 0.95rem;
+    font-weight: 700;
     white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+  }
+
+  .btn-remove:active {
+    transform: scale(0.96);
+    background: #C41E3A;
+    color: white;
+    border-color: #C41E3A;
   }
 
   .btn-remove:hover {
@@ -2144,19 +2179,23 @@
   }
 
   .btn-small {
-    padding: 0.625rem 1rem;
+    padding: 0.9rem 1.25rem;
     background: #111827;
     color: white;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: background 0.2s;
+    font-size: 0.95rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+    min-height: 44px;
+    width: 100%;
+    font-family: inherit;
   }
   
   .btn-small:active {
     background: #374151;
+    transform: scale(0.96);
   }
 
   .btn-remove {
@@ -2300,24 +2339,31 @@
   .btn-primary {
     background: #C41E3A;
     color: white;
-    padding: 0.875rem 1.5rem;
+    padding: 1rem 1.5rem;
     border: none;
-    border-radius: 8px;
-    font-size: 1.05rem;
-    font-weight: 600;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 4px 6px rgba(196, 30, 58, 0.2);
+    box-shadow: 0 4px 12px rgba(196, 30, 58, 0.25);
     transition: all 0.2s ease;
+    width: 100%;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
   }
 
   .btn-primary:active {
-    transform: scale(0.98);
+    transform: scale(0.97);
     background: #a01830;
+    box-shadow: 0 2px 6px rgba(196, 30, 58, 0.2);
   }
 
   .btn-primary:hover:not(:disabled) {
     background: #a01830;
-    box-shadow: 0 6px 12px rgba(196, 30, 58, 0.3);
+    box-shadow: 0 6px 16px rgba(196, 30, 58, 0.35);
   }
 
   .btn-primary:disabled {
@@ -2330,18 +2376,25 @@
   .btn-secondary {
     background: #f3f4f6;
     color: #111827;
-    padding: 0.875rem 1.5rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 1.05rem;
-    font-weight: 600;
+    padding: 1rem 1.5rem;
+    border: 2px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s ease;
+    width: 100%;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
   }
 
   .btn-secondary:active {
-    transform: scale(0.98);
+    transform: scale(0.97);
     background: #e5e7eb;
+    border-color: #9ca3af;
   }
 
   .btn-secondary:hover {
