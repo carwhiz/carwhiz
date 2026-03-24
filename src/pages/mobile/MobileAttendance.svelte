@@ -26,7 +26,15 @@
   let attendanceSummary: AttendanceSummary[] = [];
   let loading = true;
   let error = '';
-  let selectedDate = new Date().toISOString().split('T')[0];
+  
+  // Initialize dates in IST (Asia/Kolkata) to match RPC queries
+  function getISTDate(): string {
+    const now = new Date();
+    const istTime = new Date(now.getTime() + (330 * 60 * 1000)); // IST is UTC+5:30
+    return istTime.toISOString().split('T')[0];
+  }
+  
+  let selectedDate = getISTDate();
   let currentMonth = new Date().toISOString().slice(0, 7);
 
   // QR Scanning state
@@ -39,24 +47,34 @@
   let html5QrScanner: any = null;
 
   async function loadAttendance() {
-    if (!$authStore.user) return;
+    if (!$authStore.user?.id) {
+      error = 'User not authenticated';
+      loading = false;
+      return;
+    }
 
     try {
       loading = true;
       error = '';
 
-      // Load attendance for selected date using RPC
-      const { data: records, error: recordsError } = await supabase.rpc(
-        'fn_get_user_attendance',
-        { p_date: selectedDate }
-      );
+      console.log('Loading attendance for user:', $authStore.user.id, 'date:', selectedDate);
 
-      if (recordsError) {
-        console.error('Error loading attendance records:', recordsError);
-        error = `Failed to load attendance: ${recordsError.message}`;
+      // Direct query instead of RPC - same approach as desktop report
+      const { data, error: queryError } = await supabase
+        .from('attendance')
+        .select('id, check_in, check_out, punch_order, date')
+        .eq('user_id', $authStore.user.id)
+        .eq('date', selectedDate)
+        .order('punch_order', { ascending: true });
+
+      console.log('Attendance data:', { data, error: queryError });
+
+      if (queryError) {
+        error = `Failed to load attendance: ${queryError.message}`;
         attendanceRecords = [];
       } else {
-        attendanceRecords = records || [];
+        attendanceRecords = data || [];
+        console.log(`Loaded ${attendanceRecords.length} attendance records`);
       }
     } catch (err) {
       console.error('Attendance load error:', err);
@@ -67,19 +85,78 @@
   }
 
   async function loadMonthlySummary() {
-    if (!$authStore.user) return;
+    if (!$authStore.user?.id) {
+      console.warn('User not authenticated, skipping monthly summary');
+      return;
+    }
 
     try {
       const [year, month] = currentMonth.split('-');
-      const { data, error: summaryError } = await supabase.rpc(
-        'fn_get_attendance_summary',
-        { p_year: parseInt(year), p_month: parseInt(month) }
-      );
+      const monthStart = `${year}-${month}-01`;
+      const monthEnd = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
 
-      if (summaryError) {
-        console.error('Error loading summary:', summaryError);
+      console.log('Loading monthly summary for:', { year, month, monthStart, monthEnd });
+
+      // Direct query for daily summaries - same approach as desktop
+      const { data, error: queryError } = await supabase
+        .from('attendance')
+        .select('id, check_in, check_out, punch_order, date')
+        .eq('user_id', $authStore.user.id)
+        .gte('date', monthStart)
+        .lte('date', monthEnd)
+        .order('date', { ascending: false })
+        .order('punch_order', { ascending: true });
+
+      console.log('Monthly data from query:', { data, error: queryError });
+
+      if (queryError) {
+        console.error('Error loading monthly data:', queryError);
+        attendanceSummary = [];
       } else {
-        attendanceSummary = data || [];
+        // Aggregate by date
+        const summaryMap = new Map<string, any>();
+        if (data) {
+          for (const record of data) {
+            if (!summaryMap.has(record.date)) {
+              summaryMap.set(record.date, {
+                date: record.date,
+                check_in_count: 0,
+                total_hours: 0,
+                status: 'Absent',
+                punches: []
+              });
+            }
+            const summary = summaryMap.get(record.date)!;
+            summary.check_in_count++;
+            summary.punches.push(record);
+
+            // Calculate hours for this punch
+            if (record.check_in && record.check_out) {
+              const checkIn = new Date(record.check_in).getTime();
+              const checkOut = new Date(record.check_out).getTime();
+              const hours = (checkOut - checkIn) / (1000 * 60 * 60);
+              summary.total_hours += hours;
+            }
+
+            // Set status
+            if (record.check_out === null) {
+              summary.status = 'Checked In';
+            } else if (summary.check_in_count > 0) {
+              summary.status = 'Present';
+            }
+          }
+        }
+
+        attendanceSummary = Array.from(summaryMap.values())
+          .map(s => ({
+            date: s.date,
+            check_in_count: s.check_in_count,
+            total_hours: Math.round(s.total_hours * 100) / 100, // Round to 2 decimals
+            status: s.status
+          }))
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        console.log(`Loaded ${attendanceSummary.length} monthly summary records`);
       }
     } catch (err) {
       console.error('Summary load error:', err);
@@ -275,9 +352,9 @@
         <span>📱 Scan QR to Check In/Out</span>
       </button>
 
-      <!-- Today's Attendance -->
+      <!-- Day Wise Attendance -->
       <div class="section">
-        <h2>Today's Attendance</h2>
+        <h2>Day Wise Attendance</h2>
         <div class="date-selector">
           <input type="date" bind:value={selectedDate} on:change={loadAttendance} />
         </div>

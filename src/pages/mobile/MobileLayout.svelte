@@ -130,6 +130,18 @@
       </button>
       <button 
         class="nav-btn"
+        class:active={$mobilePageStore.currentPage === 'attendance'}
+        on:click={goToAttendance}
+        title="Scanner"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="nav-icon">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2M3 17v2a2 2 0 0 0 2 2h2M21 7V5a2 2 0 0 0-2-2h-2M21 17v2a2 2 0 0 1-2 2h-2"></path>
+          <rect x="7" y="7" width="10" height="10" rx="1"></rect>
+        </svg>
+        <span class="nav-label">Scanner</span>
+      </button>
+      <button 
+        class="nav-btn"
         class:active={$mobilePageStore.currentPage === 'my-jobs'}
         on:click={goToMyJobs}
         title="My Jobs"
@@ -142,18 +154,6 @@
           <polyline points="10 9 9 9 8 9"></polyline>
         </svg>
         <span class="nav-label">Jobs</span>
-      </button>
-      <button 
-        class="nav-btn"
-        class:active={$mobilePageStore.currentPage === 'attendance'}
-        on:click={goToAttendance}
-        title="Attendance"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="nav-icon">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
-        <span class="nav-label">Profile</span>
       </button>
     </nav>
   {/if}
