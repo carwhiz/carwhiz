@@ -132,7 +132,7 @@
     flex-direction: column;
     height: 100vh;
     height: 100dvh;
-    background: #f8fafc;
+    background: var(--neutral-50);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
@@ -141,15 +141,16 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem;
-    background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
     color: white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
     z-index: 100;
+    flex-shrink: 0;
   }
 
   .header-left {
     font-weight: 600;
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -161,18 +162,19 @@
     background: rgba(255, 255, 255, 0.2);
     border: none;
     padding: 0.5rem 0.75rem;
-    border-radius: 4px;
+    border-radius: 6px;
     color: white;
     cursor: pointer;
     font-size: 0.875rem;
     font-weight: 600;
-    transition: background 0.2s;
+    transition: all 0.2s ease;
     white-space: nowrap;
     flex-shrink: 0;
   }
 
   .back-btn:active {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.35);
+    transform: scale(0.98);
   }
 
   .mobile-logo {
@@ -191,6 +193,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 0;
+    letter-spacing: -0.5px;
   }
 
   .header-right {
@@ -201,25 +204,11 @@
 
   .user-name {
     font-size: 0.875rem;
-    opacity: 0.9;
+    opacity: 0.95;
     max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .logout-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    padding: 0.5rem 0.75rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: background 0.2s;
-  }
-
-  .logout-btn:active {
-    background: rgba(255, 255, 255, 0.3);
   }
 
   .menu-container {
@@ -230,17 +219,18 @@
     background: rgba(255, 255, 255, 0.2);
     border: none;
     padding: 0.5rem 0.75rem;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 1.25rem;
-    transition: background 0.2s;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
   .menu-btn:active {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.35);
+    transform: scale(0.98);
   }
 
   .menu-dropdown {
@@ -248,10 +238,10 @@
     top: 100%;
     right: 0;
     background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    min-width: 150px;
+    border: 1px solid var(--neutral-200);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    min-width: 160px;
     margin-top: 0.5rem;
     z-index: 1000;
     overflow: hidden;
@@ -266,21 +256,21 @@
     text-align: left;
     cursor: pointer;
     font-size: 0.95rem;
-    color: #374151;
-    transition: background 0.15s;
+    color: var(--neutral-700);
+    transition: all 0.15s ease;
   }
 
   .menu-item:hover {
-    background: #f3f4f6;
+    background: var(--neutral-100);
   }
 
   .menu-item:active {
-    background: #e5e7eb;
+    background: var(--neutral-200);
   }
 
   .logout-item {
-    color: #dc2626;
-    border-top: 1px solid #e5e7eb;
+    color: var(--status-error);
+    border-top: 1px solid var(--neutral-200);
   }
 
   .logout-item:hover {
@@ -305,8 +295,8 @@
     align-items: center;
     height: 4rem;
     background: white;
-    border-top: 1px solid #e5e7eb;
-    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+    border-top: 1px solid var(--neutral-200);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
     z-index: 99;
   }
 
@@ -320,17 +310,18 @@
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
-    color: #6b7280;
-    transition: all 0.2s;
+    color: var(--neutral-500);
+    transition: all 0.25s ease;
   }
 
   .nav-btn.active {
-    color: #f97316;
-    background: #fff7ed;
+    color: var(--brand-primary);
+    background: linear-gradient(180deg, rgba(249, 115, 22, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%);
   }
 
   .nav-btn:active {
     opacity: 0.8;
+    transform: scale(1.05);
   }
 
   @media (max-width: 768px) {

@@ -290,6 +290,7 @@
     padding: 1rem;
     overflow-y: auto;
     height: 100%;
+    background: var(--neutral-50);
   }
 
   .m-date-nav {
@@ -298,148 +299,172 @@
     justify-content: center;
     gap: 1rem;
     margin-bottom: 1.5rem;
-    padding: 0.5rem;
+    padding: 1rem;
     background: white;
-    border-radius: 6px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--neutral-200);
   }
 
   .m-date-btn {
     background: none;
     border: none;
     cursor: pointer;
-    color: #666;
+    color: var(--neutral-500);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0.5rem;
-    transition: color 0.2s;
+    transition: all 0.2s ease;
+    border-radius: 6px;
+  }
+
+  .m-date-btn:hover {
+    color: var(--brand-primary);
+    background: rgba(249, 115, 22, 0.1);
   }
 
   .m-date-btn:active {
-    color: #f97316;
+    color: var(--brand-primary);
   }
 
   .m-date-label {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: #1f2937;
-    min-width: 110px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--neutral-900);
+    min-width: 120px;
     text-align: center;
   }
 
   .m-loading {
     text-align: center;
     padding: 2rem;
-    color: #999;
+    color: var(--neutral-500);
+    font-size: 1rem;
   }
 
   .m-cards {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
+    gap: 1rem;
   }
 
   .m-card {
     background: white;
-    border-radius: 8px;
-    padding: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 1.25rem 1rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--neutral-200);
     display: flex;
     flex-direction: column;
+    transition: all 0.3s ease;
+  }
+
+  .m-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    border-color: var(--brand-primary);
   }
 
   .m-card-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    margin-bottom: 0.5rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
     color: white;
+    font-weight: 600;
   }
 
   .m-card.sales .m-card-icon {
-    background: #3b82f6;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   }
 
   .m-card.purchase .m-card-icon {
-    background: #8b5cf6;
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   }
 
   .m-card.expense .m-card-icon {
-    background: #ef4444;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   }
 
   .m-card.cash .m-card-icon {
-    background: #10b981;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   }
 
   .m-card.bank .m-card-icon {
-    background: #f59e0b;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   }
 
   .m-card.sales-bal .m-card-icon {
-    background: #06b6d4;
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
   }
 
   .m-card.purchase-bal .m-card-icon {
-    background: #ec4899;
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
   }
 
   .m-card.attendance .m-card-icon {
-    background: #6366f1;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   }
 
   .m-card-label {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--neutral-500);
     text-transform: uppercase;
-    font-weight: 500;
-    margin-bottom: 0.25rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
   }
 
   .m-card-amount {
-    font-size: 1.25rem;
+    font-size: 1.4rem;
     font-weight: 700;
-    color: #1f2937;
-    margin-bottom: 0.25rem;
+    color: var(--neutral-900);
+    margin-bottom: 0.5rem;
   }
 
   .m-card-sub {
-    font-size: 0.75rem;
-    color: #9ca3af;
+    font-size: 0.8rem;
+    color: var(--neutral-500);
+    font-weight: 500;
   }
 
   .m-card-punches {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     margin-bottom: 0.5rem;
   }
 
   .punch-row {
     display: flex;
     justify-content: space-between;
-    color: #4b5563;
-    margin-bottom: 0.25rem;
+    gap: 0.5rem;
+    margin-bottom: 0.375rem;
     font-weight: 500;
   }
 
   .attend-in {
-    color: #10b981;
+    color: var(--status-success);
   }
 
   .attend-out {
-    color: #ef4444;
+    color: var(--status-error);
   }
 
   .m-card-attend-row {
     display: flex;
     justify-content: space-between;
-    font-size: 0.75rem;
-    color: #4b5563;
+    font-size: 0.8rem;
     margin-bottom: 0.5rem;
     font-weight: 500;
+    color: var(--neutral-600);
+  }
+
+  .total-hrs {
+    font-weight: 600;
+    color: var(--neutral-700);
   }
 
   .sr-only {
@@ -452,5 +477,15 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border-width: 0;
+  }
+
+  @media (max-width: 480px) {
+    .m-date-label {
+      font-size: 0.9rem;
+    }
+
+    .m-card-amount {
+      font-size: 1.2rem;
+    }
   }
 </style>

@@ -229,22 +229,34 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: #f5f5f5;
+    background: var(--neutral-50);
   }
 
   .filters {
-    padding: 12px 16px;
+    padding: 1rem;
     background: white;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--neutral-200);
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
   }
 
   .status-filter {
     width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--neutral-300);
+    border-radius: 8px;
+    font-size: 0.95rem;
     background: white;
+    color: var(--neutral-900);
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+
+  .status-filter:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    background: var(--neutral-50);
   }
 
   .loading,
@@ -254,96 +266,120 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 2rem 1rem;
     text-align: center;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .loading {
+    color: var(--neutral-500);
+    font-size: 1rem;
   }
 
   .error {
-    color: #d32f2f;
-    background: #ffebee;
+    color: var(--status-error);
+    background: rgba(220, 38, 38, 0.05);
+    border-left: 4px solid var(--status-error);
+    padding: 1.5rem;
+    border-radius: 8px;
   }
 
   .empty-state p {
-    color: #999;
-    font-size: 14px;
+    color: var(--neutral-500);
+    font-size: 0.95rem;
   }
 
   .jobs-list {
     flex: 1;
     overflow-y: auto;
-    padding: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   .job-card {
     background: white;
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    border: none;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--neutral-200);
     width: 100%;
     text-align: left;
     font-family: inherit;
+    transition: all 0.3s ease;
+  }
+
+  .job-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--brand-primary);
   }
 
   .job-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    gap: 1rem;
   }
 
   .job-no {
-    font-weight: 600;
-    font-size: 16px;
-    color: #333;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--neutral-900);
+    flex: 1;
   }
 
   .status-badge {
-    padding: 4px 12px;
-    border-radius: 12px;
+    padding: 0.375rem 0.875rem;
+    border-radius: 20px;
     color: white;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 600;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
   }
 
-  .vehicle-numbers {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 12px;
+  .vehicle-number-display {
+    padding: 0.75rem;
+    background: var(--neutral-50);
+    border-left: 3px solid var(--brand-primary);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    color: var(--neutral-700);
   }
 
-  .vehicle-number {
-    display: inline-block;
-    padding: 4px 8px;
-    background: #fff3cd;
-    color: #856404;
-    border-radius: 4px;
-    font-size: 12px;
+  .vehicle-number-display strong {
+    color: var(--neutral-900);
     font-weight: 600;
-    border: 1px solid #ffc107;
   }
 
   .manage-btn {
     width: 100%;
-    padding: 10px 16px;
-    background: #4CAF50;
+    padding: 0.875rem 1.5rem;
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
     color: white;
     border: none;
-    border-radius: 6px;
-    font-size: 14px;
+    border-radius: 8px;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
   }
 
   .manage-btn:hover {
-    background: #45a049;
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
   }
 
   .manage-btn:active {
-    background: #3d8b40;
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
   }
 
   .info-row {

@@ -8,8 +8,9 @@
 
 <style>
   .mobile-page-content {
-    padding: 12px;
+    padding: 1rem;
     overflow-y: auto;
+    background: var(--neutral-50);
   }
 </style>
 
