@@ -547,7 +547,7 @@
             <tr>
               <td class="num">{i + 1}</td>
               <td class="name-col">{u.user_name || '—'}</td>
-              <td>{u.email}</td>
+              <td>{u.user_name || u.email}</td>
               <td>{u.phone_number}</td>
               <td><span class="role-badge" class:admin={u.role === 'admin'}>{u.role}</span></td>
               <td class="flags-col">

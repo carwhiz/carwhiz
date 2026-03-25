@@ -195,6 +195,8 @@
       job_card_photos: 'Job Card Photo',
       job_card_notes: 'Job Card Note',
       job_card_logs: 'Job Card Log',
+      employee_salaries: 'Employee Salary',
+      salary_payments: 'Salary Payment',
     };
     return map[t] || friendlyLabel(t);
   }
@@ -316,7 +318,7 @@
                 </span>
               </td>
               <td class="desc-cell">{getDescription(row)}</td>
-              <td>{row.user_email}</td>
+              <td>{row.user_name || row.user_email}</td>
               <td>
                 <button class="btn-detail" on:click={() => toggleDetail(row.id)}>
                   {expandedId === row.id ? 'Hide' : 'View'}

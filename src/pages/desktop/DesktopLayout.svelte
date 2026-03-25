@@ -57,6 +57,7 @@
   // HR Windows
   import AttendanceReportWindow from '../../components/windows/hr/reports/AttendanceReportWindow.svelte';
   import AttendanceQRWindow from '../../components/windows/hr/AttendanceQRWindow.svelte';
+  import SalaryManagement from '../../components/windows/hr/SalaryManagement.svelte';
 
   let expandedSections: Record<string, boolean> = { finance: false, products: false, appcontrol: false, hr: false };
   let expandedSubs: Record<string, boolean> = {
@@ -153,6 +154,7 @@
     'hr-attendance-report': AttendanceReportWindow,
     // HR > Operations
     'hr-attendance-qr': AttendanceQRWindow,
+    'hr-salary-management': SalaryManagement,
     // App Control
     'appcontrol-permissions': PermissionsWindow,
     'appcontrol-users': UsersWindow,
@@ -350,13 +352,14 @@
       {#if expandedSections.hr}
         <div class="sub-sections">
           <!-- HR > Manage -->
+          <!-- HR > Manage -->
           <button class="nav-sub" class:expanded={expandedSubs['hr-manage']} on:click={() => toggleSub('hr-manage')}>
             <svg class="chevron-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             <span>Manage</span>
           </button>
           {#if expandedSubs['hr-manage']}
             <div class="sub-items">
-              <div style="padding: 8px 12px; color: #999; font-size: 12px; font-style: italic; text-align: center;">Coming Soon</div>
+              <button class="nav-item" on:click={() => openWindow('hr-salary-management', 'Salary Management')}>💰 Salary Management</button>
             </div>
           {/if}
 

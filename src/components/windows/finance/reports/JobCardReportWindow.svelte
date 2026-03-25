@@ -99,7 +99,7 @@
       ...j,
       customer_name: j.customers?.name || '—',
       vehicle_name: j.vehicles?.model_name || '—',
-      assigned_name: j.users?.email || '—',
+      assigned_name: j.users?.user_name || j.users?.email || '—',
     }));
     loading = false;
   }
@@ -718,7 +718,7 @@
               <label>Assigned To *</label>
               <select bind:value={editAssignedUserId}>
                 <option value="">Select</option>
-                {#each users as u}<option value={u.id}>{u.email}</option>{/each}
+                {#each users as u}<option value={u.id}>{u.user_name || u.email}</option>{/each}
               </select>
             </div>
             <div class="form-field">

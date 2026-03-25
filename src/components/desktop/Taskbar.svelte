@@ -32,7 +32,7 @@
     {/if}
   </div>
   <div class="taskbar-info">
-    <span class="user-badge">{$authStore.user?.email}</span>
+    <span class="user-badge">{$authStore.user?.user_name || $authStore.user?.email}</span>
   </div>
 </div>
 

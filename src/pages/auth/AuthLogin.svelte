@@ -2,6 +2,8 @@
   import { interfaceStore } from '../../stores/interfaceStore';
   import { authStore } from '../../stores/authStore';
   import { login } from '../../lib/services/authService';
+  import { supabase } from '../../lib/supabaseClient';
+  import { canUserCreateResource } from '../../lib/services/permissionService';
   import type { LoginPayload } from '../../types/auth';
   import logoPath from '../../assets/CARWHIZ.jpeg';
 
@@ -30,6 +32,41 @@
       if (!result.success) {
         error = result.error || 'Login failed';
       } else {
+        // Check if user has permission to access the chosen interface
+        if (loginMode === 'desktop') {
+          const userId = $authStore.user?.id;
+          const userRole = $authStore.user?.role;
+          
+          // Admins always have desktop access
+          if (userRole !== 'Admin') {
+            if (userId) {
+              try {
+                // Only allow non-admins to access desktop if they have explicit permission
+                const { data } = await supabase
+                  .from('permissions')
+                  .select('*')
+                  .eq('user_id', userId)
+                  .eq('resource', 'desktop-access')
+                  .maybeSingle();
+                
+                // Only grant access if permission record exists AND can_create is true
+                if (!data || !data.can_create) {
+                  error = 'You do not have permission to access the Desktop interface';
+                  authStore.logout();
+                  loading = false;
+                  return;
+                }
+              } catch (permError) {
+                console.warn('Error checking desktop access permission:', permError);
+                error = 'Unable to verify desktop access permission';
+                authStore.logout();
+                loading = false;
+                return;
+              }
+            }
+          }
+        }
+        
         // Redirect to appropriate interface
         interfaceStore.setInterface(loginMode);
       }

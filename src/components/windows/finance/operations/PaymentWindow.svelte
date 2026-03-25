@@ -185,8 +185,8 @@
     const ledgerEntries: any[] = [];
     const targetLedgerId = paymentType === 'vendor' ? (selectedVendor?.ledger_id || null) : (selectedExpenseLedger?.id || null);
 
-    // Credit Cash/Bank ledger (money going out)
-    if (cash_bank_ledger_id && payAmt > 0) {
+    // Credit Cash/Bank ledger (money going out) - only for vendor payments
+    if (paymentType === 'vendor' && cash_bank_ledger_id && payAmt > 0) {
       ledgerEntries.push({
         entry_date: payment_date,
         ledger_id: cash_bank_ledger_id,

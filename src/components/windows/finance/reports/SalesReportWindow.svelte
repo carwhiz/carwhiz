@@ -37,9 +37,9 @@
     loading = true;
     const { data } = await supabase
       .from('sales')
-      .select('id, bill_no, bill_date, created_at, customer_id, net_total, paid_amount, balance_due, status, created_by, customers(name), users:created_by(email)')
+      .select('id, bill_no, bill_date, created_at, customer_id, net_total, paid_amount, balance_due, status, created_by, customers(name), users:created_by(user_name, email)')
       .order('created_at', { ascending: false });
-    sales = (data || []).map((s: any) => ({ ...s, customer_name: s.customers?.name || '—', created_by_email: s.users?.email || '—' }));
+    sales = (data || []).map((s: any) => ({ ...s, customer_name: s.customers?.name || '—', created_by_email: s.users?.user_name || s.users?.email || '—' }));
     loading = false;
   }
 

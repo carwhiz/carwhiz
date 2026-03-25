@@ -61,7 +61,7 @@
 
     <div class="info">
       <p>
-        <strong>Employee ID:</strong> {$authStore.user?.email}
+        <strong>Employee ID:</strong> {$authStore.user?.user_name || $authStore.user?.email}
       </p>
       <p class="note">QR codes refresh every 10 seconds for security</p>
     </div>

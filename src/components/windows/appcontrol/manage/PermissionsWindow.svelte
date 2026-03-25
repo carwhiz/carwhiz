@@ -81,6 +81,12 @@
       ]
     },
     {
+      group: 'HR — Management',
+      resources: [
+        { id: 'hr-salary-management', label: 'Salary Management' },
+      ]
+    },
+    {
       group: 'HR — Operations',
       resources: [
         { id: 'hr-attendance-qr', label: 'Attendance QR' },
@@ -102,6 +108,8 @@
         { id: 'mobile-dashboard-bank-balance', label: 'Bank Balance Card' },
         { id: 'mobile-dashboard-sales-balance', label: 'Sales Balance Card' },
         { id: 'mobile-dashboard-purchase-balance', label: 'Purchase Balance Card' },
+        { id: 'mobile-create-job-card', label: 'Create Job Card' },
+        { id: 'desktop-access', label: 'Desktop Access' },
       ]
     }
   ];
@@ -273,7 +281,7 @@
           role="button"
           tabindex="0"
         >
-          <span class="user-email">{user.email}</span>
+          <span class="user-email">{user.user_name || user.email}</span>
           {#if user.role === 'admin'}<span class="admin-badge">Admin</span>{/if}
         </div>
       {/each}
@@ -287,7 +295,7 @@
         <div class="table-status">Select a user to manage permissions</div>
       {:else}
         <div class="perm-toolbar">
-          <span class="perm-user-label">Permissions for <strong>{selectedUser?.email}</strong></span>
+          <span class="perm-user-label">Permissions for <strong>{selectedUser?.user_name || selectedUser?.email}</strong></span>
           <div class="perm-toolbar-btns">
             <button class="btn-grant" on:click={() => grantAll(true)} disabled={saving}>Grant All</button>
             <button class="btn-revoke" on:click={() => grantAll(false)} disabled={saving}>Revoke All</button>

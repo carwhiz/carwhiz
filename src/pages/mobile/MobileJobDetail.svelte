@@ -641,7 +641,7 @@
             {#each notes as note (note.id)}
               <div class="note-card">
                 <div class="note-header">
-                  <strong>{note.users?.email || 'Unknown'}</strong>
+                  <strong>{note.users?.user_name || note.users?.email || 'Unknown'}</strong>
                   <small>{formatDateTime(note.created_at)}</small>
                 </div>
                 <div class="note-text">{note.note}</div>

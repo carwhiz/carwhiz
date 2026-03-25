@@ -218,7 +218,7 @@
       <select id="assigned-user" bind:value={editAssignedUser} disabled={saving}>
         <option value="">Select Technician</option>
         {#each users as user (user.id)}
-          <option value={user.id}>{user.email}</option>
+          <option value={user.id}>{user.user_name || user.email}</option>
         {/each}
       </select>
     </div>
