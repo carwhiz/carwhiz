@@ -276,10 +276,11 @@
     try {
       // QR now contains MD5 hash token (32 hex chars)
       // Format: md5(timeSlot + 'CARWHIZZ_HR_2026_SECRET')
-      scannedToken = decodedText.trim();
+      scannedToken = decodedText.trim().toLowerCase();
       
-      // Validate it looks like an MD5 hash (32 hex characters)
+      // Validate it looks like an MD5 hash (32 hex characters) - case insensitive
       if (!/^[a-f0-9]{32}$/.test(scannedToken)) {
+        console.error('Invalid token format received:', decodedText, 'Length:', decodedText.length);
         scanError = 'Invalid QR code format (not a valid hash).';
         scanLoading = false;
         return;
@@ -636,13 +637,22 @@
 
   .summary-item {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 0.75rem;
     padding: 1rem;
-    background: var(--neutral-50);
+    background: white;
     border-radius: 8px;
-    border: 1px solid var(--neutral-100);
+    border: 1px solid var(--neutral-200);
     transition: all 0.2s ease;
+  }
+
+  @media (min-width: 480px) {
+    .summary-item {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--neutral-50);
+    }
   }
 
   .summary-item:hover {
@@ -654,13 +664,22 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 380px) {
+    .date-status {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
   }
 
   .date {
-    font-weight: 600;
+    font-weight: 700;
     color: var(--neutral-900);
-    min-width: 110px;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    line-height: 1.2;
   }
 
   .status {
@@ -689,11 +708,33 @@
   }
 
   .summary-details {
-    display: flex;
-    gap: 1.25rem;
-    font-size: 0.85rem;
-    color: var(--neutral-600);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    font-size: 0.9rem;
     font-weight: 500;
+  }
+
+  @media (min-width: 480px) {
+    .summary-details {
+      display: flex;
+      gap: 1.5rem;
+    }
+  }
+
+  .punches,
+  .hours {
+    color: var(--neutral-700);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .punches strong,
+  .hours strong {
+    color: var(--neutral-900);
+    font-weight: 700;
+    font-size: 1.05rem;
   }
 
   /* ========== QR SCAN BUTTON ========== */

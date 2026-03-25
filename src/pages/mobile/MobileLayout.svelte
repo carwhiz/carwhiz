@@ -9,6 +9,7 @@
   import MobileAttendance from './MobileAttendance.svelte';
   import MobileJobDetail from './MobileJobDetail.svelte';
   import MobileJobCreation from './MobileJobCreation.svelte';
+
   import logoPath from '../../assets/CARWHIZ.jpeg';
 
   let menuOpen = false;
@@ -163,8 +164,8 @@
   .mobile-layout {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
     background: var(--neutral-50);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     
@@ -330,9 +331,6 @@
 
   .mobile-content {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
     padding: 1rem;
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
   }

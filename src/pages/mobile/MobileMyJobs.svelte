@@ -60,10 +60,12 @@
           status, 
           priority, 
           description, 
+          details,
           created_at, 
           vehicle_id, 
           customer_id,
-          vehicle_number,
+          assigned_user_id,
+          expected_date,
           customers(name, place, gender),
           vehicles(model_name, makes(name), generations(name), generation_types(name), variants(name), gearboxes(name), fuel_types(name), body_sides(name))
         `)
@@ -219,13 +221,15 @@
                 <strong>Vehicle #:</strong> {job.vehicle_number}
               </div>
             {/if}
-            <button 
-              class="manage-btn" 
-              on:click={() => openJobDetail(job.id)}
-              type="button"
-            >
-              View & Manage
-            </button>
+            <div class="job-actions">
+              <button 
+                class="manage-btn" 
+                on:click={() => openJobDetail(job.id)}
+                type="button"
+              >
+                View & Manage
+              </button>
+            </div>
           </div>
         {/each}
       </div>
@@ -237,7 +241,7 @@
   .my-jobs-content {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    min-height: 100%;
     background: var(--neutral-50);
   }
 
@@ -345,6 +349,7 @@
   }
 
   .job-card {
+    position: relative;
     background: white;
     border-radius: 14px;
     padding: 1.25rem;
@@ -415,13 +420,13 @@
   }
 
   .manage-btn {
-    width: 100%;
+    flex: 4;
     padding: 1rem 1.5rem;
     min-height: 48px;
     background: linear-gradient(135deg, #C41E3A 0%, #A01830 100%);
     color: white;
     border: none;
-    border-radius: 10px;
+    border-radius: 10px 0 0 10px;
     font-size: 1rem;
     font-weight: 700;
     font-family: inherit;
@@ -434,8 +439,15 @@
   }
 
   .manage-btn:active {
-    transform: scale(0.97);
+    transform: scaleY(0.97);
     box-shadow: 0 2px 6px rgba(196, 30, 58, 0.2);
+  }
+
+  .job-actions {
+    display: flex;
+    gap: 0;
+    width: 100%;
+    margin-top: 1rem;
   }
 
   .info-row {

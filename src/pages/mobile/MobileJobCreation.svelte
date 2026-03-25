@@ -1193,7 +1193,7 @@
                   <div class="input-row">
                     <input type="tel" placeholder="Phone" bind:value={newCustPhones[idx]} />
                     {#if newCustPhones.length > 1}
-                      <button class="btn-remove" on:click={() => removeNewCustPhone(idx)}>Remove</button>
+                      <button class="btn-remove-phone" on:click={() => removeNewCustPhone(idx)}>×</button>
                     {/if}
                   </div>
                 {/each}
@@ -1206,7 +1206,7 @@
                   <div class="input-row">
                     <input type="text" placeholder="Vehicle Number" bind:value={newCustVehicleNumbers[idx]} />
                     {#if newCustVehicleNumbers.length > 1}
-                      <button class="btn-remove" on:click={() => removeNewCustVehicleNumber(idx)}>Remove</button>
+                      <button class="btn-remove-vehicle" on:click={() => removeNewCustVehicleNumber(idx)}>×</button>
                     {/if}
                   </div>
                 {/each}
@@ -1733,15 +1733,15 @@
           <h3>Order Summary</h3>
           <div class="summary-row">
             <span>Products/Services:</span>
-            <span class="amount">₹{selectedItems.reduce((sum, item) => sum + (item.sales_price * item.quantity || 0), 0).toFixed(2)}</span>
+            <span class="amount">₹{items.reduce((sum, item) => sum + (item.price * item.qty || 0), 0).toFixed(2)}</span>
           </div>
           <div class="summary-row">
             <span>Items Count:</span>
-            <span>{selectedItems.length}</span>
+            <span>{items.length}</span>
           </div>
           <div class="summary-total">
             <span>Total Amount:</span>
-            <span class="total-amount">₹{selectedItems.reduce((sum, item) => sum + (item.sales_price * item.quantity || 0), 0).toFixed(2)}</span>
+            <span class="total-amount">₹{grandTotal.toFixed(2)}</span>
           </div>
         </div>
 
@@ -1784,9 +1784,8 @@
   .mobile-job-creation {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    min-height: 100%;
     background: #f9fafb;
-    overflow-y: auto;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
@@ -1824,12 +1823,10 @@
   .step-content {
     flex: 1;
     padding: 1.25rem;
-    padding-bottom: 140px;
+    padding-bottom: 2rem;
     background: #ffffff;
     margin: 0.75rem;
     border-radius: 12px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     border: 1px solid #f3f4f6;
     position: relative;
@@ -1909,6 +1906,10 @@
   .item-name {
     font-weight: 600;
     color: #111827;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.4;
+    max-width: 100%;
   }
 
   .item-meta {
@@ -2126,19 +2127,22 @@
   }
 
   .item-card {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
+    background: white;
+    border: 2px solid #e5e7eb;
     border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 0.75rem;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
   }
 
   .item-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
   }
 
   .item-header span {
@@ -2153,25 +2157,42 @@
     margin-bottom: 0.75rem;
   }
 
+  @media (max-width: 600px) {
+    .item-details {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+  }
+
   .input-group {
     display: flex;
     flex-direction: column;
   }
 
   .input-group label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #6b7280;
-    margin-bottom: 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   .input-group input {
-    padding: 0.625rem;
+    padding: 0.75rem;
     border: 1px solid #d1d5db;
     border-radius: 6px;
-    font-size: 0.95rem;
+    font-size: 1rem;
     transition: all 0.2s;
     min-height: 48px;
+    box-sizing: border-box;
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .input-group input[type="number"] {
+    font-size: 1rem;
   }
 
   .input-group input:focus {
@@ -2183,8 +2204,11 @@
   .item-total {
     text-align: right;
     font-weight: 700;
-    color: #C41E3A;
-    font-size: 1.05rem;
+    color: #059669;
+    font-size: 1.2rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 0.75rem;
   }
 
   .order-summary {
@@ -2410,12 +2434,7 @@
     padding: 1rem;
     background: white;
     border-top: 1px solid #ddd;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
-    z-index: 100;
+    margin-top: 2rem;
   }
 
   .btn-primary,
