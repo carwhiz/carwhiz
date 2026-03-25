@@ -1449,7 +1449,7 @@
                     {#each filteredComponents as p (p.id)}
                       <button 
                         on:click={() => addServiceComponent(p)}
-                        style="display: block; width: 100%; padding: 0.5rem; text-align: left; border: none; background: white; cursor: pointer; border-bottom: 1px solid #eee;"
+                        style="display: flex; align-items: center; width: 100%; padding: 0.5rem 1rem; min-height: 48px; text-align: left; border: none; background: white; cursor: pointer; border-bottom: 1px solid #eee; font-size: 1rem;"
                       >
                         {p.product_name} - ₹{((p.current_cost || 0) / (p.unit_qty || 1)).toFixed(2)}/pc
                       </button>
@@ -1471,11 +1471,11 @@
                               step="1"
                               value={comp.qty}
                               on:input={(e) => updateServiceComponentQty(idx, e.target.value)}
-                              style="width: 60px; padding: 0.3rem; margin: 0 0.3rem;"
+                              style="width: 80px; padding: 0.5rem; margin: 0 0.5rem; min-height: 48px; text-align: center; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem;"
                             /> × ₹{comp.cost.toFixed(2)} = ₹{(comp.qty * comp.cost).toFixed(2)}
                           </div>
                         </div>
-                        <button on:click={() => removeServiceComponent(idx)} style="background: #fee2e2; color: #dc2626; border: none; padding: 0.4rem 0.6rem; border-radius: 4px; cursor: pointer;">×</button>
+                        <button on:click={() => removeServiceComponent(idx)} style="background: #fee2e2; color: #dc2626; border: none; min-width: 48px; min-height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-size: 1.2rem; font-weight: bold;">×</button>
                       </div>
                     {/each}
                     <div style="background: #f9f9f9; padding: 0.5rem; border-radius: 4px; font-weight: 600; text-align: right;">
@@ -1800,8 +1800,8 @@
   }
 
   .step {
-    width: 38px;
-    height: 38px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1950,7 +1950,7 @@
     display: block;
     width: 100%;
     text-align: left;
-    min-height: 44px;
+    min-height: 48px;
     display: flex;
     align-items: center;
     font-family: inherit;
@@ -1993,6 +1993,7 @@
     color: #111827;
     background: #ffffff;
     transition: all 0.2s ease;
+    min-height: 48px;
   }
 
   .form-section input:focus,
@@ -2025,6 +2026,7 @@
     border: 1px solid #d1d5db;
     border-radius: 8px;
     font-size: 1rem;
+    min-height: 48px;
   }
 
   .phone-inputs {
@@ -2101,7 +2103,10 @@
     font-weight: 700;
     white-space: nowrap;
     transition: all 0.2s ease;
-    min-height: auto;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: auto;
     flex-shrink: 0;
     font-family: inherit;
@@ -2166,6 +2171,7 @@
     border-radius: 6px;
     font-size: 0.95rem;
     transition: all 0.2s;
+    min-height: 48px;
   }
 
   .input-group input:focus {
@@ -2266,9 +2272,12 @@
     font-size: 0.95rem;
     font-weight: 700;
     transition: all 0.2s ease;
-    min-height: 44px;
+    min-height: 48px;
     width: 100%;
     font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .btn-small:active {
@@ -2283,8 +2292,8 @@
     font-size: 1.5rem;
     cursor: pointer;
     padding: 0;
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2369,8 +2378,8 @@
     color: white;
     border: none;
     border-radius: 50%;
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: 44px;
     cursor: pointer;
     font-size: 1.2rem;
     display: flex;
@@ -2544,5 +2553,10 @@
 
   .success-buttons .btn-secondary {
     grid-column: 1 / -1;
+    min-height: 52px;
+  }
+
+  .success-buttons button {
+    min-height: 52px;
   }
 </style>

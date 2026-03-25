@@ -540,10 +540,7 @@
     align-items: flex-start;
     padding: 16px;
     border-bottom: 1px solid #e0e0e0;
-    position: sticky;
-    top: 0;
     background: white;
-    z-index: 10;
   }
 
   .detail-title-section {
@@ -566,8 +563,8 @@
     cursor: pointer;
     color: #666;
     padding: 0;
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -662,8 +659,9 @@
     padding: 8px 12px;
     border: 1px solid #ddd;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 14px;
     font-family: inherit;
+    min-height: 48px;
   }
 
   .add-note-btn {
@@ -676,6 +674,10 @@
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .add-note-btn:hover {
@@ -747,6 +749,10 @@
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .btn-primary {

@@ -37,9 +37,18 @@
     });
     return formatter.format(new Date());
   }
+
+  function getISTMonthYear(): string {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit'
+    });
+    return formatter.format(new Date());
+  }
   
   let selectedDate = getISTDate();
-  let currentMonth = new Date().toISOString().slice(0, 7);
+  let currentMonth = getISTMonthYear();
 
   // QR Scanning state
   let showScanner = false;

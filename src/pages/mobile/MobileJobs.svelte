@@ -330,6 +330,10 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .btn-create:active {
@@ -426,6 +430,11 @@
     font-size: 1.5rem;
     cursor: pointer;
     padding: 0;
+    min-width: 48px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .mjd-status {
@@ -483,10 +492,14 @@
     background: #fee2e2;
     border: none;
     color: #C41E3A;
-    width: 28px;
-    height: 28px;
+    width: 48px;
+    height: 48px;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .mj-add-item-form {
@@ -502,6 +515,8 @@
     margin-bottom: 0.5rem;
     border: 1px solid #e5e7eb;
     border-radius: 4px;
+    min-height: 48px;
+    font-size: 1rem;
   }
 
   .mj-selected-product {
@@ -521,6 +536,9 @@
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    min-height: 48px;
+    font-size: 1rem;
+    font-weight: 600;
   }
 
   .mj-notes-section {
@@ -535,12 +553,13 @@
 
   .mj-note-input textarea {
     width: 100%;
-    padding: 0.5rem;
+    padding: 0.75rem;
     border: 1px solid #e5e7eb;
     border-radius: 4px;
     font-family: inherit;
     resize: vertical;
     min-height: 80px;
+    font-size: 1rem;
   }
 
   .mj-note-btn {
@@ -552,6 +571,9 @@
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    min-height: 48px;
+    font-size: 1rem;
+    font-weight: 600;
   }
 
   .mj-actions {
@@ -566,7 +588,12 @@
     border-radius: 4px;
     cursor: pointer;
     font-weight: 600;
+    font-size: 1rem;
     color: white;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .mj-action-btn.start {
