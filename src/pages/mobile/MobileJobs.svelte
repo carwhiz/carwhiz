@@ -3,6 +3,7 @@
   import { authStore } from '../../stores/authStore';
   import { supabase } from '../../lib/supabaseClient';
   import { setMobilePage } from '../../stores/mobilePageStore';
+  import { canUserCreateResource } from '../../lib/services/permissionService';
 
   const dispatch = createEventDispatcher();
 
@@ -10,6 +11,7 @@
   let mobileViewingJob: any = null;
   let mjLoading = false;
   let mjLoadingDetail = false;
+  let canCreateJobCard = false;
   
   // Edit state
   let mjEditingJob: any = null;
@@ -244,14 +246,36 @@
     await openMobileJobDetail(mobileViewingJob);
   }
 
-  onMount(() => {
+  onMount(async () => {
     loadMobileJobs();
     loadMobileProducts();
     loadCustomers();
     loadVehicles();
+    
+    // Check permission to create job cards
+    const userId = $authStore.user?.id;
+    console.log('[CREATE JOB CARD PERMISSION CHECK] User ID:', userId);
+    
+    if (userId) {
+      try {
+        canCreateJobCard = await canUserCreateResource(userId, 'mobile-create-job-card');
+        console.log('[CREATE JOB CARD PERMISSION CHECK] Result:', canCreateJobCard);
+        console.log('[CREATE JOB CARD PERMISSION CHECK] Can create job card?', canCreateJobCard ? 'YES - BUTTON VISIBLE' : 'NO - BUTTON HIDDEN');
+      } catch (error) {
+        console.warn('[CREATE JOB CARD PERMISSION CHECK] Error:', error);
+        canCreateJobCard = false;
+      }
+    } else {
+      console.log('[CREATE JOB CARD PERMISSION CHECK] No user ID found');
+      canCreateJobCard = false;
+    }
   });
 
   function goToCreateJobCard() {
+    if (!canCreateJobCard) {
+      alert('You do not have permission to create job cards');
+      return;
+    }
     setMobilePage('job-creation', 'Create Job Card');
   }
 
@@ -398,9 +422,11 @@
   <!-- Job List View -->
   <div class="mj-list">
     <div class="mj-header-actions">
-      <button class="btn-create" on:click={goToCreateJobCard}>
-        ➕ Create Job Card
-      </button>
+      {#if canCreateJobCard}
+        <button class="btn-create" on:click={goToCreateJobCard}>
+          ➕ Create Job Card
+        </button>
+      {/if}
     </div>
     {#if mjLoading}
       <p>Loading jobs...</p>
@@ -513,6 +539,21 @@
   .btn-create:active {
     background: var(--brand-secondary);
     transform: translateY(2px);
+  }
+
+  .permission-denied {
+    padding: 1rem;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .permission-denied p {
+    margin: 0;
+    color: #856404;
+    font-weight: 600;
+    font-size: 0.95rem;
   }
 
   .mj-job-card-wrapper {

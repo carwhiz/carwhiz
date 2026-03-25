@@ -93,7 +93,17 @@ export async function canUserViewResource(userId: string, resourceId: string): P
 export async function canUserCreateResource(userId: string, resourceId: string): Promise<boolean> {
   const permissions = await loadUserPermissions(userId);
   const perm = permissions.get(resourceId);
-  return perm?.can_create ?? false;
+  const result = perm?.can_create ?? false;
+  
+  console.log(`[Permission CREATE CHECK] User: ${userId}, Resource: ${resourceId}`, {
+    permissionExists: !!perm,
+    permissionRecord: perm || 'NO RECORD',
+    can_create: perm?.can_create,
+    finalResult: result,
+    accessAllowed: result ? 'ALLOWED' : 'DENIED'
+  });
+  
+  return result;
 }
 
 /**

@@ -3,6 +3,7 @@
   import { supabase } from '../../lib/supabaseClient';
   import { authStore } from '../../stores/authStore';
   import { setMobilePage } from '../../stores/mobilePageStore';
+  import { canUserCreateResource } from '../../lib/services/permissionService';
   import MobilePageWrapper from '../../components/shared/MobilePageWrapper.svelte';
 
   interface JobCard {
@@ -32,6 +33,7 @@
   let loading = true;
   let error: string | null = null;
   let selectedStatus = 'all';
+  let canCreateJobCard = false;
 
   const statusOptions = [
     { value: 'all', label: 'All Active Jobs' },
@@ -174,11 +176,33 @@
   }
 
   function goToCreateJobCard() {
+    if (!canCreateJobCard) {
+      alert('You do not have permission to create job cards');
+      return;
+    }
     setMobilePage('job-creation', 'Create Job Card');
   }
 
-  onMount(() => {
+  onMount(async () => {
     setMobilePage('my-jobs', 'My Jobs');
+    
+    // Check permission to create job cards
+    const userId = $authStore.user?.id;
+    console.log('[CREATE JOB CARD PERMISSION CHECK - MyJobs] User ID:', userId);
+    
+    if (userId) {
+      try {
+        canCreateJobCard = await canUserCreateResource(userId, 'mobile-create-job-card');
+        console.log('[CREATE JOB CARD PERMISSION CHECK - MyJobs] Result:', canCreateJobCard);
+      } catch (error) {
+        console.warn('[CREATE JOB CARD PERMISSION CHECK - MyJobs] Error:', error);
+        canCreateJobCard = false;
+      }
+    } else {
+      console.log('[CREATE JOB CARD PERMISSION CHECK - MyJobs] No user ID found');
+      canCreateJobCard = false;
+    }
+    
     loadJobs();
   });
 </script>
@@ -186,9 +210,11 @@
 <MobilePageWrapper>
   <div class="my-jobs-content">
     <div class="jobs-action-header">
-      <button class="btn-create-job" on:click={goToCreateJobCard}>
-        ➕ Create Job Card
-      </button>
+      {#if canCreateJobCard}
+        <button class="btn-create-job" on:click={goToCreateJobCard}>
+          ➕ Create Job Card
+        </button>
+      {/if}
     </div>
     <div class="filters">
       <select value={selectedStatus} on:change={handleStatusChange} class="status-filter">
