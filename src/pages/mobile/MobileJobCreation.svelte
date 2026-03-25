@@ -594,12 +594,26 @@
     custSaving = true;
     custError = '';
 
+    // Get ledger_type_id for 'Receivables'
+    const { data: ledgerType, error: typeErr } = await supabase
+      .from('ledger_types')
+      .select('id')
+      .eq('name', 'Receivables')
+      .single();
+
+    if (typeErr || !ledgerType) {
+      custError = 'Failed to find Receivables ledger type';
+      custSaving = false;
+      return;
+    }
+
     // Create ledger entry
     const { data: ledger, error: ledgerErr } = await supabase
-      .from('ledgers')
+      .from('ledger')
       .insert({
         ledger_name: newCustName.trim(),
-        ledger_type: 'Receivables',
+        ledger_type_id: ledgerType.id,
+        reference_type: 'customer',
         created_by: $authStore.user?.id || null,
       })
       .select('id')
