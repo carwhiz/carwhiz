@@ -394,16 +394,31 @@
   }
 
   // Generic handlers for popup completion
-  function handleMasterCreated() {
+  function handleMasterCreated(e: CustomEvent) {
     addPopupOpen = false;
-    // Reload the appropriate table
-    if (addPopupTable === 'makes') loadVehicleMasterData().then(() => allMakes = allMakes);
-    else if (addPopupTable === 'generations') loadVehicleMasterData().then(() => allGenerations = allGenerations);
-    else if (addPopupTable === 'generation_types') loadVehicleMasterData().then(() => allGenTypes = allGenTypes);
-    else if (addPopupTable === 'variants') loadVehicleMasterData().then(() => allVariants = allVariants);
-    else if (addPopupTable === 'gearboxes') loadVehicleMasterData().then(() => allGearboxes = allGearboxes);
-    else if (addPopupTable === 'fuel_types') loadVehicleMasterData().then(() => allFuelTypes = allFuelTypes);
-    else if (addPopupTable === 'body_sides') loadVehicleMasterData().then(() => allBodySides = allBodySides);
+    const createdItem = e.detail;
+    
+    // Helper to auto-select the newly created item
+    const autoSelect = () => {
+      if (createdItem && createdItem.id) {
+        if (addPopupTable === 'makes') newVehMakeId = createdItem.id;
+        else if (addPopupTable === 'generations') newVehGenId = createdItem.id;
+        else if (addPopupTable === 'generation_types') newVehGenTypeId = createdItem.id;
+        else if (addPopupTable === 'variants') newVehVariantId = createdItem.id;
+        else if (addPopupTable === 'gearboxes') newVehGearboxId = createdItem.id;
+        else if (addPopupTable === 'fuel_types') newVehFuelTypeId = createdItem.id;
+        else if (addPopupTable === 'body_sides') newVehBodySideId = createdItem.id;
+      }
+    };
+
+    // Reload the appropriate table and then select
+    if (addPopupTable === 'makes') loadVehicleMasterData().then(() => { allMakes = allMakes; autoSelect(); });
+    else if (addPopupTable === 'generations') loadVehicleMasterData().then(() => { allGenerations = allGenerations; autoSelect(); });
+    else if (addPopupTable === 'generation_types') loadVehicleMasterData().then(() => { allGenTypes = allGenTypes; autoSelect(); });
+    else if (addPopupTable === 'variants') loadVehicleMasterData().then(() => { allVariants = allVariants; autoSelect(); });
+    else if (addPopupTable === 'gearboxes') loadVehicleMasterData().then(() => { allGearboxes = allGearboxes; autoSelect(); });
+    else if (addPopupTable === 'fuel_types') loadVehicleMasterData().then(() => { allFuelTypes = allFuelTypes; autoSelect(); });
+    else if (addPopupTable === 'body_sides') loadVehicleMasterData().then(() => { allBodySides = allBodySides; autoSelect(); });
   }
 
   function handleMasterUpdated() {
@@ -1518,7 +1533,7 @@
 
               {#if addPopupOpen}
                 <AddMasterDataPopup
-                  table={addPopupTable}
+                  tableName={addPopupTable}
                   title={addPopupTitle}
                   on:created={handleMasterCreated}
                   on:close={() => addPopupOpen = false}
@@ -1527,7 +1542,7 @@
 
               {#if editPopupOpen}
                 <EditMasterDataPopup
-                  table={editPopupTable}
+                  tableName={editPopupTable}
                   title={editPopupTitle}
                   itemId={editPopupItemId}
                   itemName={editPopupItemName}

@@ -475,12 +475,24 @@
   }
 
   // Generic handlers for popup completion
-  async function handleMasterCreated() {
+  async function handleMasterCreated(e: CustomEvent) {
     addPopupOpen = false;
+    const createdItem = e.detail;
     try {
       console.log(`New ${addPopupTable} created, reloading...`);
       await loadVehicleMasterData();
       console.log('Vehicle master data reloaded successfully');
+      
+      // Auto-select the newly created item
+      if (createdItem && createdItem.id) {
+        if (addPopupTable === 'makes') newVehMakeId = createdItem.id;
+        else if (addPopupTable === 'generations') newVehGenId = createdItem.id;
+        else if (addPopupTable === 'generation_types') newVehGenTypeId = createdItem.id;
+        else if (addPopupTable === 'variants') newVehVariantId = createdItem.id;
+        else if (addPopupTable === 'gearboxes') newVehGearboxId = createdItem.id;
+        else if (addPopupTable === 'fuel_types') newVehFuelTypeId = createdItem.id;
+        else if (addPopupTable === 'body_sides') newVehBodySideId = createdItem.id;
+      }
     } catch (err) {
       console.error('Error reloading master data:', err);
     }
@@ -597,6 +609,11 @@
       // Fallback: load them if for some reason they weren't included
       await loadCustomerVehicles(c.id);
     }
+    if (customerVehicleNumbers.length === 1) {
+      selectedVehicleNumber = customerVehicleNumbers[0].vehicle_number;
+    } else {
+      selectedVehicleNumber = null;
+    }
     showCustomerDropdown = false;
     customerSearch = '';
   }
@@ -694,7 +711,14 @@
     await loadCustomers();
     // Find the newly created customer in the list and set it as selected (will have related data loaded)
     const newCust = customers.find(c => c.id === cust.id);
-    selectedCustomer = newCust || { ...cust, customer_vehicle_numbers: [], customer_phones: [] };
+    if (newCust) {
+      await selectCustomer(newCust);
+    } else {
+      // Manual fallback if not found in list for some reason
+      const fallbackCustomer = { ...cust, customer_vehicle_numbers: vehicleRows };
+      await selectCustomer(fallbackCustomer);
+    }
+    
     showCreateCustomer = false;
     newCustName = '';
     newCustPlace = '';
@@ -1392,7 +1416,7 @@
 
               {#if addPopupOpen}
                 <AddMasterDataPopup
-                  table={addPopupTable}
+                  tableName={addPopupTable}
                   title={addPopupTitle}
                   on:created={handleMasterCreated}
                   on:close={() => addPopupOpen = false}
@@ -1401,7 +1425,7 @@
 
               {#if editPopupOpen}
                 <EditMasterDataPopup
-                  table={editPopupTable}
+                  tableName={editPopupTable}
                   title={editPopupTitle}
                   itemId={editPopupItemId}
                   itemName={editPopupItemName}
