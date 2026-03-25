@@ -311,11 +311,13 @@
   async function loadCustomers() {
     const { data, error } = await supabase
       .from('customers')
-      .select('id, name, place, ledger_id, customer_vehicle_numbers(vehicle_number), customer_phones(phone)')
+      .select('id, name, place, gender, ledger_id, customer_vehicle_numbers(vehicle_number), customer_phones(phone)')
       .order('name', { ascending: true });
 
     if (!error && data) {
       customers = data;
+    } else if (error) {
+      console.error('Error loading customers:', error);
     }
   }
 
@@ -635,7 +637,7 @@
         ledger_id: ledger.id,
         created_by: $authStore.user?.id || null,
       })
-      .select('id, name, place, ledger_id')
+      .select('id, name, place, gender, ledger_id')
       .single();
 
     if (custErr || !cust) {
@@ -650,11 +652,14 @@
       .map(p => ({
         customer_id: cust.id,
         phone: p.trim(),
-        created_by: $authStore.user?.id || null,
       }));
 
     if (phoneRows.length > 0) {
-      await supabase.from('customer_phones').insert(phoneRows);
+      const { error: phoneErr } = await supabase.from('customer_phones').insert(phoneRows);
+      if (phoneErr) {
+        custError = 'Warning: Failed to save phone numbers: ' + (phoneErr?.message || '');
+        console.error('Phone insert error:', phoneErr);
+      }
     }
 
     // Add vehicle numbers
@@ -663,15 +668,20 @@
       .map(v => ({
         customer_id: cust.id,
         vehicle_number: v.trim(),
-        created_by: $authStore.user?.id || null,
       }));
 
     if (vehicleRows.length > 0) {
-      await supabase.from('customer_vehicle_numbers').insert(vehicleRows);
+      const { error: vehicleErr } = await supabase.from('customer_vehicle_numbers').insert(vehicleRows);
+      if (vehicleErr) {
+        custError = 'Warning: Failed to save vehicle numbers: ' + (vehicleErr?.message || '');
+        console.error('Vehicle insert error:', vehicleErr);
+      }
     }
 
     await loadCustomers();
-    selectedCustomer = { ...cust, customer_vehicle_numbers: [], customer_phones: [] };
+    // Find the newly created customer in the list and set it as selected (will have related data loaded)
+    const newCust = customers.find(c => c.id === cust.id);
+    selectedCustomer = newCust || { ...cust, customer_vehicle_numbers: [], customer_phones: [] };
     showCreateCustomer = false;
     newCustName = '';
     newCustPlace = '';
