@@ -27,13 +27,32 @@
   let toDate = '';
   let searchQuery = '';
 
-  $: filteredEntries = entries.filter(e => {
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      if (!e.ledger_name.toLowerCase().includes(q) && !(e.narration || '').toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
+  $: filteredEntries = (() => {
+    console.log('🔍 Filtering entries:', { searchQuery, fromDate, toDate, totalEntries: entries.length });
+    const result = entries.filter(e => {
+      // Extract just the date part (YYYY-MM-DD) from entry_date (in case it has time)
+      const entryDateStr = e.entry_date ? e.entry_date.substring(0, 10) : '';
+      
+      // Apply date range filter (client-side safety check)
+      if (fromDate && entryDateStr < fromDate) {
+        console.log(`❌ Rejecting: ${entryDateStr} < ${fromDate}`);
+        return false;
+      }
+      if (toDate && entryDateStr > toDate) {
+        console.log(`❌ Rejecting: ${entryDateStr} > ${toDate}`);
+        return false;
+      }
+      
+      // Apply search filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        if (!e.ledger_name.toLowerCase().includes(q) && !(e.narration || '').toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+    console.log('✅ Filtered results:', { count: result.length, fromDate, toDate, sampleDates: result.slice(0, 3).map(e => e.entry_date) });
+    return result;
+  })();
 
   $: totalDebit = filteredEntries.reduce((s, e) => s + (e.debit || 0), 0);
   $: totalCredit = filteredEntries.reduce((s, e) => s + (e.credit || 0), 0);
@@ -44,6 +63,7 @@
     const fy = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
     fromDate = `${fy}-04-01`;
     toDate = `${fy + 1}-03-31`;
+    console.log('onMount: Setting default date range:', { fromDate, toDate });
     loadEntries();
   });
 
@@ -76,24 +96,63 @@
 
   async function loadEntries() {
     loading = true;
+    console.clear();
+    console.log('════════════════════════════════════════');
+    console.log('📋 DAY BOOK: LOADING ENTRIES');
+    console.log('════════════════════════════════════════');
+    console.log('📅 Requested date range:', { fromDate, toDate });
+    
     let query = supabase
       .from('ledger_entries')
       .select('id, entry_date, created_at, debit, credit, narration, reference_type, reference_id, ledger:ledger_id(ledger_name)')
-      .order('entry_date', { ascending: true })
-      .order('created_at', { ascending: true });
+      .order('entry_date', { ascending: false })
+      .order('created_at', { ascending: false });
 
-    if (fromDate) query = query.gte('entry_date', fromDate);
-    if (toDate) query = query.lte('entry_date', toDate);
+    if (fromDate) {
+      console.log('✅ Applying fromDate filter (gte):', fromDate);
+      query = query.gte('entry_date', fromDate);
+    }
+    if (toDate) {
+      console.log('✅ Applying toDate filter (lte):', toDate);
+      query = query.lte('entry_date', toDate);
+    }
 
-    const { data } = await query;
+    const { data, error, status } = await query;
+    
+    if (error) {
+      console.error('🚨 QUERY ERROR:', error);
+    }
+    
+    console.log('📦 DATABASE RETURNED:', { 
+      count: data?.length || 0,
+      status,
+      error: error ? error.message : 'none'
+    });
+    
+    if (data && data.length > 0) {
+      const dates = data.map(d => d.entry_date.substring(0, 10)).sort();
+      const uniqueDates = [...new Set(dates)];
+      console.log('📅 DATE RANGE IN RESULT:');
+      console.log('   Earliest:', dates[dates.length - 1]);
+      console.log('   Latest:', dates[0]);
+      console.log('   Unique dates:', uniqueDates.length, uniqueDates);
+    }
+    
     entries = (data || []).map((e: any) => ({
       ...e,
       ledger_name: e.ledger?.ledger_name || '—',
     }));
+    
+    console.log('✅ ENTRIES LOADED:', entries.length);
+    console.log('════════════════════════════════════════\n');
     loading = false;
   }
 
   function applyFilters() {
+    console.log('🔍 applyFilters clicked with:', { fromDate, toDate, searchQuery });
+    if (!fromDate || !toDate) {
+      console.warn('⚠️ Warning: both dates must be set');
+    }
     loadEntries();
   }
 
@@ -136,15 +195,19 @@
   <div class="filters-bar">
     <div class="filter-group">
       <label for="db-from">From</label>
-      <input id="db-from" type="date" bind:value={fromDate} on:change={applyFilters} />
+      <input id="db-from" type="date" bind:value={fromDate} />
     </div>
     <div class="filter-group">
       <label for="db-to">To</label>
-      <input id="db-to" type="date" bind:value={toDate} on:change={applyFilters} />
+      <input id="db-to" type="date" bind:value={toDate} />
     </div>
     <div class="filter-group search-group">
       <label for="db-search">Search</label>
       <input id="db-search" type="text" placeholder="Ledger or narration..." bind:value={searchQuery} />
+    </div>
+    <button class="apply-btn" on:click={applyFilters}>Apply Filter</button>
+    <div class="debug-info" title={`DB Entries: ${entries.length} | After Filter: ${filteredEntries.length}`}>
+      <strong>{entries.length}</strong> entries loaded | <strong>{filteredEntries.length}</strong> displayed
     </div>
   </div>
 
@@ -219,6 +282,9 @@
   .filter-group label { font-size:11px; font-weight:600; color:#6b7280; }
   .filter-group input { padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; outline:none; }
   .filter-group input:focus { border-color:#f59e0b; }
+  .apply-btn { padding:6px 14px; background:#f59e0b; color:white; border:none; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; }
+  .apply-btn:hover { background:#d97706; }
+  .debug-info { font-size:12px; color:#666; white-space:nowrap; background:#f0f0f0; padding:4px 8px; border-radius:4px; font-weight:500; }
 
   .table-wrap { flex:1; overflow:auto; padding:0 18px 12px; width:100%; box-sizing:border-box; }
   .date-group { margin-top:16px; }
