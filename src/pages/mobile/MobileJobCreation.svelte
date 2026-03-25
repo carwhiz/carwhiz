@@ -366,13 +366,13 @@
     ];
 
     const results = await Promise.all(promises);
-    if (results[0].data) allMakes = results[0].data;
-    if (results[1].data) allGenerations = results[1].data;
-    if (results[2].data) allGenTypes = results[2].data;
-    if (results[3].data) allVariants = results[3].data;
-    if (results[4].data) allGearboxes = results[4].data;
-    if (results[5].data) allFuelTypes = results[5].data;
-    if (results[6].data) allBodySides = results[6].data;
+    if (results[0].data) allMakes = [...results[0].data];
+    if (results[1].data) allGenerations = [...results[1].data];
+    if (results[2].data) allGenTypes = [...results[2].data];
+    if (results[3].data) allVariants = [...results[3].data];
+    if (results[4].data) allGearboxes = [...results[4].data];
+    if (results[5].data) allFuelTypes = [...results[5].data];
+    if (results[6].data) allBodySides = [...results[6].data];
   }
 
   // ---- Vehicle Master Data Handlers ----
@@ -475,28 +475,26 @@
   }
 
   // Generic handlers for popup completion
-  function handleMasterCreated() {
+  async function handleMasterCreated() {
     addPopupOpen = false;
-    // Reload the appropriate table
-    if (addPopupTable === 'makes') loadVehicleMasterData().then(() => allMakes = allMakes);
-    else if (addPopupTable === 'generations') loadVehicleMasterData().then(() => allGenerations = allGenerations);
-    else if (addPopupTable === 'generation_types') loadVehicleMasterData().then(() => allGenTypes = allGenTypes);
-    else if (addPopupTable === 'variants') loadVehicleMasterData().then(() => allVariants = allVariants);
-    else if (addPopupTable === 'gearboxes') loadVehicleMasterData().then(() => allGearboxes = allGearboxes);
-    else if (addPopupTable === 'fuel_types') loadVehicleMasterData().then(() => allFuelTypes = allFuelTypes);
-    else if (addPopupTable === 'body_sides') loadVehicleMasterData().then(() => allBodySides = allBodySides);
+    try {
+      console.log(`New ${addPopupTable} created, reloading...`);
+      await loadVehicleMasterData();
+      console.log('Vehicle master data reloaded successfully');
+    } catch (err) {
+      console.error('Error reloading master data:', err);
+    }
   }
 
-  function handleMasterUpdated() {
+  async function handleMasterUpdated() {
     editPopupOpen = false;
-    // Reload the appropriate table
-    if (editPopupTable === 'makes') loadVehicleMasterData().then(() => allMakes = allMakes);
-    else if (editPopupTable === 'generations') loadVehicleMasterData().then(() => allGenerations = allGenerations);
-    else if (editPopupTable === 'generation_types') loadVehicleMasterData().then(() => allGenTypes = allGenTypes);
-    else if (editPopupTable === 'variants') loadVehicleMasterData().then(() => allVariants = allVariants);
-    else if (editPopupTable === 'gearboxes') loadVehicleMasterData().then(() => allGearboxes = allGearboxes);
-    else if (editPopupTable === 'fuel_types') loadVehicleMasterData().then(() => allFuelTypes = allFuelTypes);
-    else if (editPopupTable === 'body_sides') loadVehicleMasterData().then(() => allBodySides = allBodySides);
+    try {
+      console.log(`${editPopupTable} updated, reloading...`);
+      await loadVehicleMasterData();
+      console.log('Vehicle master data reloaded successfully');
+    } catch (err) {
+      console.error('Error reloading master data:', err);
+    }
   }
 
   async function loadUnits() {
@@ -568,8 +566,17 @@
       .select('vehicle_number')
       .eq('customer_id', customerId);
 
-    if (!error && data) {
+    if (error) {
+      console.error('Error loading vehicle numbers:', error);
+      customerVehicleNumbers = [];
+      return;
+    }
+
+    if (data) {
       customerVehicleNumbers = data;
+      console.log('Loaded vehicle numbers:', data);
+    } else {
+      customerVehicleNumbers = [];
     }
   }
 
@@ -583,7 +590,13 @@
 
   async function selectCustomer(c: any) {
     selectedCustomer = c;
-    await loadCustomerVehicles(c.id);
+    // Use vehicle numbers directly from the customer object that was already loaded with relationships
+    if (c.customer_vehicle_numbers && Array.isArray(c.customer_vehicle_numbers)) {
+      customerVehicleNumbers = c.customer_vehicle_numbers;
+    } else {
+      // Fallback: load them if for some reason they weren't included
+      await loadCustomerVehicles(c.id);
+    }
     showCustomerDropdown = false;
     customerSearch = '';
   }
