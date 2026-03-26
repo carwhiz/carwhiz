@@ -8,6 +8,7 @@
     id: string;
     user_name: string;
     email: string;
+    basic_salary: number;
   }
 
   interface AttendanceRecord {
@@ -57,6 +58,11 @@
     absentDays: number;
     expectedDays: number;
     workedDays: number;
+    perDaySalary: number;
+    perHourSalary: number;
+    monthlySalary: number;
+    actualByDays: number;
+    actualByHours: number;
   }
 
   let dateFrom = '';
@@ -101,7 +107,7 @@
 
     // Load all data in parallel
     const [empRes, attRes, specRes, regRes, leaveRes] = await Promise.all([
-      supabase.from('users').select('id, user_name, email').eq('is_employee', true).order('user_name'),
+      supabase.from('users').select('id, user_name, email, basic_salary').eq('is_employee', true).order('user_name'),
       supabase.from('attendance').select('user_id, date, check_in, check_out')
         .gte('date', dateFrom).lte('date', dateTo),
       supabase.from('special_shifts').select('employee_id, shift_date, start_time, end_time, start_buffer, end_buffer, working_hours, overlaps_next_day')
@@ -240,7 +246,13 @@
         return { date, checkIn, checkOut, workedHours, shift, isLeave, leaveName, lateIn, overtime, isAbsent };
       });
 
-      return { employee: emp, days, totalWorked, totalExpected, totalLate, totalOvertime, leaveDays, absentDays, expectedDays, workedDays };
+      const monthlySalary = emp.basic_salary || 0;
+      const perDaySalary = expectedDays > 0 ? monthlySalary / expectedDays : 0;
+      const perHourSalary = totalExpected > 0 ? monthlySalary / totalExpected : 0;
+      const actualByDays = perDaySalary * workedDays;
+      const actualByHours = perHourSalary * totalWorked;
+
+      return { employee: emp, days, totalWorked, totalExpected, totalLate, totalOvertime, leaveDays, absentDays, expectedDays, workedDays, perDaySalary, perHourSalary, monthlySalary, actualByDays, actualByHours };
     });
 
     loading = false;
@@ -281,6 +293,17 @@
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     return days[new Date(dateStr).getDay()];
   }
+
+  let expandedRows: Set<string> = new Set();
+
+  function toggleExpand(empId: string) {
+    if (expandedRows.has(empId)) {
+      expandedRows.delete(empId);
+    } else {
+      expandedRows.add(empId);
+    }
+    expandedRows = expandedRows; // trigger reactivity
+  }
 </script>
 
 <div class="container">
@@ -310,59 +333,29 @@
       <div class="table-wrapper">
         <table>
           <thead>
-            <tr class="header-row-1">
-              <th class="sticky-col col-employee" rowspan="2">Employee</th>
-              {#each dates as date}
-                <th colspan="5" class="date-header {new Date(date).getDay() === 0 ? 'sunday' : ''}">
-                  <div class="date-label">{formatDateLabel(date)}</div>
-                  <div class="day-name">{getDayName(date)}</div>
-                </th>
-              {/each}
-              <th colspan="8" class="totals-header">Totals</th>
-            </tr>
-            <tr class="header-row-2">
-              {#each dates as _}
-                <th class="sub-header">In</th>
-                <th class="sub-header">Out</th>
-                <th class="sub-header">Worked</th>
-                <th class="sub-header">Late</th>
-                <th class="sub-header">OT</th>
-              {/each}
-              <th class="sub-header total-sub">Exp Days</th>
-              <th class="sub-header total-sub">Wkd Days</th>
-              <th class="sub-header total-sub">Worked</th>
-              <th class="sub-header total-sub">Expected</th>
-              <th class="sub-header total-sub">Late</th>
-              <th class="sub-header total-sub">OT</th>
-              <th class="sub-header total-sub">Leaves</th>
-              <th class="sub-header total-sub">Absent</th>
+            <tr>
+              <th class="col-expand"></th>
+              <th class="col-employee">Employee</th>
+              <th class="total-sub">Exp Days</th>
+              <th class="total-sub">Wkd Days</th>
+              <th class="total-sub">Worked Hrs</th>
+              <th class="total-sub">Expected Hrs</th>
+              <th class="total-sub">Late</th>
+              <th class="total-sub">OT</th>
+              <th class="total-sub">Leaves</th>
+              <th class="total-sub">Absent</th>
+              <th class="total-sub">Salary</th>
+              <th class="total-sub">/Day</th>
+              <th class="total-sub">/Hour</th>
+              <th class="total-sub">Actual (Days)</th>
+              <th class="total-sub">Actual (Hrs)</th>
             </tr>
           </thead>
           <tbody>
             {#each employeeRows as row}
-              <tr>
-                <td class="sticky-col col-employee emp-name">{row.employee.user_name}</td>
-                {#each row.days as day}
-                  {#if day.isLeave}
-                    <td colspan="5" class="leave-cell" title={day.leaveName}>
-                      <span class="leave-badge">🏖 {day.leaveName || 'Leave'}</span>
-                    </td>
-                  {:else if day.isAbsent}
-                    <td colspan="5" class="absent-cell">
-                      <span class="absent-badge">✖ Absent</span>
-                    </td>
-                  {:else if !day.shift}
-                    <td colspan="5" class="no-shift-cell">
-                      <span class="no-shift-badge">No Shift</span>
-                    </td>
-                  {:else}
-                    <td class="data-cell">{formatTime(day.checkIn)}</td>
-                    <td class="data-cell">{formatTime(day.checkOut)}</td>
-                    <td class="data-cell hours-cell">{formatHours(day.workedHours)}</td>
-                    <td class="data-cell {day.lateIn > 0 ? 'late-cell' : ''}">{day.lateIn > 0 ? formatMins(day.lateIn) : '-'}</td>
-                    <td class="data-cell {day.overtime > 0 ? 'ot-cell' : ''}">{day.overtime > 0 ? formatMins(day.overtime) : '-'}</td>
-                  {/if}
-                {/each}
+              <tr class="summary-row" on:click={() => toggleExpand(row.employee.id)}>
+                <td class="expand-btn">{expandedRows.has(row.employee.id) ? '▼' : '▶'}</td>
+                <td class="emp-name">{row.employee.user_name}</td>
                 <td class="total-cell">{row.expectedDays}</td>
                 <td class="total-cell">{row.workedDays}</td>
                 <td class="total-cell">{formatHours(row.totalWorked)}</td>
@@ -371,7 +364,70 @@
                 <td class="total-cell {row.totalOvertime > 0 ? 'ot-total' : ''}">{formatMins(row.totalOvertime)}</td>
                 <td class="total-cell">{row.leaveDays}</td>
                 <td class="total-cell {row.absentDays > 0 ? 'absent-total' : ''}">{row.absentDays}</td>
+                <td class="total-cell salary-cell">₹{row.monthlySalary.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="total-cell salary-cell">₹{row.perDaySalary.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="total-cell salary-cell">₹{row.perHourSalary.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="total-cell actual-cell">₹{row.actualByDays.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="total-cell actual-cell">₹{row.actualByHours.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
               </tr>
+              {#if expandedRows.has(row.employee.id)}
+                <tr class="detail-row">
+                  <td colspan="15" class="detail-td">
+                    <div class="detail-table-wrapper">
+                      <table class="detail-table">
+                        <thead>
+                          <tr>
+                            {#each dates as date}
+                              <th class="date-header {new Date(date).getDay() === 0 ? 'sunday' : ''}">
+                                <div class="date-label">{formatDateLabel(date)}</div>
+                                <div class="day-name">{getDayName(date)}</div>
+                              </th>
+                            {/each}
+                          </tr>
+                          <tr>
+                            {#each dates as _}
+                              <th class="sub-header">Status</th>
+                            {/each}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            {#each row.days as day}
+                              {#if day.isLeave}
+                                <td class="leave-cell" title={day.leaveName}>
+                                  <span class="leave-badge">🏖 {day.leaveName || 'Leave'}</span>
+                                </td>
+                              {:else if day.isAbsent}
+                                <td class="absent-cell">
+                                  <span class="absent-badge">✖ Absent</span>
+                                </td>
+                              {:else if !day.shift}
+                                <td class="no-shift-cell">
+                                  <span class="no-shift-badge">No Shift</span>
+                                </td>
+                              {:else}
+                                <td class="detail-data-cell">
+                                  <div class="detail-in-out">
+                                    <span>In: {formatTime(day.checkIn)}</span>
+                                    <span>Out: {formatTime(day.checkOut)}</span>
+                                  </div>
+                                  <div class="detail-hours">{formatHours(day.workedHours)}</div>
+                                  {#if day.lateIn > 0}
+                                    <div class="detail-late">Late: {formatMins(day.lateIn)}</div>
+                                  {/if}
+                                  {#if day.overtime > 0}
+                                    <div class="detail-ot">OT: {formatMins(day.overtime)}</div>
+                                  {/if}
+                                </td>
+                              {/if}
+                            {/each}
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              {/if}
             {/each}
           </tbody>
         </table>
@@ -466,8 +522,6 @@
   }
 
   .table-wrapper {
-    overflow: auto;
-    max-height: calc(100vh - 160px);
     border: 1px solid #e5e7eb;
     border-radius: 6px;
     background: white;
@@ -475,61 +529,28 @@
 
   table {
     border-collapse: collapse;
-    font-size: 11px;
-    white-space: nowrap;
-    width: max-content;
-    min-width: 100%;
+    font-size: 12px;
+    width: 100%;
   }
 
-  thead {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-  }
-
-  .header-row-1 th, .header-row-2 th {
+  thead th {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    padding: 6px 4px;
+    padding: 8px 12px;
     text-align: center;
     font-weight: 600;
     color: #475569;
+    font-size: 12px;
   }
 
-  .date-header {
-    min-width: 200px;
-    border-bottom: none !important;
+  .col-expand {
+    width: 36px;
+    min-width: 36px;
   }
 
-  .date-header.sunday {
-    background: #fef2f2 !important;
-  }
-
-  .date-label {
-    font-size: 13px;
-    font-weight: 700;
-    color: #1e293b;
-  }
-
-  .day-name {
-    font-size: 10px;
-    font-weight: 500;
-    color: #94a3b8;
-    margin-top: 1px;
-  }
-
-  .totals-header {
-    background: #eef2ff !important;
-    color: #3730a3;
-  }
-
-  .sub-header {
-    font-size: 10px;
-    font-weight: 600;
-    color: #64748b;
-    padding: 4px 6px !important;
-    min-width: 50px;
-    border-top: none !important;
+  .col-employee {
+    text-align: left;
+    min-width: 160px;
   }
 
   .total-sub {
@@ -537,67 +558,155 @@
     color: #4338ca;
   }
 
-  .sticky-col {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: white;
+  .summary-row {
+    cursor: pointer;
+    transition: background 0.15s;
   }
 
-  thead .sticky-col {
-    z-index: 4;
-    background: #f8fafc;
+  .summary-row:hover {
+    background: #f0f4ff;
   }
 
-  .col-employee {
-    min-width: 140px;
-    max-width: 180px;
-    text-align: left;
-    padding: 8px 10px !important;
+  .expand-btn {
+    text-align: center;
+    font-size: 11px;
+    color: #6b7280;
+    padding: 8px;
+    user-select: none;
   }
 
   .emp-name {
     font-weight: 600;
     color: #1e293b;
-    border-right: 2px solid #e2e8f0;
+    text-align: left;
+    padding: 8px 12px;
   }
 
-  tbody tr {
-    border-bottom: 1px solid #f1f5f9;
-  }
-
-  tbody tr:hover {
-    background: #f8fafc;
-  }
-
-  tbody tr:hover .sticky-col {
-    background: #f8fafc;
-  }
-
-  td {
+  tbody td {
     border: 1px solid #f1f5f9;
-    padding: 5px 6px;
+    padding: 8px 10px;
     text-align: center;
     color: #475569;
-    vertical-align: middle;
+    font-size: 12px;
   }
 
-  .data-cell {
+  .total-cell {
+    font-weight: 700;
+    color: #4338ca;
+    background: #fafaff;
+  }
+
+  .salary-cell {
+    color: #059669;
+  }
+
+  .actual-cell {
+    color: #0369a1;
+    font-weight: 800;
+  }
+
+  .late-total {
+    color: #dc2626;
+  }
+
+  .ot-total {
+    color: #16a34a;
+  }
+
+  .absent-total {
+    color: #dc2626;
+  }
+
+  /* Detail row */
+  .detail-row {
+    background: #f8fafc;
+  }
+
+  .detail-td {
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  .detail-table-wrapper {
+    overflow-x: auto;
+    padding: 8px 12px 12px 48px;
+  }
+
+  .detail-table {
+    border-collapse: collapse;
+    font-size: 11px;
+    white-space: nowrap;
+    width: max-content;
+  }
+
+  .detail-table thead th {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 5px 8px;
     font-size: 11px;
   }
 
-  .hours-cell {
-    font-weight: 600;
-    color: #1e40af;
+  .date-header {
+    min-width: 110px;
+    text-align: center;
   }
 
-  .late-cell {
+  .date-header.sunday {
+    background: #fef2f2 !important;
+  }
+
+  .date-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .day-name {
+    font-size: 9px;
+    font-weight: 500;
+    color: #94a3b8;
+  }
+
+  .sub-header {
+    font-size: 9px;
+    font-weight: 600;
+    color: #94a3b8;
+    padding: 3px 6px !important;
+  }
+
+  .detail-table tbody td {
+    border: 1px solid #e2e8f0;
+    padding: 6px 8px;
+    vertical-align: top;
+    font-size: 11px;
+  }
+
+  .detail-data-cell {
+    background: white;
+  }
+
+  .detail-in-out {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 10px;
+    color: #475569;
+  }
+
+  .detail-hours {
+    font-weight: 700;
+    color: #1e40af;
+    font-size: 11px;
+    margin-top: 3px;
+  }
+
+  .detail-late {
     color: #dc2626;
     font-weight: 600;
     font-size: 10px;
   }
 
-  .ot-cell {
+  .detail-ot {
     color: #16a34a;
     font-weight: 600;
     font-size: 10px;
@@ -606,18 +715,19 @@
   .leave-cell {
     background: #fef3c7;
     text-align: center;
+    vertical-align: middle;
   }
 
   .leave-badge {
     font-size: 10px;
     font-weight: 600;
     color: #92400e;
-    white-space: nowrap;
   }
 
   .no-shift-cell {
     background: #f9fafb;
     text-align: center;
+    vertical-align: middle;
   }
 
   .no-shift-badge {
@@ -628,31 +738,12 @@
   .absent-cell {
     background: #fef2f2;
     text-align: center;
+    vertical-align: middle;
   }
 
   .absent-badge {
     font-size: 10px;
     font-weight: 700;
     color: #dc2626;
-  }
-
-  .absent-total {
-    color: #dc2626;
-  }
-
-  .total-cell {
-    font-weight: 700;
-    background: #f5f3ff;
-    color: #4338ca;
-    border-left: 1px solid #e2e8f0;
-    font-size: 11px;
-  }
-
-  .late-total {
-    color: #dc2626;
-  }
-
-  .ot-total {
-    color: #16a34a;
   }
 </style>
