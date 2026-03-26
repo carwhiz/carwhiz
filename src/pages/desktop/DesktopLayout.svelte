@@ -58,6 +58,8 @@
   import AttendanceReportWindow from '../../components/windows/hr/reports/AttendanceReportWindow.svelte';
   import AttendanceQRWindow from '../../components/windows/hr/AttendanceQRWindow.svelte';
   import SalaryManagement from '../../components/windows/hr/SalaryManagement.svelte';
+  import ManageEmployeeWindow from '../../components/windows/hr/ManageEmployeeWindow.svelte';
+  import ManageShiftWindow from '../../components/windows/hr/ManageShiftWindow.svelte';
 
   let expandedSections: Record<string, boolean> = { finance: false, products: false, appcontrol: false, hr: false };
   let expandedSubs: Record<string, boolean> = {
@@ -152,6 +154,9 @@
     'products-stock-report': StockReportWindow,
     // HR > Reports
     'hr-attendance-report': AttendanceReportWindow,
+    // HR > Manage
+    'hr-manage-employee': ManageEmployeeWindow,
+    'hr-manage-shift': ManageShiftWindow,
     // HR > Operations
     'hr-attendance-qr': AttendanceQRWindow,
     'hr-salary-management': SalaryManagement,
@@ -359,6 +364,8 @@
           </button>
           {#if expandedSubs['hr-manage']}
             <div class="sub-items">
+              <button class="nav-item" on:click={() => openWindow('hr-manage-employee', 'Manage Employee')}>👥 Manage Employee</button>
+              <button class="nav-item" on:click={() => openWindow('hr-manage-shift', 'Manage Shift')}>⏰ Manage Shift</button>
               <button class="nav-item" on:click={() => openWindow('hr-salary-management', 'Salary Management')}>💰 Salary Management</button>
             </div>
           {/if}

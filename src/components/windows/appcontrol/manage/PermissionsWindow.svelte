@@ -83,6 +83,8 @@
     {
       group: 'HR — Management',
       resources: [
+        { id: 'hr-manage-employee', label: 'Manage Employee' },
+        { id: 'hr-manage-shift', label: 'Manage Shift' },
         { id: 'hr-salary-management', label: 'Salary Management' },
       ]
     },

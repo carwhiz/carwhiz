@@ -267,280 +267,47 @@
 </div>
 
 <style>
-  .report-window {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: #fafafa;
-    box-sizing: border-box;
-  }
+  .report-window { width:100%; height:100%; display:flex; flex-direction:column; background:#fafafa; box-sizing:border-box; }
+  .report-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; }
+  .header-left { display:flex; align-items:center; gap:10px; }
+  .header-right { display:flex; align-items:center; gap:10px; }
+  .back-btn { display:flex; align-items:center; justify-content:center; width:32px; height:32px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; color:#374151; transition:all .15s; }
+  .back-btn:hover { background:#fef3c7; border-color:#f59e0b; color:#d97706; }
+  .report-header h2 { margin:0; font-size:17px; font-weight:700; color:#111827; }
+  .record-count { font-size:12px; color:#9ca3af; }
 
-  .report-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 18px;
-    background: white;
-    border-bottom: 1px solid #e5e7eb;
-    flex-shrink: 0;
-  }
+  .filters-bar { display:flex; align-items:flex-end; gap:12px; padding:12px 18px; background:white; border-bottom:1px solid #e5e7eb; flex-shrink:0; flex-wrap:wrap; }
+  .filter-group { display:flex; flex-direction:column; gap:3px; }
+  .search-group { flex:1; min-width:150px; }
+  .filter-group label { font-size:11px; font-weight:600; color:#6b7280; }
+  .filter-group input { padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; outline:none; }
+  .filter-group input:focus { border-color:#f59e0b; }
+  .apply-btn { padding:6px 14px; background:#f59e0b; color:white; border:none; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; }
+  .apply-btn:hover { background:#d97706; }
+  .debug-info { font-size:12px; color:#666; white-space:nowrap; background:#f0f0f0; padding:4px 8px; border-radius:4px; font-weight:500; }
 
-  .header-left,
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+  .table-wrap { flex:1; overflow:auto; padding:0 18px 12px; width:100%; box-sizing:border-box; }
+  .date-group { margin-top:16px; }
+  .date-header { font-size:13px; font-weight:700; color:#1e40af; background:#eff6ff; padding:6px 12px; border-radius:6px 6px 0 0; border:1px solid #bfdbfe; border-bottom:none; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead th { background:#f9fafb; padding:8px 12px; text-align:left; font-weight:600; color:#374151; border-bottom:2px solid #e5e7eb; border-right:1px solid #e5e7eb; }
+  tbody td { padding:7px 12px; border-bottom:1px solid #f3f4f6; border-right:1px solid #e5e7eb; color:#111827; }
+  tbody tr:hover { background:#fffbeb; }
+  tfoot td { padding:8px 12px; font-weight:700; background:#f9fafb; border-top:2px solid #e5e7eb; }
+  .ledger-name { font-weight:600; }
+  .narration { color:#6b7280; font-size:12px; }
+  .ref-badge { display:inline-block; padding:2px 6px; background:#f3f4f6; border-radius:4px; font-size:11px; font-weight:500; color:#374151; }
+  .amt { text-align:right; font-family:'Courier New',monospace; white-space:nowrap; }
+  .dr { color:#dc2626; }
+  .cr { color:#16a34a; }
+  .day-total-label { text-align:right; font-weight:700; color:#374151; }
 
-  .back-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    cursor: pointer;
-    color: #374151;
-    transition: all 0.15s;
-  }
+  .grand-total-bar { display:flex; align-items:center; justify-content:center; gap:24px; padding:14px 18px; background:white; border-top:2px solid #e5e7eb; flex-shrink:0; }
+  .gt-label { font-size:14px; font-weight:700; color:#111827; }
+  .gt-dr { font-size:14px; font-weight:700; color:#dc2626; font-family:'Courier New',monospace; }
+  .gt-cr { font-size:14px; font-weight:700; color:#16a34a; font-family:'Courier New',monospace; }
+  .gt-balanced { font-size:12px; font-weight:700; color:#16a34a; background:#dcfce7; padding:3px 10px; border-radius:4px; }
+  .gt-diff { font-size:12px; font-weight:700; color:#dc2626; background:#fee2e2; padding:3px 10px; border-radius:4px; }
 
-  .back-btn:hover {
-    background: #fef3c7;
-    border-color: #f59e0b;
-    color: #d97706;
-  }
-
-  .report-header h2 {
-    margin: 0;
-    font-size: 17px;
-    font-weight: 700;
-    color: #111827;
-  }
-
-  .record-count {
-    font-size: 12px;
-    color: #9ca3af;
-  }
-
-  .filters-bar {
-    display: flex;
-    align-items: flex-end;
-    gap: 12px;
-    padding: 12px 18px;
-    background: white;
-    border-bottom: 1px solid #e5e7eb;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-
-  .filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-
-  .search-group {
-    flex: 1;
-    min-width: 150px;
-  }
-
-  .filter-group label {
-    font-size: 11px;
-    font-weight: 600;
-    color: #6b7280;
-  }
-
-  .filter-group input {
-    padding: 6px 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 13px;
-    outline: none;
-  }
-
-  .filter-group input:focus {
-    border-color: #f59e0b;
-  }
-
-  .apply-btn {
-    padding: 6px 14px;
-    background: #f59e0b;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .apply-btn:hover {
-    background: #d97706;
-  }
-
-  .debug-info {
-    font-size: 12px;
-    color: #666;
-    white-space: nowrap;
-    background: #f0f0f0;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-weight: 500;
-  }
-
-  .table-wrap {
-    flex: 1;
-    overflow: auto;
-    padding: 0 18px 12px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .date-group {
-    margin-top: 16px;
-  }
-
-  .date-header {
-    font-size: 13px;
-    font-weight: 700;
-    color: #1e40af;
-    background: #eff6ff;
-    padding: 6px 12px;
-    border-radius: 6px 6px 0 0;
-    border: 1px solid #bfdbfe;
-    border-bottom: none;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    border: 1px solid #e5e7eb;
-  }
-
-  thead th {
-    background: #f9fafb;
-    padding: 8px 12px;
-    text-align: left;
-    font-weight: 600;
-    color: #374151;
-    border-bottom: 2px solid #e5e7eb;
-    border-right: 1px solid #e5e7eb;
-  }
-
-  tbody td {
-    padding: 7px 12px;
-    border-bottom: 1px solid #f3f4f6;
-    border-right: 1px solid #e5e7eb;
-    color: #111827;
-  }
-
-  tbody tr:hover {
-    background: #fffbeb;
-  }
-
-  tfoot td {
-    padding: 8px 12px;
-    font-weight: 700;
-    background: #f9fafb;
-    border-top: 2px solid #e5e7eb;
-  }
-
-  .ledger-name {
-    font-weight: 600;
-  }
-
-  .narration {
-    color: #6b7280;
-    font-size: 12px;
-  }
-
-  .ref-badge {
-    display: inline-block;
-    padding: 2px 6px;
-    background: #f3f4f6;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 500;
-    color: #374151;
-  }
-
-  .amt {
-    text-align: right;
-    font-family: 'Courier New', monospace;
-    white-space: nowrap;
-  }
-
-  .dr {
-    color: #dc2626;
-  }
-
-  .cr {
-    color: #16a34a;
-  }
-
-  .day-total-label {
-    text-align: right;
-    font-weight: 700;
-    color: #374151;
-  }
-
-  .grand-total-bar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 24px;
-    padding: 14px 18px;
-    background: white;
-    border-top: 2px solid #e5e7eb;
-    flex-shrink: 0;
-  }
-
-  .gt-label {
-    font-size: 14px;
-    font-weight: 700;
-    color: #111827;
-  }
-
-  .gt-dr {
-    font-size: 14px;
-    font-weight: 700;
-    color: #dc2626;
-    font-family: 'Courier New', monospace;
-  }
-
-  .gt-cr {
-    font-size: 14px;
-    font-weight: 700;
-    color: #16a34a;
-    font-family: 'Courier New', monospace;
-  }
-
-  .gt-balanced {
-    font-size: 12px;
-    font-weight: 700;
-    color: #16a34a;
-    background: #dcfce7;
-    padding: 3px 10px;
-    border-radius: 4px;
-  }
-
-  .gt-diff {
-    font-size: 12px;
-    font-weight: 700;
-    color: #dc2626;
-    background: #fee2e2;
-    padding: 3px 10px;
-    border-radius: 4px;
-  }
-
-  .status-msg {
-    text-align: center;
-    padding: 40px 20px;
-    color: #9ca3af;
-    font-size: 14px;
-  }
+  .status-msg { text-align:center; padding:40px 20px; color:#9ca3af; font-size:14px; }
 </style>

@@ -155,7 +155,7 @@
     if (paymentType === 'vendor' && !selectedVendor) { saveError = 'Please select a vendor'; return; }
     if (paymentType === 'expense' && !selectedExpenseLedger) { saveError = 'Please select an expense ledger'; return; }
     if (!amount || parseFloat(amount) <= 0) { saveError = 'Enter a valid amount'; return; }
-    // Bank/Cash ledger is optional - only needed if you want to track bank balance
+    if (!cash_bank_ledger_id) { saveError = 'Please select a Cash/Bank ledger for payment'; return; }
 
     saving = true;
     saveError = '';
@@ -180,19 +180,32 @@
       return;
     }
 
-    // ---- Ledger entries (simple one-way recording) ----
+    // ---- Ledger entries (two-way debit and credit) ----
     const payAmt = parseFloat(amount);
     const ledgerEntries: any[] = [];
     const targetLedgerId = paymentType === 'vendor' ? (selectedVendor?.ledger_id || null) : (selectedExpenseLedger?.id || null);
 
-    // Only debit the target ledger (vendor or expense)
-    // No credit entry - we don't track where money came from
+    // 1. Debit the target ledger (vendor or expense) - amount being paid
     if (targetLedgerId && payAmt > 0) {
       ledgerEntries.push({
         entry_date: payment_date,
         ledger_id: targetLedgerId,
         debit: payAmt,
         credit: 0,
+        narration: paymentType === 'vendor' ? `Vendor Payment - ${payment_no}` : `Expense Payment - ${payment_no}`,
+        reference_type: 'payments',
+        reference_id: pay.id,
+        created_by: $authStore.user?.id || null,
+      });
+    }
+
+    // 2. Credit the cash/bank ledger - money going out
+    if (cash_bank_ledger_id && payAmt > 0) {
+      ledgerEntries.push({
+        entry_date: payment_date,
+        ledger_id: cash_bank_ledger_id,
+        debit: 0,
+        credit: payAmt,
         narration: paymentType === 'vendor' ? `Vendor Payment - ${payment_no}` : `Expense Payment - ${payment_no}`,
         reference_type: 'payments',
         reference_id: pay.id,
