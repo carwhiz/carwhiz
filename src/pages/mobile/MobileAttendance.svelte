@@ -22,33 +22,30 @@
     status: string;
   }
 
-  let attendanceRecords: AttendanceRecord[] = [];
-  let attendanceSummary: AttendanceSummary[] = [];
-  let loading = true;
-  let error = '';
-  
-  // Initialize dates in IST (Asia/Kolkata) to match RPC queries
-  function getISTDate(): string {
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
-    return formatter.format(new Date());
+  interface Employee {
+    id: string;
+    name: string;
+    type: 'employee' | 'user';
   }
 
-  function getISTMonthYear(): string {
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: '2-digit'
-    });
-    return formatter.format(new Date());
-  }
+  let error = '';
   
-  let selectedDate = getISTDate();
-  let currentMonth = getISTMonthYear();
+  // Attendance report (for all users, admin sees all, others see only their own)
+  let showAttendanceReport = false;
+  let isAdmin = false;
+  let allAttendanceRecords: any[] = [];
+  let fromDate = '';
+  let toDate = '';
+  let userSearch = '';
+  let reportLoading = false;
+
+  // Computed filtered records
+  $: filteredRecords = applyReportFilters(allAttendanceRecords, fromDate, toDate, userSearch);
+  $: totalPunches = filteredRecords.length;
+  $: totalHoursMs = filteredRecords.reduce((sum, r) => sum + calculatePunchMs(r.check_in, r.check_out), 0);
+  $: totalHoursFormatted = formatMs(totalHoursMs);
+  
+
 
   // QR Scanning state
   let showScanner = false;
@@ -59,144 +56,106 @@
   let scanLoading = false;
   let html5QrScanner: any = null;
 
-  async function loadAttendance() {
-    if (!$authStore.user?.id) {
-      error = 'User not authenticated';
-      loading = false;
-      return;
-    }
 
-    try {
-      loading = true;
-      error = '';
 
-      console.log('Loading attendance for user:', $authStore.user.id, 'date:', selectedDate);
 
-      // Direct query instead of RPC - same approach as desktop report
-      const { data, error: queryError } = await supabase
-        .from('attendance')
-        .select('id, check_in, check_out, punch_order, date')
-        .eq('user_id', $authStore.user.id)
-        .eq('date', selectedDate)
-        .order('punch_order', { ascending: true });
 
-      console.log('Attendance data:', { data, error: queryError });
 
-      if (queryError) {
-        error = `Failed to load attendance: ${queryError.message}`;
-        attendanceRecords = [];
-      } else {
-        attendanceRecords = data || [];
-        console.log(`Loaded ${attendanceRecords.length} attendance records`);
-      }
-    } catch (err) {
-      console.error('Attendance load error:', err);
-      error = `Error: ${err instanceof Error ? err.message : 'Unknown error'}`;
-    } finally {
-      loading = false;
-    }
-  }
-
-  async function loadMonthlySummary() {
-    if (!$authStore.user?.id) {
-      console.warn('User not authenticated, skipping monthly summary');
-      return;
-    }
-
-    try {
-      const [year, month] = currentMonth.split('-');
-      const monthStart = `${year}-${month}-01`;
-      const monthEnd = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
-
-      console.log('Loading monthly summary for:', { year, month, monthStart, monthEnd });
-
-      // Direct query for daily summaries - same approach as desktop
-      const { data, error: queryError } = await supabase
-        .from('attendance')
-        .select('id, check_in, check_out, punch_order, date')
-        .eq('user_id', $authStore.user.id)
-        .gte('date', monthStart)
-        .lte('date', monthEnd)
-        .order('date', { ascending: false })
-        .order('punch_order', { ascending: true });
-
-      console.log('Monthly data from query:', { data, error: queryError });
-
-      if (queryError) {
-        console.error('Error loading monthly data:', queryError);
-        attendanceSummary = [];
-      } else {
-        // Aggregate by date
-        const summaryMap = new Map<string, any>();
-        if (data) {
-          for (const record of data) {
-            if (!summaryMap.has(record.date)) {
-              summaryMap.set(record.date, {
-                date: record.date,
-                check_in_count: 0,
-                total_hours: 0,
-                status: 'Absent',
-                punches: []
-              });
-            }
-            const summary = summaryMap.get(record.date)!;
-            summary.check_in_count++;
-            summary.punches.push(record);
-
-            // Calculate hours for this punch
-            if (record.check_in && record.check_out) {
-              const checkIn = new Date(record.check_in).getTime();
-              const checkOut = new Date(record.check_out).getTime();
-              const hours = (checkOut - checkIn) / (1000 * 60 * 60);
-              summary.total_hours += hours;
-            }
-
-            // Set status
-            if (record.check_out === null) {
-              summary.status = 'Checked In';
-            } else if (summary.check_in_count > 0) {
-              summary.status = 'Present';
-            }
-          }
-        }
-
-        attendanceSummary = Array.from(summaryMap.values())
-          .map(s => ({
-            date: s.date,
-            check_in_count: s.check_in_count,
-            total_hours: Math.round(s.total_hours * 100) / 100, // Round to 2 decimals
-            status: s.status
-          }))
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-        console.log(`Loaded ${attendanceSummary.length} monthly summary records`);
-      }
-    } catch (err) {
-      console.error('Summary load error:', err);
-    }
-  }
-
-  function formatTime(timestamp: string | null): string {
-    if (!timestamp) return '--:--';
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-  }
-
-  function calculateWorkedHours(record: AttendanceRecord): string {
-    if (!record.check_out) return 'Ongoing';
-    const checkIn = new Date(record.check_in);
-    const checkOut = new Date(record.check_out);
-    const hours = (checkOut.getTime() - checkIn.getTime()) / 3600000;
-    return hours.toFixed(2) + ' hrs';
-  }
 
   function goBack() {
     navigateTo('mobile');
+  }
+
+  // Attendance Report Filter Functions (matches desktop)
+  function setDefaultDates() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    fromDate = `${y}-${m}-01`;
+    toDate = now.toISOString().split('T')[0];
+  }
+
+  async function loadAllAttendanceRecords() {
+    try {
+      reportLoading = true;
+      let query = supabase
+        .from('attendance')
+        .select('id, user_id, date, check_in, check_out, punch_order, users:user_id(email, user_name)')
+        .order('date', { ascending: false })
+        .order('punch_order', { ascending: true });
+
+      // Non-admin users only see their own records
+      if (!isAdmin && $authStore.user?.id) {
+        query = query.eq('user_id', $authStore.user.id);
+      }
+
+      const { data } = await query;
+
+      allAttendanceRecords = (data || []).map((r: any) => ({
+        ...r,
+        punch_order: r.punch_order || 1,
+        user_email: r.users?.email || '—',
+        user_name: r.users?.user_name || '',
+      }));
+      reportLoading = false;
+    } catch (err) {
+      console.error('Error loading attendance records:', err);
+      reportLoading = false;
+    }
+  }
+
+  function applyReportFilters(list: any[], from: string, to: string, search: string) {
+    let result = list;
+    if (from) result = result.filter(r => r.date >= from);
+    if (to) result = result.filter(r => r.date <= to);
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      result = result.filter(r => 
+        r.user_email.toLowerCase().includes(q) || 
+        (r.user_name && r.user_name.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }
+
+  function calculatePunchMs(checkIn: string | null, checkOut: string | null): number {
+    if (!checkIn || !checkOut) return 0;
+    return new Date(checkOut).getTime() - new Date(checkIn).getTime();
+  }
+
+  function formatMs(ms: number): string {
+    if (ms <= 0) return '—';
+    const hrs = Math.floor(ms / 3600000);
+    const mins = Math.floor((ms % 3600000) / 60000);
+    return `${hrs}h ${mins}m`;
+  }
+
+  function formatDateForDisplay(dt: string): string {
+    if (!dt) return '—';
+    const d = new Date(dt + 'T00:00:00');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  }
+
+  function formatTimeForDisplay(dt: string | null): string {
+    if (!dt) return '—';
+    const d = new Date(dt);
+    let h = d.getHours();
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${min} ${ampm}`;
+  }
+
+  function getPunchDuration(checkIn: string | null, checkOut: string | null): string {
+    const ms = calculatePunchMs(checkIn, checkOut);
+    return formatMs(ms);
+  }
+
+  function clearReportFilters() {
+    setDefaultDates();
+    userSearch = '';
   }
 
   // QR Scanning functions
@@ -309,18 +268,27 @@
         return; 
       }
 
+      // Get today's date in IST (Asia/Kolkata)
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const istDate = formatter.format(new Date());
+
       const { data, error: punchError } = await supabase.rpc('fn_attendance_punch', {
         p_token: scannedToken,
         p_user_id: userId,
         p_action: action,
-        p_date: selectedDate  // ← Pass IST date from mobile
+        p_date: istDate
       });
       
       if (punchError) { 
         scanError = punchError.message; 
       } else if (data?.success) { 
         scanResult = data.message;
-        await loadAttendance();
+        await loadAllAttendanceRecords();
       } else { 
         scanError = data?.message || 'Punch failed.'; 
       }
@@ -338,9 +306,14 @@
 
   onMount(() => {
     setMobilePage('attendance', 'Attendance');
-    // Always load today's attendance (IST date)
-    loadAttendance();
-    loadMonthlySummary();
+    
+    // Show attendance report for all authenticated users
+    if ($authStore.user?.id) {
+      showAttendanceReport = true;
+      isAdmin = $authStore.user?.role === 'admin';
+      setDefaultDates();
+      loadAllAttendanceRecords();
+    }
   });
 
   onDestroy(() => {
@@ -368,71 +341,91 @@
         <span>📱 Scan QR to Check In/Out</span>
       </button>
 
-      <!-- Day Wise Attendance -->
-      <div class="section">
-        <h2>Day Wise Attendance</h2>
-        <div class="date-selector">
-          <input type="date" bind:value={selectedDate} on:change={loadAttendance} />
-        </div>
-
-        {#if loading}
-          <div class="loading">Loading attendance...</div>
-        {:else if attendanceRecords.length === 0}
-          <div class="empty-state">
-            <p>No attendance records for this date</p>
+      <!-- Attendance Report (for all users) -->
+      {#if showAttendanceReport}
+        <div class="admin-report-section">
+          <h3>{isAdmin ? 'Attendance Report' : 'My Attendance'}</h3>
+          
+          <!-- Summary Stats -->
+          <div class="summary-stats">
+            <div class="stat-card">
+              <span class="stat-label">Punches</span>
+              <span class="stat-value">{totalPunches}</span>
+            </div>
+            <div class="stat-card hours">
+              <span class="stat-label">Total Hours</span>
+              <span class="stat-value">{totalHoursFormatted}</span>
+            </div>
           </div>
-        {:else}
-          <div class="attendance-list">
-            {#each attendanceRecords as record (record.id)}
-              <div class="attendance-item">
-                <div class="punch-info">
-                  <div class="punch-number">Punch #{record.punch_order}</div>
-                  <div class="times">
-                    <span class="check-in">
-                      🕐 In: {formatTime(record.check_in)}
+
+          <!-- Filters -->
+          <div class="filters-section">
+            <div class="filter-row">
+              <div class="filter-group">
+                <label for="from-date">From:</label>
+                <input type="date" id="from-date" bind:value={fromDate} />
+              </div>
+              <div class="filter-group">
+                <label for="to-date">To:</label>
+                <input type="date" id="to-date" bind:value={toDate} />
+              </div>
+            </div>
+            {#if isAdmin}
+              <div class="filter-row">
+                <div class="filter-group full-width">
+                  <label for="user-search">Search User/Employee:</label>
+                  <input 
+                    type="text" 
+                    id="user-search"
+                    placeholder="Search by email or name..." 
+                    bind:value={userSearch}
+                  />
+                </div>
+              </div>
+            {/if}
+            <div class="filter-actions">
+              <button class="btn-refresh" on:click={loadAllAttendanceRecords}>Refresh</button>
+              <button class="btn-clear" on:click={clearReportFilters}>Clear Filters</button>
+            </div>
+          </div>
+
+          <!-- Records Table -->
+          {#if reportLoading}
+            <div class="loading">Loading attendance records...</div>
+          {:else if filteredRecords.length === 0}
+            <div class="empty-state">No attendance records found</div>
+          {:else}
+            <div class="records-list">
+              {#each filteredRecords as record (record.id)}
+                <div class="record-item">
+                  <div class="record-header">
+                    <span class="user-info">
+                      <strong>{record.user_email}</strong>
+                      {#if record.user_name}
+                        <span class="user-name">({record.user_name})</span>
+                      {/if}
                     </span>
-                    <span class="check-out">
-                      🕑 Out: {formatTime(record.check_out)}
-                    </span>
+                    <span class="date">{formatDateForDisplay(record.date)}</span>
+                  </div>
+                  <div class="record-details">
+                    <div class="detail-item">
+                      <span class="label">Punch #{record.punch_order}</span>
+                      <span class="value">
+                        {formatTimeForDisplay(record.check_in)} - {formatTimeForDisplay(record.check_out)}
+                      </span>
+                    </div>
+                    <div class="detail-item">
+                      <span class="label">Duration</span>
+                      <span class="value">{getPunchDuration(record.check_in, record.check_out)}</span>
+                    </div>
                   </div>
                 </div>
-                <div class="worked-hours">
-                  {calculateWorkedHours(record)}
-                </div>
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </div>
-
-      <!-- Monthly Summary -->
-      <div class="section">
-        <h2>Monthly Summary</h2>
-        <div class="month-selector">
-          <input type="month" bind:value={currentMonth} on:change={loadMonthlySummary} />
+              {/each}
+            </div>
+          {/if}
         </div>
-
-        {#if attendanceSummary.length === 0}
-          <div class="empty-state">
-            <p>No attendance data for this month</p>
-          </div>
-        {:else}
-          <div class="summary-list">
-            {#each attendanceSummary.slice(0, 15) as summary (summary.date)}
-              <div class="summary-item">
-                <div class="date-status">
-                  <span class="date">{new Date(summary.date).toLocaleDateString('en-IN')}</span>
-                  <span class="status {summary.status.toLowerCase()}">{summary.status}</span>
-                </div>
-                <div class="summary-details">
-                  <span class="punches">Punches: {summary.check_in_count}</span>
-                  <span class="hours">Hours: {summary.total_hours?.toFixed(1) || '0'}</span>
-                </div>
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </div>
+        <hr class="section-divider" />
+      {/if}
     </div>
 
     <!-- QR Scanner Overlay -->
@@ -502,6 +495,13 @@
     flex: 1;
     overflow-y: auto;
     padding: 1rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @media (max-width: 640px) {
+    .content {
+      padding: 0.75rem;
+    }
   }
 
   .section {
@@ -518,33 +518,6 @@
     color: var(--neutral-900);
     font-size: 1.1rem;
     font-weight: 700;
-  }
-
-  .date-selector,
-  .month-selector {
-    margin-bottom: 1rem;
-  }
-
-  input[type='date'],
-  input[type='month'] {
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--neutral-300);
-    border-radius: 8px;
-    font-size: 0.95rem;
-    width: 100%;
-    max-width: 240px;
-    background: white;
-    color: var(--neutral-900);
-    transition: all 0.2s ease;
-    font-weight: 500;
-  }
-
-  input[type='date']:focus,
-  input[type='month']:focus {
-    outline: none;
-    border-color: var(--brand-primary);
-    box-shadow: 0 0 0 3px var(--brand-primary-light);
-    background: var(--neutral-50);
   }
 
   .loading,
@@ -567,190 +540,21 @@
     font-weight: 500;
   }
 
-  .attendance-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .attendance-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.25rem;
-    background: var(--neutral-50);
-    border-left: 4px solid var(--brand-primary);
-    border-radius: 8px;
-    transition: all 0.2s ease;
-  }
-
-  .attendance-item:hover {
-    background: var(--neutral-100);
-  }
-
-  .punch-info {
-    flex: 1;
-  }
-
-  .punch-number {
-    font-weight: 700;
-    color: var(--neutral-900);
-    margin-bottom: 0.5rem;
-    font-size: 0.95rem;
-  }
-
-  .times {
-    display: flex;
-    gap: 1.25rem;
-    font-size: 0.85rem;
-    color: var(--neutral-600);
-  }
-
-  .check-in,
-  .check-out {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-weight: 500;
-  }
-
-  .check-in {
-    color: var(--status-success);
-  }
-
-  .check-out {
-    color: var(--status-warning);
-  }
-
-  .worked-hours {
-    text-align: right;
-    font-weight: 700;
-    color: var(--brand-primary);
-    min-width: 100px;
-  }
-
-  .summary-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .summary-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem;
-    background: white;
-    border-radius: 8px;
-    border: 1px solid var(--neutral-200);
-    transition: all 0.2s ease;
-  }
-
-  @media (min-width: 480px) {
-    .summary-item {
-      flex-direction: row;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--neutral-50);
-    }
-  }
-
-  .summary-item:hover {
-    border-color: var(--neutral-200);
-    background: var(--neutral-100);
-  }
-
-  .date-status {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
-
-  @media (max-width: 380px) {
-    .date-status {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.5rem;
-    }
-  }
-
-  .date {
-    font-weight: 700;
-    color: var(--neutral-900);
-    font-size: 0.95rem;
-    line-height: 1.2;
-  }
-
-  .status {
-    display: inline-block;
-    padding: 0.375rem 0.95rem;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-  }
-
-  .status.present {
-    background: rgba(16, 185, 129, 0.1);
-    color: #059669;
-  }
-
-  .status.absent {
-    background: rgba(196, 30, 58, 0.1);
-    color: #991b1b;
-  }
-
-  .status.checked\ in {
-    background: rgba(59, 130, 246, 0.1);
-    color: #1565c0;
-  }
-
-  .summary-details {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    font-size: 0.9rem;
-    font-weight: 500;
-  }
-
-  @media (min-width: 480px) {
-    .summary-details {
-      display: flex;
-      gap: 1.5rem;
-    }
-  }
-
-  .punches,
-  .hours {
-    color: var(--neutral-700);
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .punches strong,
-  .hours strong {
-    color: var(--neutral-900);
-    font-weight: 700;
-    font-size: 1.05rem;
-  }
-
   /* ========== QR SCAN BUTTON ========== */
   .qr-scan-button {
     width: 100%;
-    padding: 1rem;
+    padding: 1.25rem 1rem;
     background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
     color: white;
     border: none;
-    border-radius: 10px;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 1.1rem;
     font-weight: 700;
     cursor: pointer;
     margin-bottom: 1.5rem;
     box-shadow: var(--shadow-md);
     transition: all 0.3s ease;
+    letter-spacing: 0.3px;
   }
 
   .qr-scan-button:hover {
@@ -760,6 +564,15 @@
 
   .qr-scan-button:active {
     transform: translateY(0);
+  }
+
+  @media (max-width: 640px) {
+    .qr-scan-button {
+      padding: 1.5rem 1rem;
+      font-size: 1.05rem;
+      margin-bottom: 1.25rem;
+      border-radius: 10px;
+    }
   }
 
   /* ========== QR SCANNER OVERLAY ========== */
@@ -785,6 +598,15 @@
     max-width: 90vw;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
     border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  @media (max-width: 640px) {
+    .qr-scanner-box {
+      width: 100%;
+      max-width: 95vw;
+      padding: 1.25rem;
+      border-radius: 16px;
+    }
   }
 
   .qr-scanner-header {
@@ -886,6 +708,15 @@
     border: 1px solid rgba(255, 255, 255, 0.3);
   }
 
+  @media (max-width: 640px) {
+    .punch-choice-box {
+      width: 100%;
+      max-width: 95vw;
+      padding: 1.75rem 1.25rem;
+      border-radius: 20px;
+    }
+  }
+
   .punch-title {
     font-size: 1.25rem;
     font-weight: 700;
@@ -914,7 +745,7 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 1rem 1rem;
+    padding: 1.15rem 1rem;
     border: none;
     border-radius: 12px;
     font-size: 0.95rem;
@@ -922,6 +753,7 @@
     cursor: pointer;
     transition: all 0.3s ease;
     color: white;
+    min-height: 48px;
   }
 
   .punch-btn:disabled {
@@ -939,6 +771,10 @@
     box-shadow: 0 8px 24px rgba(34, 197, 94, 0.45);
   }
 
+  .punch-btn.checkin:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
   .punch-btn.checkout {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
@@ -947,6 +783,33 @@
   .punch-btn.checkout:hover:not(:disabled) {
     transform: translateY(-3px);
     box-shadow: 0 8px 24px rgba(59, 130, 246, 0.45);
+  }
+
+  .punch-btn.checkout:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  @media (max-width: 640px) {
+    .punch-title {
+      font-size: 1.15rem;
+    }
+
+    .punch-subtitle {
+      font-size: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .punch-buttons {
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .punch-btn {
+      padding: 1rem 0.85rem;
+      font-size: 0.9rem;
+      min-height: 44px;
+      border-radius: 10px;
+    }
   }
 
   .punch-cancel {
@@ -1069,4 +932,369 @@
   .log-time {
     color: #6b7280;
   }
+
+  /* ========== ADMIN REPORT SECTION ========== */
+  .admin-report-section {
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin: 0;
+    margin-bottom: 1rem;
+  }
+
+  .admin-report-section h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+    color: var(--neutral-900);
+    font-weight: 700;
+  }
+
+  @media (max-width: 640px) {
+    .admin-report-section {
+      padding: 1rem;
+      border-radius: 10px;
+      margin-bottom: 0.75rem;
+    }
+
+    .admin-report-section h3 {
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+    }
+  }
+
+  .summary-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .stat-card {
+    background: white;
+    border: 1px solid var(--neutral-200);
+    border-radius: 8px;
+    padding: 0.85rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .stat-card.hours {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: rgba(239, 68, 68, 0.2);
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--neutral-600);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .stat-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--brand-primary);
+  }
+
+  @media (max-width: 640px) {
+    .summary-stats {
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat-card {
+      padding: 0.75rem;
+      gap: 0.3rem;
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+    }
+
+    .stat-value {
+      font-size: 1.2rem;
+    }
+  }
+
+  .filters-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--neutral-200);
+  }
+
+  .filter-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .filter-row:last-of-type {
+    margin-bottom: 0;
+  }
+
+  @media (max-width: 640px) {
+    .filters-section {
+      padding: 0.85rem;
+      margin-bottom: 1rem;
+    }
+
+    .filter-row {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .filter-group.full-width {
+    grid-column: 1 / -1;
+  }
+
+  .filter-group label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--neutral-700);
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+
+  .filter-group input {
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--neutral-300);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .filter-group input:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px var(--brand-primary-light);
+    background: var(--neutral-50);
+  }
+
+  @media (max-width: 640px) {
+    .filter-group label {
+      font-size: 0.75rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .filter-group input {
+      padding: 0.6rem 0.65rem;
+      font-size: 0.85rem;
+    }
+  }
+
+  .filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .btn-refresh,
+  .btn-clear {
+    flex: 1;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--neutral-300);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+    color: var(--neutral-700);
+    white-space: nowrap;
+  }
+
+  .btn-refresh:active,
+  .btn-clear:active {
+    transform: scale(0.98);
+  }
+
+  .btn-refresh:hover {
+    background: var(--neutral-50);
+    border-color: var(--brand-primary);
+    color: var(--brand-primary);
+  }
+
+  .btn-clear:hover {
+    background: var(--neutral-100);
+  }
+
+  @media (max-width: 640px) {
+    .filter-actions {
+      gap: 0.35rem;
+      margin-top: 0.5rem;
+    }
+
+    .btn-refresh,
+    .btn-clear {
+      padding: 0.55rem 0.65rem;
+      font-size: 0.75rem;
+    }
+  }
+
+  .records-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+  }
+
+  .records-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .records-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+
+  .record-item {
+    background: white;
+    border: 1px solid var(--neutral-200);
+    border-left: 4px solid var(--brand-primary);
+    border-radius: 8px;
+    padding: 0.85rem;
+    transition: all 0.2s ease;
+  }
+
+  .record-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .record-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--neutral-100);
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    font-size: 0.9rem;
+  }
+
+  .user-info strong {
+    font-weight: 700;
+  }
+
+  .user-name {
+    font-size: 0.8rem;
+    color: var(--neutral-500);
+    font-weight: normal;
+  }
+
+  .record-header .date {
+    font-size: 0.8rem;
+    color: var(--neutral-600);
+    font-weight: 600;
+  }
+
+  .record-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  @media (max-width: 640px) {
+    .records-list {
+      gap: 0.4rem;
+      max-height: 45vh;
+      padding-right: 0.15rem;
+    }
+
+    .record-item {
+      padding: 0.75rem;
+      border-radius: 6px;
+    }
+
+    .record-header {
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.5rem;
+      gap: 0.3rem;
+    }
+
+    .user-info {
+      gap: 0.3rem;
+      font-size: 0.85rem;
+    }
+
+    .user-name {
+      font-size: 0.75rem;
+    }
+
+    .record-header .date {
+      font-size: 0.75rem;
+    }
+
+    .record-details {
+      gap: 0.3rem;
+    }
+  }
+
+  .detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    gap: 0.5rem;
+  }
+
+  .detail-item .label {
+    color: var(--neutral-600);
+    font-weight: 600;
+  }
+
+  .detail-item .value {
+    color: var(--neutral-900);
+    font-weight: 500;
+    text-align: right;
+  }
+
+  @media (max-width: 640px) {
+    .detail-item {
+      font-size: 0.85rem;
+      gap: 0.35rem;
+    }
+
+    .detail-item .label {
+      font-weight: 600;
+    }
+
+    .detail-item .value {
+      font-size: 0.85rem;
+    }
+  }
+
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--neutral-200);
+    margin: 0.75rem 0;
+  }
+
 </style>

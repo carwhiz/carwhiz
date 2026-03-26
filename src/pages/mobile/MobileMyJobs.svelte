@@ -34,12 +34,22 @@
   let error: string | null = null;
   let selectedStatus = 'all';
   let canCreateJobCard = false;
+  let isAdmin = false;
 
-  const statusOptions = [
-    { value: 'all', label: 'All Active Jobs' },
-    { value: 'Open', label: 'Open' },
-    { value: 'In Progress', label: 'In Progress' }
-  ];
+  $: statusOptions = isAdmin 
+    ? [
+        { value: 'all', label: 'All Jobs' },
+        { value: 'Open', label: 'Open' },
+        { value: 'In Progress', label: 'In Progress' },
+        { value: 'Closed', label: 'Closed' },
+        { value: 'Billed', label: 'Billed' },
+        { value: 'Cancelled', label: 'Cancelled' }
+      ]
+    : [
+        { value: 'all', label: 'All Active Jobs' },
+        { value: 'Open', label: 'Open' },
+        { value: 'In Progress', label: 'In Progress' }
+      ];
 
   async function loadJobs() {
     loading = true;
@@ -70,10 +80,19 @@
           expected_date,
           customers(name, place, gender),
           vehicles(model_name, makes(name), generations(name), generation_types(name), variants(name), gearboxes(name), fuel_types(name), body_sides(name))
-        `)
-        .eq('assigned_user_id', userId)
-        .in('status', ['Open', 'In Progress'])
-        .order('created_at', { ascending: false });
+        `);
+
+      // Non-admin users only see their assigned jobs
+      if (!isAdmin) {
+        query = query.eq('assigned_user_id', userId);
+      }
+
+      // Non-admin users only see active jobs
+      if (!isAdmin) {
+        query = query.in('status', ['Open', 'In Progress']);
+      }
+
+      query = query.order('created_at', { ascending: false });
 
       if (selectedStatus !== 'all') {
         query = query.eq('status', selectedStatus);
@@ -185,6 +204,9 @@
 
   onMount(async () => {
     setMobilePage('my-jobs', 'My Jobs');
+    
+    // Check if user is admin
+    isAdmin = $authStore.user?.role === 'admin';
     
     // Check permission to create job cards
     const userId = $authStore.user?.id;

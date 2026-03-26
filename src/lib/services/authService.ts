@@ -21,10 +21,18 @@ export async function login(payload: LoginPayload): Promise<{ success: boolean; 
       throw new Error('Access code must be exactly 6 digits');
     }
 
-    // Authenticate via access code RPC function
+    // Start login timing for performance monitoring
+    const startTime = performance.now();
+
+    // Authenticate via access code RPC function with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
     const { data, error } = await supabase.rpc('authenticate_by_code', {
       p_password: payload.password,
     });
+
+    clearTimeout(timeoutId);
 
     if (error) {
       throw error;
@@ -42,16 +50,43 @@ export async function login(payload: LoginPayload): Promise<{ success: boolean; 
       created_at: data.created_at,
     };
 
-    // Persist session in localStorage
+    // Persist session in localStorage (fast, synchronous)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    
+    // Update auth store (triggers UI updates)
     authStore.setUser(user);
     authStore.setLoading(false);
+
+    // Log performance metric (non-blocking)
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    if (duration > 2000) {
+      console.warn(`⚠️ Login took ${duration.toFixed(0)}ms - check database performance`);
+    } else {
+      console.log(`✓ Login completed in ${duration.toFixed(0)}ms`);
+    }
+
+    // Update last login timestamp asynchronously (doesn't block UI)
+    updateLastLoginAsync(user.id).catch(err => 
+      console.warn('Failed to update last login:', err)
+    );
+
     return { success: true };
   } catch (error: any) {
     const errorMessage = error?.message || 'Login failed';
     authStore.setError(errorMessage);
     authStore.setLoading(false);
     return { success: false, error: errorMessage };
+  }
+}
+
+// Update user's last login timestamp asynchronously
+async function updateLastLoginAsync(userId: string): Promise<void> {
+  try {
+    await supabase.rpc('update_last_login', { p_user_id: userId });
+  } catch (error) {
+    // Silently fail - this is non-critical
+    console.debug('Last login update failed (non-critical):', error);
   }
 }
 

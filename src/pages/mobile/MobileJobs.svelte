@@ -8,10 +8,20 @@
   const dispatch = createEventDispatcher();
 
   let mobileJobs: any[] = [];
+  let allMobileJobs: any[] = [];
   let mobileViewingJob: any = null;
   let mjLoading = false;
   let mjLoadingDetail = false;
   let canCreateJobCard = false;
+  let isAdmin = false;
+  
+  // Filter state
+  let mjFromDate = '';
+  let mjToDate = '';
+  let mjStatusFilter = '';
+  let mjAssignedUserFilter = '';
+  let mjSearchQuery = '';
+  let mjAllUsers: any[] = [];
   
   // Edit state
   let mjEditingJob: any = null;
@@ -36,17 +46,94 @@
 
   async function loadMobileJobs() {
     mjLoading = true;
-    const { data, error } = await supabase
-      .from('job_cards')
-      .select('id, job_card_no, customer_id, vehicle_id, status, created_at, created_by, customers(name), vehicles(model_name)')
-      .eq('created_by', $authStore.user?.id)
-      .in('status', ['Open', 'In Progress'])
-      .order('created_at', { ascending: false });
+    try {
+      let query = supabase
+        .from('job_cards')
+        .select('id, job_card_no, customer_id, vehicle_id, status, created_at, assigned_user_id, priority, customers(name), vehicles(model_name), users!assigned_user_id(id, email, user_name)')
+        .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      mobileJobs = data;
+      // Non-admin users only see jobs assigned to them
+      if (!isAdmin) {
+        query = query.eq('assigned_user_id', $authStore.user?.id);
+      }
+
+      const { data, error } = await query;
+
+      if (!error && data) {
+        allMobileJobs = data;
+        mobileJobs = applyJobFilters(data);
+      }
+    } catch (err) {
+      console.error('Error loading jobs:', err);
     }
     mjLoading = false;
+  }
+
+  function applyJobFilters(jobs: any[]): any[] {
+    let filtered = jobs;
+
+    // Date range filter (admin only)
+    if (isAdmin && mjFromDate) {
+      filtered = filtered.filter(j => new Date(j.created_at) >= new Date(mjFromDate));
+    }
+    if (isAdmin && mjToDate) {
+      const to = new Date(mjToDate + 'T23:59:59');
+      filtered = filtered.filter(j => new Date(j.created_at) <= to);
+    }
+
+    // Status filter
+    if (mjStatusFilter) {
+      filtered = filtered.filter(j => j.status === mjStatusFilter);
+    }
+
+    // Assigned user filter (admin only)
+    if (isAdmin && mjAssignedUserFilter) {
+      filtered = filtered.filter(j => j.assigned_user_id === mjAssignedUserFilter);
+    }
+
+    // Search filter (customer, vehicle, job#)
+    if (mjSearchQuery.trim()) {
+      const q = mjSearchQuery.toLowerCase().trim();
+      filtered = filtered.filter(j =>
+        j.job_card_no?.toLowerCase().includes(q) ||
+        j.customers?.name?.toLowerCase().includes(q) ||
+        j.vehicles?.model_name?.toLowerCase().includes(q)
+      );
+    }
+
+    return filtered;
+  }
+
+  function reapplyFilters() {
+    mobileJobs = applyJobFilters(allMobileJobs);
+  }
+
+  function setDefaultDates() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    mjFromDate = `${y}-${m}-01`;
+    mjToDate = now.toISOString().split('T')[0];
+  }
+
+  function clearAllFilters() {
+    mjFromDate = '';
+    mjToDate = '';
+    mjStatusFilter = '';
+    mjAssignedUserFilter = '';
+    mjSearchQuery = '';
+    reapplyFilters();
+  }
+
+  async function loadAllUsers() {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, user_name')
+      .order('email', { ascending: true });
+
+    if (!error && data) {
+      mjAllUsers = data;
+    }
   }
 
   async function loadMobileProducts() {
@@ -247,10 +334,18 @@
   }
 
   onMount(async () => {
-    loadMobileJobs();
+    // Check if user is admin
+    isAdmin = $authStore.user?.role === 'admin';
+
+    // Load data
     loadMobileProducts();
     loadCustomers();
     loadVehicles();
+    if (isAdmin) {
+      loadAllUsers();
+      setDefaultDates();
+    }
+    loadMobileJobs();
     
     // Check permission to create job cards
     const userId = $authStore.user?.id;
@@ -421,6 +516,7 @@
 {:else}
   <!-- Job List View -->
   <div class="mj-list">
+    <!-- Create Job Card Button -->
     <div class="mj-header-actions">
       {#if canCreateJobCard}
         <button class="btn-create" on:click={goToCreateJobCard}>
@@ -428,28 +524,91 @@
         </button>
       {/if}
     </div>
+
+    <!-- Admin Filter Section -->
+    {#if isAdmin}
+      <div class="mj-filters-section">
+        <div class="mj-filter-row">
+          <div class="mj-filter-group">
+            <label for="from-date">From:</label>
+            <input type="date" id="from-date" bind:value={mjFromDate} on:change={reapplyFilters} />
+          </div>
+          <div class="mj-filter-group">
+            <label for="to-date">To:</label>
+            <input type="date" id="to-date" bind:value={mjToDate} on:change={reapplyFilters} />
+          </div>
+        </div>
+
+        <div class="mj-filter-row">
+          <div class="mj-filter-group">
+            <label for="status-filter">Status:</label>
+            <select id="status-filter" bind:value={mjStatusFilter} on:change={reapplyFilters}>
+              <option value="">All Statuses</option>
+              <option value="Open">Open</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Closed">Closed</option>
+              <option value="Billed">Billed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="mj-filter-group">
+            <label for="assigned-filter">Assigned To:</label>
+            <select id="assigned-filter" bind:value={mjAssignedUserFilter} on:change={reapplyFilters}>
+              <option value="">All Users</option>
+              {#each mjAllUsers as user (user.id)}
+                <option value={user.id}>{user.email}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+
+        <div class="mj-filter-row mj-full-width">
+          <div class="mj-filter-group mj-full-width">
+            <label for="search-query">Search:</label>
+            <input
+              type="text"
+              id="search-query"
+              placeholder="Search by job#, customer, or vehicle..."
+              bind:value={mjSearchQuery}
+              on:input={reapplyFilters}
+            />
+          </div>
+        </div>
+
+        <div class="mj-filter-actions">
+          <button class="btn-refresh" on:click={loadMobileJobs}>Refresh</button>
+          <button class="btn-clear" on:click={clearAllFilters}>Clear Filters</button>
+        </div>
+      </div>
+    {/if}
+
     {#if mjLoading}
       <p>Loading jobs...</p>
     {:else if mobileJobs.length === 0}
-      <p class="no-jobs">No jobs assigned</p>
+      <p class="no-jobs">{isAdmin ? 'No jobs found' : 'No jobs assigned'}</p>
     {:else}
-      {#each mobileJobs as job (job.id)}
-        <div class="mj-job-card">
-          <button class="mj-job-main-btn" on:click={() => openMobileJobDetail(job)}>
-            <div class="mj-job-header">
-              <span class="mj-job-ref">{job.job_card_no}</span>
-              <span class="mj-job-status" class:open={job.status === 'Open'} class:inprogress={job.status === 'In Progress'} class:closed={job.status === 'Closed'}>
-                {job.status}
-              </span>
-            </div>
-            <div class="mj-job-customer">{job.customers?.name}</div>
-            <div class="mj-job-vehicle">{job.vehicles?.model_name}</div>
-          </button>
-          <button class="mj-job-edit-btn" on:click={() => openEditJobCard(job)} title="Edit Job Card">
-            ✎
-          </button>
-        </div>
-      {/each}
+      <div class="mj-jobs-container">
+        {#each mobileJobs as job (job.id)}
+          <div class="mj-job-card">
+            <button class="mj-job-main-btn" on:click={() => openMobileJobDetail(job)}>
+              <div class="mj-job-header">
+                <span class="mj-job-ref">{job.job_card_no}</span>
+                <span class="mj-job-status" class:open={job.status === 'Open'} class:inprogress={job.status === 'In Progress'} class:closed={job.status === 'Closed'} class:billed={job.status === 'Billed'} class:cancelled={job.status === 'Cancelled'}>
+                  {job.status}
+                </span>
+              </div>
+              <div class="mj-job-customer">{job.customers?.name}</div>
+              <div class="mj-job-vehicle">{job.vehicles?.model_name}</div>
+              {#if isAdmin}
+                <div class="mj-job-assigned">Assigned: {job.users?.email || 'N/A'}</div>
+              {/if}
+            </button>
+            <button class="mj-job-edit-btn" on:click={() => openEditJobCard(job)} title="Edit Job Card">
+              ✎
+            </button>
+          </div>
+        {/each}
+      </div>
     {/if}
   </div>
 {/if}
@@ -541,6 +700,99 @@
     transform: translateY(2px);
   }
 
+  /* Filter Section */
+  .mj-filters-section {
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin: 0 0 1.5rem 0;
+  }
+
+  .mj-filter-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .mj-filter-row.mj-full-width {
+    grid-template-columns: 1fr;
+  }
+
+  .mj-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .mj-filter-group.mj-full-width {
+    grid-column: 1 / -1;
+  }
+
+  .mj-filter-group label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .mj-filter-group input,
+  .mj-filter-group select {
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+
+  .mj-filter-group input:focus,
+  .mj-filter-group select:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.1);
+  }
+
+  .mj-filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .btn-refresh,
+  .btn-clear {
+    flex: 1;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+    color: #374151;
+  }
+
+  .btn-refresh:hover {
+    background: #f3f4f6;
+    border-color: var(--brand-primary);
+    color: var(--brand-primary);
+  }
+
+  .btn-clear:hover {
+    background: #f9fafb;
+  }
+
+  .btn-refresh:active,
+  .btn-clear:active {
+    transform: scale(0.98);
+  }
+
+  .mj-jobs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
   .permission-denied {
     padding: 1rem;
     background: #fff3cd;
@@ -548,8 +800,6 @@
     border-radius: 8px;
     text-align: center;
   }
-
-  .permission-denied p {
     margin: 0;
     color: #856404;
     font-weight: 600;
@@ -646,6 +896,23 @@
   .mj-job-status.closed {
     background: #d1fae5;
     color: #065f46;
+  }
+
+  .mj-job-status.billed {
+    background: #e0e7ff;
+    color: #3730a3;
+  }
+
+  .mj-job-status.cancelled {
+    background: #fee2e2;
+    color: #7f1d1d;
+  }
+
+  .mj-job-assigned {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-top: 0.4rem;
+    font-weight: 500;
   }
 
   .mj-job-customer {

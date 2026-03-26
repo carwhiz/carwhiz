@@ -20,7 +20,7 @@
   // Filters
   let fromDate = '';
   let toDate = '';
-  let statusFilter = '';
+  let statusFilter = 'active'; // Default to show active jobs only
   let customerSearch = '';
   let userFilter = '';
   let users: any[] = [];
@@ -192,7 +192,14 @@
     let result = list;
     if (from) result = result.filter(r => r.created_at >= from);
     if (to) result = result.filter(r => r.created_at <= to + 'T23:59:59');
-    if (status) result = result.filter(r => r.status === status);
+    
+    // Handle both 'active' filter and specific status filters
+    if (status === 'active') {
+      result = result.filter(r => r.status === 'Open' || r.status === 'In Progress');
+    } else if (status) {
+      result = result.filter(r => r.status === status);
+    }
+    
     if (user) result = result.filter(r => r.assigned_user_id === user);
     if (search.trim()) {
       const q = search.toLowerCase().trim();
@@ -205,7 +212,7 @@
     return result;
   }
 
-  function clearFilters() { fromDate = ''; toDate = ''; statusFilter = ''; customerSearch = ''; userFilter = ''; }
+  function clearFilters() { fromDate = ''; toDate = ''; statusFilter = 'active'; customerSearch = ''; userFilter = ''; }
 
   async function viewJobCard(jc: any) {
     selectedJC = jc;
@@ -458,6 +465,7 @@
       <div class="filter-group">
         <label>Status</label>
         <select bind:value={statusFilter}>
+          <option value="active">Active (Open + In Progress)</option>
           <option value="">All</option>
           <option value="Open">Open</option>
           <option value="In Progress">In Progress</option>
@@ -561,25 +569,20 @@
       </div>
 
       <div class="detail-body" style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); color: #333; font-family: Arial, sans-serif;">
-        <div style="text-align: center; margin-bottom: 20px;">
-          <h2 style="margin: 6px 0; font-size: 20px; font-weight: bold; color: #111;">Job Card</h2>
-          <div style="font-weight: bold; font-size: 14px; font-family: monospace; color: #C41E3A; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            {selectedJC.job_card_no}
-            <span class="status-badge {getStatusClass(selectedJC.status)}" style="font-size: 11px;">{selectedJC.status}</span>
+        <!-- Header with Job Info and Assignment -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px; margin-bottom: 20px; align-items: start;">
+          <div>
+            <div style="text-align: left;">
+              <h2 style="margin: 0 0 6px 0; font-size: 20px; font-weight: bold; color: #111;">Job Card</h2>
+              <div style="font-weight: bold; font-size: 14px; font-family: monospace; color: #C41E3A; display: flex; align-items: center; gap: 8px;">
+                {selectedJC.job_card_no}
+                <span class="status-badge {getStatusClass(selectedJC.status)}" style="font-size: 11px;">{selectedJC.status}</span>
+              </div>
+            </div>
           </div>
-        </div>
-
-        <div class="cards-row" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 15px; margin: 15px 0; width: 100%;">
-          <div class="card" style="border: 1px solid #ddd; padding: 12px; background: #fafafa; border-radius: 6px;">
-            <div class="card-title" style="font-weight: bold; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Customer Details</div>
-            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Name:</span><span class="card-value" style="flex: 1; font-weight: 500; word-break: break-word;">{selectedJC.customer_name}</span></div>
-            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Location:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.customer_location}</span></div>
-            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Phone:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.customer_phone}</span></div>
-          </div>
-          <div class="card" style="border: 1px solid #ddd; padding: 12px; background: #fafafa; border-radius: 6px;">
-            <div class="card-title" style="font-weight: bold; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Vehicle Details</div>
-            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Number:</span><span class="card-value" style="flex: 1; font-weight: bold; color: #C41E3A; word-break: break-word;">{selectedJC.vehicle_number}</span></div>
-            <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Model:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.vehicle_model}</span></div>
+          <div style="border: 2px solid #C41E3A; padding: 12px; background: #fff5f5; border-radius: 6px;">
+            <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Assigned To</div>
+            <div style="font-size: 16px; font-weight: bold; color: #C41E3A;">{selectedJC.assigned_name_full}</div>
             <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Make:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.vehicle_make}</span></div>
             <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Variant:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.vehicle_variant}</span></div>
             <div class="card-item" style="display: flex; margin: 4px 0; font-size: 13px; width: 100%;"><span class="card-label" style="font-weight: 600; min-width: 90px; color: #555;">Fuel Type:</span><span class="card-value" style="flex: 1; word-break: break-word;">{selectedJC.vehicle_fuel}</span></div>
@@ -600,8 +603,7 @@
 
         <div class="info-row" style="border: 1px solid #ddd; padding: 12px; margin: 15px 0; background: #fafafa; border-radius: 6px; width: 100%;">
           <div class="title" style="font-weight: bold; font-size: 13px; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #111;">Job Details</div>
-          <div class="info-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%;">
-            <div class="info-item" style="font-size: 13px;"><span class="info-label" style="font-weight: bold; display: block; margin-bottom: 3px; color: #555;">Assigned To:</span> {selectedJC.assigned_name_full}</div>
+          <div class="info-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%;">
             <div class="info-item" style="font-size: 13px;"><span class="info-label" style="font-weight: bold; display: block; margin-bottom: 3px; color: #555;">Priority:</span> <span class="pri-badge {getPriorityClass(selectedJC.priority)}" style="display: inline-block;">{selectedJC.priority}</span></div>
             <div class="info-item" style="font-size: 13px;"><span class="info-label" style="font-weight: bold; display: block; margin-bottom: 3px; color: #555;">Date:</span> {formatDate(selectedJC.created_at)}</div>
             <div class="info-item" style="font-size: 13px;"><span class="info-label" style="font-weight: bold; display: block; margin-bottom: 3px; color: #555;">Expected:</span> {selectedJC.expected_date ? formatDate(selectedJC.expected_date) : '—'}</div>
