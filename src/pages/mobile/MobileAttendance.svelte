@@ -258,6 +258,7 @@
         return;
       }
       console.log('✅ Token validated successfully. Awaiting check-in/check-out confirmation...');
+      scanError = ''; // Clear any previous errors
       showPunchChoice = true;
     } catch (err) {
       console.error('❌ Unexpected error during QR scan:', err);
@@ -1318,4 +1319,29 @@
     margin: 0.75rem 0;
   }
 
+  /* ========== QR SCANNER CORNER SYMBOLS REMOVAL ========== */
+  /* Hide corner markers/symbols added by html5-qrcode library */
+  #qr-reader svg,
+  #qr-reader__svg_shaded_region,
+  #qr-reader__scan_region {
+    display: none !important;
+  }
+
+  /* Hide any overlay elements that create corner brackets */
+  #qr-reader canvas {
+    display: block !important;
+  }
+
+  /* Ensure scanner shows only the feed, no corner markers */
+  #qr-reader [role="region"],
+  #qr-reader svg line,
+  #qr-reader svg path {
+    display: none !important;
+  }
+
+  /* Clean up any pseudo-elements creating decorative corners */
+  #qr-reader::before,
+  #qr-reader::after {
+    display: none !important;
+  }
 </style>
