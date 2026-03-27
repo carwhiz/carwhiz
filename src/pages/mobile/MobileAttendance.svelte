@@ -188,8 +188,8 @@
       await html5QrScanner.start(
         constraints,
         { 
-          fps: 10, 
-          qrbox: { width: 200, height: 200 },
+          fps: 15, 
+          qrbox: { width: 300, height: 300 },
           disableFlip: false
         },
         onScanSuccess,
@@ -237,22 +237,31 @@
       // Format: md5(timeSlot + 'CARWHIZZ_HR_2026_SECRET')
       scannedToken = decodedText.trim().toLowerCase();
       
+      // Get current time slot for debugging
+      const currentTimeSlot = Math.floor(Date.now() / 1000 / 10);
+      console.log('🔍 QR Scan Debug Info:');
+      console.log('  Scanned Token:', scannedToken);
+      console.log('  Current Time Slot:', currentTimeSlot);
+      console.log('  Token Length:', scannedToken.length);
+      
       // Validate it looks like an MD5 hash (32 hex characters) - case insensitive
       if (!/^[a-f0-9]{32}$/.test(scannedToken)) {
-        console.error('Invalid token format received:', decodedText, 'Length:', decodedText.length);
-        scanError = 'Invalid QR code format (not a valid hash).';
+        console.error('❌ Token validation failed - not a valid MD5 hash');
+        scanError = `Invalid QR code format: expected 32-character MD5 hash, received "${decodedText}" (${decodedText.length} chars).`;
         scanLoading = false;
         return;
       }
       
       if (!$authStore.user?.id) {
-        scanError = 'Not logged in.';
+        scanError = 'Not logged in. Please log in and try again.';
         scanLoading = false;
         return;
       }
+      console.log('✅ Token validated successfully. Awaiting check-in/check-out confirmation...');
       showPunchChoice = true;
-    } catch {
-      scanError = 'Invalid QR code format.';
+    } catch (err) {
+      console.error('❌ Unexpected error during QR scan:', err);
+      scanError = 'Error processing QR code. Please try again.';
     }
     scanLoading = false;
   }
@@ -263,7 +272,7 @@
     try {
       const userId = $authStore.user?.id;
       if (!userId) { 
-        scanError = 'Not logged in.'; 
+        scanError = 'Not logged in. Please log in and try again.';
         scanLoading = false; 
         return; 
       }
@@ -277,6 +286,11 @@
       });
       const istDate = formatter.format(new Date());
 
+      console.log(`📤 Sending ${action === 'check_in' ? '📍 CHECK-IN' : '📤 CHECK-OUT'} request...`);
+      console.log('  Token:', scannedToken);
+      console.log('  User ID:', userId);
+      console.log('  Date:', istDate);
+
       const { data, error: punchError } = await supabase.rpc('fn_attendance_punch', {
         p_token: scannedToken,
         p_user_id: userId,
@@ -285,15 +299,19 @@
       });
       
       if (punchError) { 
-        scanError = punchError.message; 
-      } else if (data?.success) { 
+        console.error('❌ RPC Error:', punchError);
+        scanError = `Database error: ${punchError.message}`; 
+      } else if (data?.success) {
+        console.log('✅ Punch successful:', data.message); 
         scanResult = data.message;
         await loadAllAttendanceRecords();
-      } else { 
-        scanError = data?.message || 'Punch failed.'; 
+      } else {
+        console.error('❌ Punch rejected by server:', data?.message); 
+        scanError = data?.message || 'Punch failed. Your token may have expired - refresh the QR code and try again.'; 
       }
-    } catch {
-      scanError = 'Something went wrong.';
+    } catch (err) {
+      console.error('❌ Unexpected error during punch:', err);
+      scanError = 'Network error occurred. Please check your connection and try again.';
     }
     scannedToken = '';
     scanLoading = false;

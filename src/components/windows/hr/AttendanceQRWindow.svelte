@@ -27,6 +27,11 @@
       const timeSlot = Math.floor(Date.now() / 1000 / 10); // Convert ms to seconds, then divide by 10
       const token = md5(String(timeSlot) + secret);
       
+      console.log('🔄 QR Code Generated:');
+      console.log('  Time Slot:', timeSlot);
+      console.log('  MD5 Token:', token);
+      console.log('  Generated At:', new Date().toLocaleTimeString());
+      
       qrDataUrl = await QRCode.toDataURL(token, {
         width: 250,
         margin: 2,
@@ -49,6 +54,9 @@
         <img src={qrDataUrl} alt="Attendance QR Code" class="qr-code" />
         <p class="refresh-time">
           Last refreshed: {qrGeneratedAt.toLocaleTimeString()}
+        </p>
+        <p class="debug-info">
+          🔍 Time Slot: {Math.floor(Date.now() / 1000 / 10)} (refreshes every 10 seconds)
         </p>
       </div>
     {:else}
@@ -164,5 +172,13 @@
   .note {
     color: #0c4a6e;
     font-size: 12px !important;
+  }
+
+  .debug-info {
+    font-size: 12px;
+    color: #666;
+    margin-top: 8px;
+    font-family: monospace;
+    text-align: center;
   }
 </style>
