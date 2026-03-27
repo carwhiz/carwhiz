@@ -66,6 +66,13 @@ export function goToAttendance(): boolean {
 }
 
 /**
+ * Navigate to salary page
+ */
+export function goToSalary(): boolean {
+  return navigateTo('salary' as InterfaceMode);
+}
+
+/**
  * Navigate back (to previous interface)
  */
 export function goBack(fallback: InterfaceMode = 'login'): boolean {

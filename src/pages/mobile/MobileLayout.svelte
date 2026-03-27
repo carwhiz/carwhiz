@@ -9,10 +9,13 @@
   import MobileAttendance from './MobileAttendance.svelte';
   import MobileJobDetail from './MobileJobDetail.svelte';
   import MobileJobCreation from './MobileJobCreation.svelte';
+  import MobileSalary from './MobileSalary.svelte';
 
   import logoPath from '../../assets/CARWHIZ.jpeg';
 
   let menuOpen = false;
+
+  $: isAdmin = $authStore.user?.role === 'admin';
 
   async function handleLogout() {
     await logout();
@@ -37,6 +40,10 @@
 
   function goToAttendance() {
     setMobilePage('attendance', 'Attendance');
+  }
+
+  function goToSalary() {
+    setMobilePage('salary', 'Salary Review');
   }
 
   function goBack() {
@@ -109,6 +116,8 @@
       <MobileJobDetail />
     {:else if $mobilePageStore.currentPage === 'job-creation'}
       <MobileJobCreation />
+    {:else if $mobilePageStore.currentPage === 'salary'}
+      <MobileSalary />
     {:else}
       <MobileHome />
     {/if}
@@ -156,6 +165,20 @@
         </svg>
         <span class="nav-label">Jobs</span>
       </button>
+      {#if isAdmin}
+        <button 
+          class="nav-btn"
+          class:active={$mobilePageStore.currentPage === 'salary'}
+          on:click={goToSalary}
+          title="Salary & HR"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="nav-icon">
+            <line x1="12" y1="1" x2="12" y2="23"></line>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+          <span class="nav-label">Salary</span>
+        </button>
+      {/if}
     </nav>
   {/if}
 </div>
