@@ -193,10 +193,10 @@
       await html5QrScanner.start(
         constraints,
         { 
-          fps: 25, 
-          qrbox: { width: 300, height: 300 },
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
           disableFlip: false,
-          aspectRatio: 1.0
+          aspectRatio: window.innerWidth / window.innerHeight // Use device aspect ratio for better camera fitting
         },
         onScanSuccess,
         (errorMsg: string) => {
