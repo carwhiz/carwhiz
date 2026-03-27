@@ -1341,6 +1341,14 @@
   }
 
   /* ========== QR SCANNER CORNER SYMBOLS REMOVAL ========== */
+  :global(#qr-reader) {
+    border: none !important;
+  }
+  
+  :global(#qr-reader *) {
+    border: none !important;
+  }
+
   /* Hide corner markers/symbols added by html5-qrcode library which are dynamically inserted */
   :global(#qr-reader svg),
   :global(#qr-reader__svg_shaded_region),
