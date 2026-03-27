@@ -691,33 +691,6 @@
     justify-content: center;
   }
 
-  /* OUTER BOX - Dark vignette */
-  .qr-reader-wrapper::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.7) 100%);
-    pointer-events: none;
-    z-index: 4;
-  }
-
-  /* INNER BOX - Prominent scanning frame (box inside box style) */
-  .qr-reader-wrapper::after {
-    content: '';
-    position: absolute;
-    width: 80%;
-    aspect-ratio: 1;
-    border: 8px solid rgba(255, 255, 255, 0.95);
-    border-radius: 8px;
-    pointer-events: none;
-    z-index: 6;
-    background: transparent;
-    box-shadow: 
-      inset 0 0 0 0px rgba(255, 255, 255, 0.5),
-      0 0 50px rgba(255, 255, 255, 0.5),
-      0 0 100px rgba(255, 255, 255, 0.3);
-  }
-
   .qr-msg {
     text-align: center;
     color: var(--neutral-500);
