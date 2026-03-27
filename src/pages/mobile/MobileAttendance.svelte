@@ -193,8 +193,8 @@
       await html5QrScanner.start(
         constraints,
         { 
-          fps: 20, 
-          qrbox: { width: 250, height: 250 },
+          fps: 25, 
+          qrbox: { width: 300, height: 300 },
           disableFlip: false,
           aspectRatio: 1.0
         },
@@ -691,29 +691,31 @@
     justify-content: center;
   }
 
-  /* Outer dark vignette overlay to focus attention on scanning area */
+  /* OUTER BOX - Dark vignette */
   .qr-reader-wrapper::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse at center, transparent 38%, rgba(0, 0, 0, 0.5) 100%);
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.7) 100%);
     pointer-events: none;
-    z-index: 5;
+    z-index: 4;
   }
 
-  /* Inner rectangle frame - visual guide for where to scan */
+  /* INNER BOX - Prominent scanning frame (box inside box style) */
   .qr-reader-wrapper::after {
     content: '';
     position: absolute;
-    width: 75%;
+    width: 80%;
     aspect-ratio: 1;
-    border: 3px solid rgba(196, 30, 58, 0.9);
-    border-radius: 0px;
+    border: 8px solid rgba(196, 30, 58, 0.95);
+    border-radius: 8px;
     pointer-events: none;
     z-index: 6;
+    background: transparent;
     box-shadow: 
-      inset 0 0 0 2px rgba(196, 30, 58, 0.3),
-      0 0 40px rgba(196, 30, 58, 0.4);
+      inset 0 0 0 0px rgba(196, 30, 58, 0.5),
+      0 0 50px rgba(196, 30, 58, 0.5),
+      0 0 100px rgba(196, 30, 58, 0.3);
   }
 
   .qr-msg {
