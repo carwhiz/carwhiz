@@ -71,6 +71,21 @@
     windowStore.open(`finance-edit-customer-${customerId}`, 'Edit Customer');
   }
 
+  async function deleteCustomer(customerId: string, customerName: string) {
+    if (!confirm(`Are you sure you want to delete customer "${customerName}"? This action cannot be undone.`)) return;
+
+    const { error: delErr } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', customerId);
+
+    if (delErr) {
+      alert(`Error deleting customer: ${delErr.message}`);
+    } else {
+      loadCustomers();
+    }
+  }
+
   export { loadCustomers };
 </script>
 
@@ -126,6 +141,12 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   Edit
                 </button>
+                <button class="btn-delete" title="Delete" on:click={() => deleteCustomer(c.id, c.name)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                    <path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+                  </svg>
+                  Delete
+                </button>
               </td>
             </tr>
           {/each}
@@ -157,7 +178,9 @@
   tr:hover td { background:#fffbf5; }
   .num { color:#9ca3af; width:36px; }
   .name-col { font-weight:600; color:#111827; }
-  .actions { width:80px; }
+  .actions { width:150px; display: flex; gap: 8px; }
   .btn-edit { display:inline-flex; align-items:center; gap:4px; padding:5px 10px; background:#fff7ed; border:1px solid #fed7aa; border-radius:5px; font-size:12px; font-weight:500; color:#C41E3A; cursor:pointer; transition:all .15s; }
   .btn-edit:hover { background:#C41E3A; color:white; border-color:#C41E3A; }
+  .btn-delete { display:inline-flex; align-items:center; gap:4px; padding:5px 10px; background:#fef2f2; border:1px solid #fecaca; border-radius:5px; font-size:12px; font-weight:500; color:#ef4444; cursor:pointer; transition:all .15s; }
+  .btn-delete:hover { background:#ef4444; color:white; border-color:#ef4444; }
 </style>
