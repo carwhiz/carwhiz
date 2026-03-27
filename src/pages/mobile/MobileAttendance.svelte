@@ -185,12 +185,18 @@
         facingMode: 'environment'
       };
 
+      console.log('📱 Starting QR Scanner...');
+      console.log('  Device:', navigator.userAgent);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      console.log('  iOS Device:', isIOS);
+
       await html5QrScanner.start(
         constraints,
         { 
-          fps: 15, 
-          qrbox: { width: 280, height: 160 },
-          disableFlip: false
+          fps: 20, 
+          qrbox: { width: 250, height: 250 },
+          disableFlip: false,
+          aspectRatio: 1.0
         },
         onScanSuccess,
         (errorMsg: string) => {
@@ -200,20 +206,31 @@
           }
         }
       );
+      console.log('✅ Scanner started successfully');
       scanLoading = false;
     } catch (err: any) {
       const errMsg = err?.message || err?.toString() || 'Camera access denied or not available. Please ensure you have granted camera permissions to this site.';
       console.error('Scanner initialization failed:', errMsg, err);
       
-      // Give a more user friendly error if it's permission denied
+      // Detect if running on iOS/Safari
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+      
+      // Give more specific error messages based on device/browser
       if (err?.name === 'NotAllowedError' || errMsg.includes('Permission denied') || errMsg.includes('Permission dismissed')) {
-         scanError = 'Camera permission denied. Please go to Settings > Safari and allow camera access for this site.';
+        if (isIOS && isSafari) {
+          scanError = '📱 iOS Safari: Go to Settings > Safari > Camera and ENABLE camera access for this site.';
+        } else {
+          scanError = '📷 Camera permission denied. Please check your browser/device camera permissions and try again.';
+        }
       } else if (errMsg.includes('NotFoundError') || errMsg.includes('no camera')) {
-         scanError = 'No camera found on your device.';
+        scanError = '❌ No camera found. Please ensure your device has a working camera.';
       } else if (errMsg.includes('NotSupportedError')) {
-         scanError = 'QR scanning is not supported on your device or browser.';
+        scanError = '⚠️ QR scanning not supported on your browser. Try Chrome, Firefox, or Safari.';
+      } else if (errMsg.includes('OverconstrainedError')) {
+        scanError = '📹 Camera constraint error. Try a different camera angle or lighting.';
       } else {
-         scanError = errMsg || 'Failed to initialize camera. Please try again.';
+        scanError = `❌ Camera error: ${errMsg || 'Please ensure camera access is allowed and try again.'}`; 
       }
       showScanner = false;
       scanLoading = false;
@@ -668,6 +685,35 @@
     width: 100%;
     aspect-ratio: 4 / 3;
     overflow: hidden;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Outer dark vignette overlay to focus attention on scanning area */
+  .qr-reader-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 38%, rgba(0, 0, 0, 0.5) 100%);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  /* Inner rectangle frame - visual guide for where to scan */
+  .qr-reader-wrapper::after {
+    content: '';
+    position: absolute;
+    width: 75%;
+    aspect-ratio: 1;
+    border: 3px solid rgba(196, 30, 58, 0.9);
+    border-radius: 0px;
+    pointer-events: none;
+    z-index: 6;
+    box-shadow: 
+      inset 0 0 0 2px rgba(196, 30, 58, 0.3),
+      0 0 40px rgba(196, 30, 58, 0.4);
   }
 
   .qr-msg {
