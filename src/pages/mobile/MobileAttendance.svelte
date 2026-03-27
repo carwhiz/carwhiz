@@ -194,9 +194,9 @@
         constraints,
         { 
           fps: 10,
-          qrbox: { width: 250, height: 250 },
+          qrbox: 250, // use a fixed single dimension for a perfect square
           disableFlip: false,
-          aspectRatio: window.innerWidth / window.innerHeight // Use device aspect ratio for better camera fitting
+          aspectRatio: 1.0 // Force a 1:1 square camera aspect ratio so it doesn't get squished
         },
         onScanSuccess,
         (errorMsg: string) => {
@@ -683,7 +683,7 @@
   .qr-reader-wrapper {
     position: relative;
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 1; /* Make wrapper a perfect square to match camera ratio */
     overflow: hidden;
     background: #000;
     display: flex;
@@ -707,15 +707,15 @@
     position: absolute;
     width: 80%;
     aspect-ratio: 1;
-    border: 8px solid rgba(196, 30, 58, 0.95);
+    border: 8px solid rgba(255, 255, 255, 0.95);
     border-radius: 8px;
     pointer-events: none;
     z-index: 6;
     background: transparent;
     box-shadow: 
-      inset 0 0 0 0px rgba(196, 30, 58, 0.5),
-      0 0 50px rgba(196, 30, 58, 0.5),
-      0 0 100px rgba(196, 30, 58, 0.3);
+      inset 0 0 0 0px rgba(255, 255, 255, 0.5),
+      0 0 50px rgba(255, 255, 255, 0.5),
+      0 0 100px rgba(255, 255, 255, 0.3);
   }
 
   .qr-msg {
@@ -1368,28 +1368,28 @@
   }
 
   /* ========== QR SCANNER CORNER SYMBOLS REMOVAL ========== */
-  /* Hide corner markers/symbols added by html5-qrcode library */
-  #qr-reader svg,
-  #qr-reader__svg_shaded_region,
-  #qr-reader__scan_region {
+  /* Hide corner markers/symbols added by html5-qrcode library which are dynamically inserted */
+  :global(#qr-reader svg),
+  :global(#qr-reader__svg_shaded_region),
+  :global(#qr-reader__scan_region) {
     display: none !important;
   }
 
   /* Hide any overlay elements that create corner brackets */
-  #qr-reader canvas {
+  :global(#qr-reader canvas) {
     display: block !important;
   }
 
   /* Ensure scanner shows only the feed, no corner markers */
-  #qr-reader [role="region"],
-  #qr-reader svg line,
-  #qr-reader svg path {
+  :global(#qr-reader [role="region"]),
+  :global(#qr-reader svg line),
+  :global(#qr-reader svg path) {
     display: none !important;
   }
 
   /* Clean up any pseudo-elements creating decorative corners */
-  #qr-reader::before,
-  #qr-reader::after {
+  :global(#qr-reader::before),
+  :global(#qr-reader::after) {
     display: none !important;
   }
 </style>
