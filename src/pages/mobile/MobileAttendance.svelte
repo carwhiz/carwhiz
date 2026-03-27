@@ -189,7 +189,7 @@
         constraints,
         { 
           fps: 15, 
-          qrbox: { width: 300, height: 300 },
+          qrbox: { width: 280, height: 160 },
           disableFlip: false
         },
         onScanSuccess,
@@ -461,7 +461,7 @@
                 <p>Initializing camera...</p>
               </div>
             {/if}
-            <div id="qr-reader" style="width:100%; height:300px; overflow:hidden; border-radius:12px; background:#000;"></div>
+            <div id="qr-reader" style="width:100%; height:100%; overflow:hidden; border-radius:12px; background:#000;"></div>
           </div>
         </div>
       </div>
@@ -616,6 +616,8 @@
     max-width: 90vw;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
     border: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    flex-direction: column;
   }
 
   @media (max-width: 640px) {
@@ -663,7 +665,8 @@
   .qr-reader-wrapper {
     position: relative;
     width: 100%;
-    min-height: 260px;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
   }
 
   .qr-msg {
@@ -679,7 +682,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 260px;
+    min-height: 100%;
     gap: 1rem;
     position: absolute;
     top: 0;
