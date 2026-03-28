@@ -1,12 +1,11 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import QRCode from 'qrcode';
-  import md5 from 'md5';
   import { authStore } from '../../stores/authStore';
   import { windowStore } from '../../stores/windowStore';
   import { interfaceStore } from '../../stores/interfaceStore';
   import { logout } from '../../lib/services/authService';
   import { canUserViewResource } from '../../lib/services/permissionService';
+  import { generateQRImage, setupQRWithPWAFix } from '../../lib/services/qrUtils';
   import AppWindow from '../../components/AppWindow.svelte';
   import Taskbar from '../../components/desktop/Taskbar.svelte';
   import logoPath from '../../assets/CARWHIZ.jpeg';
@@ -81,39 +80,42 @@
   let qrDataUrl: string = '';
   let qrGeneratedAt: Date = new Date();
   let qrRefreshInterval: any = null;
+  let cleanupFocusDetection: (() => void) | null = null;
   
   // Permission denied message
   let permissionDeniedMsg = '';
   let showPermissionDenied = false;
 
-  onMount(async () => {
-    generateDashboardQR();
-    qrRefreshInterval = setInterval(generateDashboardQR, 10000);
-  });
-
-  onDestroy(() => {
-    if (qrRefreshInterval) clearInterval(qrRefreshInterval);
-  });
-
   async function generateDashboardQR() {
     try {
-      // Generate token matching server's MD5 hash format
-      // Server calculates: md5(timeSlot || 'CARWHIZZ_HR_2026_SECRET')
-      // where timeSlot = EXTRACT(EPOCH FROM now())::BIGINT / 10
-      const secret = 'CARWHIZZ_HR_2026_SECRET';
-      const timeSlot = Math.floor(Date.now() / 1000 / 10); // Convert ms to seconds, then divide by 10
-      const token = md5(String(timeSlot) + secret);
-
-      qrDataUrl = await QRCode.toDataURL(token, {
-        width: 200,
-        margin: 2,
-        color: { dark: '#111827', light: '#ffffff' }
-      });
+      qrDataUrl = await generateQRImage({ width: 200, margin: 2 });
       qrGeneratedAt = new Date();
+      console.log('✅ Dashboard QR Code refreshed at', qrGeneratedAt.toLocaleTimeString());
     } catch (err) {
       console.error('Error generating QR code:', err);
     }
   }
+
+  onMount(async () => {
+    // Initial QR generation
+    await generateDashboardQR();
+
+    // Setup automatic refresh with PWA focus detection
+    // This prevents the "invalid QR" issue when the PWA loses focus
+    const { interval, cleanup } = setupQRWithPWAFix(generateDashboardQR);
+    qrRefreshInterval = interval;
+    cleanupFocusDetection = cleanup;
+
+    return () => {
+      if (cleanupFocusDetection) cleanupFocusDetection();
+    };
+  });
+
+  onDestroy(() => {
+    if (qrRefreshInterval) clearInterval(qrRefreshInterval);
+    if (cleanupFocusDetection) cleanupFocusDetection();
+  });
+
 
   // Map window IDs to their content components
   const windowComponentMap: Record<string, any> = {

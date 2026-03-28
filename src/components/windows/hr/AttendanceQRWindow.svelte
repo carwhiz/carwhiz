@@ -1,47 +1,42 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import QRCode from 'qrcode';
-  import md5 from 'md5';
   import { authStore } from '../../../stores/authStore';
+  import { generateQRImage, setupQRWithPWAFix } from '../../../lib/services/qrUtils';
 
   let qrDataUrl: string = '';
   let qrGeneratedAt: Date = new Date();
   let refreshInterval: any;
-
-  onMount(async () => {
-    generateQR();
-    // Regenerate QR code every 10 seconds for security (sync with server time slots)
-    refreshInterval = setInterval(generateQR, 10000);
-  });
-
-  onDestroy(() => {
-    if (refreshInterval) clearInterval(refreshInterval);
-  });
+  let cleanupFocusDetection: (() => void) | null = null;
 
   async function generateQR() {
     try {
-      // Generate token matching server's MD5 hash format
-      // Server calculates: md5(timeSlot || 'CARWHIZZ_HR_2026_SECRET')
-      // where timeSlot = EXTRACT(EPOCH FROM now())::BIGINT / 10
-      const secret = 'CARWHIZZ_HR_2026_SECRET';
-      const timeSlot = Math.floor(Date.now() / 1000 / 10); // Convert ms to seconds, then divide by 10
-      const token = md5(String(timeSlot) + secret);
-      
-      console.log('🔄 QR Code Generated:');
-      console.log('  Time Slot:', timeSlot);
-      console.log('  MD5 Token:', token);
-      console.log('  Generated At:', new Date().toLocaleTimeString());
-      
-      qrDataUrl = await QRCode.toDataURL(token, {
-        width: 250,
-        margin: 2,
-        color: { dark: '#111827', light: '#ffffff' }
-      });
+      qrDataUrl = await generateQRImage({ width: 250, margin: 2 });
       qrGeneratedAt = new Date();
+      console.log('✅ QR Code refreshed at', qrGeneratedAt.toLocaleTimeString());
     } catch (err) {
       console.error('Error generating QR code:', err);
     }
   }
+
+  onMount(async () => {
+    // Initial QR generation
+    await generateQR();
+
+    // Setup automatic refresh with PWA focus detection
+    // This prevents the "invalid QR" issue when the PWA loses focus
+    const { interval, cleanup } = setupQRWithPWAFix(generateQR);
+    refreshInterval = interval;
+    cleanupFocusDetection = cleanup;
+
+    return () => {
+      if (cleanupFocusDetection) cleanupFocusDetection();
+    };
+  });
+
+  onDestroy(() => {
+    if (refreshInterval) clearInterval(refreshInterval);
+    if (cleanupFocusDetection) cleanupFocusDetection();
+  });
 </script>
 
 <div class="attendance-qr">
