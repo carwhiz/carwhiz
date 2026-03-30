@@ -137,6 +137,8 @@
     date_to: '',
   };
 
+  let workingHours = { hours: 8, minutes: 0 };
+
   onMount(() => {
     loadEmployees();
     loadRegularShifts();
@@ -329,9 +331,10 @@
       endTotalMinutes += 24 * 60;
     }
 
-    const diffMinutes = endTotalMinutes - startTotalMinutes;
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = diffMinutes % 60;
+    // Calculate direct working hours from start and end time only
+    const totalMinutes = endTotalMinutes - startTotalMinutes;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
 
     return { hours, minutes };
   }
@@ -401,7 +404,17 @@
     return groups;
   }
 
-  $: workingHours = calculateWorkingHours();
+  $: {
+    formData.start_hour;
+    formData.start_minute;
+    formData.start_period;
+    formData.end_hour;
+    formData.end_minute;
+    formData.end_period;
+    formData.start_buffer;
+    formData.end_buffer;
+    workingHours = calculateWorkingHours();
+  }
 
   // --- Official Leave functions ---
   async function loadOfficialLeaves() {
