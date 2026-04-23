@@ -126,18 +126,45 @@
     cashBankLedgers = (data || []).filter((l: any) => typeIds.includes(l.ledger_type_id));
   }
 
+  async function getJobCardBalance(jobCard: any): Promise<number> {
+    // Get total of all items in job card
+    const { data: items } = await supabase
+      .from('job_card_items')
+      .select('total')
+      .eq('job_card_id', jobCard.id);
+    const totalItems = (items || []).reduce((sum: number, item: any) => sum + (item.total || 0), 0);
+    
+    // Get ALL sales linked to this job card - sum what was actually PAID
+    const { data: linkedSales } = await supabase
+      .from('sales')
+      .select('paid_amount')
+      .eq('job_card_id', jobCard.id);
+    const totalPaid = (linkedSales || []).reduce((sum: number, sale: any) => sum + (sale.paid_amount || 0), 0);
+    
+    // Remaining = total items - total paid from all sales
+    return Math.max(0, totalItems - totalPaid);
+  }
+
   async function loadAvailableJobCards() {
     jcLoading = true;
     const { data } = await supabase
       .from('job_cards')
-      .select('id, job_card_no, description, customer_id, vehicle_id, customers(name), vehicles(model_name)')
-      .is('billed_invoice_id', null)
+      .select('id, job_card_no, description, customer_id, vehicle_id, status, billed_invoice_id, customers(name), vehicles(model_name)')
       .order('created_at', { ascending: false });
-    availableJobCards = (data || []).map((j: any) => ({
-      ...j,
-      customer_name: j.customers?.name || '—',
-      vehicle_name: j.vehicles?.model_name || '—',
-    }));
+    
+    let jobCardsWithBalance = [];
+    for (const j of (data || [])) {
+      const balance = await getJobCardBalance(j);
+      if (balance > 0) {
+        jobCardsWithBalance.push({
+          ...j,
+          customer_name: j.customers?.name || '—',
+          vehicle_name: j.vehicles?.model_name || '—',
+          remaining_balance: balance,
+        });
+      }
+    }
+    availableJobCards = jobCardsWithBalance;
     jcLoading = false;
   }
 
@@ -319,8 +346,10 @@
       balance_due: netTotal - paidAmt,
       payment_mode_id: payment_mode_id || null,
       cash_bank_ledger_id: cash_bank_ledger_id || null,
+      job_card_id: importedJobCardId || null,
       status: (netTotal - paidAmt) <= 0 ? 'paid' : 'posted',
       created_by: $authStore.user?.id || null,
+      updated_by: $authStore.user?.id || null,
     }).select('id').single();
 
     if (saleErr || !sale) {
@@ -446,22 +475,32 @@
       await supabase.from('ledger_entries').insert(ledgerEntries);
     }
 
-    // Mark job card as billed if imported
+    // Update job card billing info if imported
     if (importedJobCardId) {
-      await supabase.from('job_cards').update({
-        status: 'Billed',
+      // Get balance AFTER the new sale was created (it's now included in the calculation)
+      const newBalance = await getJobCardBalance({ id: importedJobCardId });
+      
+      // Only mark as 'Billed' when fully paid (no remaining items or all paid)
+      const updateData: any = {
         billed_invoice_id: sale.id,
         billed_at: new Date().toISOString(),
         updated_by: $authStore.user?.id || null,
         updated_at: new Date().toISOString(),
-      }).eq('id', importedJobCardId);
+      };
+      
+      // Mark as Billed only if fully paid
+      if (newBalance <= 0) {
+        updateData.status = 'Billed';
+      }
+      
+      await supabase.from('job_cards').update(updateData).eq('id', importedJobCardId);
 
-      await supabase.from('job_card_logs').insert({
+      const logAction = newBalance <= 0 ? `Fully billed via invoice ${bill_no}` : `Partially billed - ₹${netTotal.toFixed(2)} (Remaining: ₹${newBalance.toFixed(2)}) via invoice ${bill_no}`;      await supabase.from('job_card_logs').insert({
         job_card_id: importedJobCardId,
         action: 'Billed',
         from_status: 'Closed',
         to_status: 'Billed',
-        note: `Billed via invoice ${bill_no}`,
+        note: `${logAction}`,
         action_by: $authStore.user?.id || null,
         created_by: $authStore.user?.id || null,
       });
@@ -548,13 +587,23 @@
           {#if jcLoading}
             <div class="jc-loading">Loading job cards...</div>
           {:else if availableJobCards.length === 0}
-            <div class="jc-empty">No unbilled job cards found.</div>
+            <div class="jc-empty">No job cards found.</div>
           {:else}
             {#each availableJobCards as jc}
               <button class="jc-card" on:click={() => importJobCard(jc)}>
-                <div class="jc-card-top"><span class="jc-no">{jc.job_card_no}</span></div>
+                <div class="jc-card-top">
+                  <span class="jc-no">{jc.job_card_no}</span>
+                  <span class="jc-balance" class:partial={jc.status !== 'Closed'}>
+                    {#if jc.remaining_balance > 0}
+                      ₹{jc.remaining_balance.toFixed(2)}
+                    {/if}
+                  </span>
+                </div>
                 <div class="jc-card-info">{jc.customer_name} — {jc.vehicle_name}</div>
                 <div class="jc-card-desc">{jc.description || ''}</div>
+                {#if jc.status !== 'Closed'}
+                  <div class="jc-card-status">Status: <strong>{jc.status}</strong> | Remaining: <strong>₹{jc.remaining_balance.toFixed(2)}</strong></div>
+                {/if}
               </button>
             {/each}
           {/if}
@@ -812,7 +861,11 @@
   .jc-loading, .jc-empty { text-align:center; color:#9ca3af; padding:30px; font-size:14px; }
   .jc-card { background:#fafafa; border:1px solid #e5e7eb; border-radius:8px; padding:12px; cursor:pointer; text-align:left; width:100%; transition:background 0.15s; }
   .jc-card:hover { background:#eef2ff; border-color:#a5b4fc; }
+  .jc-card-top { display:flex; justify-content:space-between; align-items:center; }
   .jc-no { font-family:monospace; font-weight:700; color:#C41E3A; font-size:13px; }
+  .jc-balance { font-size:12px; font-weight:600; color:#059669; }
+  .jc-balance.partial { color:#f59e0b; }
   .jc-card-info { font-size:13px; color:#111827; margin:4px 0 2px; }
   .jc-card-desc { font-size:12px; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .jc-card-status { font-size:11px; color:#6b7280; margin-top:6px; padding-top:6px; border-top:1px solid #d1d5db; }
 </style>

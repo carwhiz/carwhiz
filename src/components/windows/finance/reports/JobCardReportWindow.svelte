@@ -32,6 +32,9 @@
   let jcPhotos: any[] = [];
   let jcNotes: any[] = [];
   let jcLogs: any[] = [];
+  let jcTotalAmount = 0;
+  let jcBilledAmount = 0;
+  let jcRemainingBalance = 0;
 
   // Edit fields
   let editDescription = '';
@@ -237,7 +240,7 @@
   }
 
   async function loadJobCardDetails(id: string) {
-    const [itemsRes, photosRes, notesRes, logsRes, jobCardRes] = await Promise.all([
+    const [itemsRes, photosRes, notesRes, logsRes, jobCardRes, salesRes] = await Promise.all([
       supabase.from('job_card_items').select('*').eq('job_card_id', id).order('created_at'),
       supabase.from('job_card_photos').select('*').eq('job_card_id', id).order('created_at'),
       supabase.from('job_card_notes').select('*, users:created_by(email)').eq('job_card_id', id).order('created_at', { ascending: false }),
@@ -262,12 +265,18 @@
           body_sides(name)
         ),
         users!assigned_user_id(email, user_name)
-      `).eq('id', id).single()
+      `).eq('id', id).single(),
+      supabase.from('sales').select('paid_amount').eq('job_card_id', id)
     ]);
     jcItems = itemsRes.data || [];
     jcPhotos = photosRes.data || [];
     jcNotes = (notesRes.data || []).map((n: any) => ({ ...n, by_name: n.users?.email || '—' }));
     jcLogs = (logsRes.data || []).map((l: any) => ({ ...l, by_name: l.users?.email || '—' }));
+    
+    // Calculate billing amounts - use paid_amount (what customer actually paid)
+    jcTotalAmount = (jcItems || []).reduce((sum: number, item: any) => sum + (item.total || 0), 0);
+    jcBilledAmount = (salesRes.data || []).reduce((sum: number, sale: any) => sum + (sale.paid_amount || 0), 0);
+    jcRemainingBalance = Math.max(0, jcTotalAmount - jcBilledAmount);
     
     if (jobCardRes.data) {
       const dbJc = jobCardRes.data;
@@ -659,6 +668,27 @@
                 </tr>
               </tfoot>
             </table>
+        </div>
+        {/if}
+
+        <!-- Billing Summary -->
+        {#if jcTotalAmount > 0}
+        <div class="info-row" style="border: 1px solid #ddd; padding: 12px; margin: 15px 0; background: #f0f9ff; border-left: 4px solid #0ea5e9; border-radius: 6px; width: 100%;">
+          <div class="title" style="font-weight: bold; font-size: 13px; margin-bottom: 10px; color: #0c4a6e;">Billing Summary</div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+            <div style="text-align: center; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e0e7ff;">
+              <div style="font-size: 11px; color: #666; margin-bottom: 4px;">Job Card Total</div>
+              <div style="font-size: 16px; font-weight: bold; color: #111;">₹{jcTotalAmount.toFixed(2)}</div>
+            </div>
+            <div style="text-align: center; padding: 8px; background: white; border-radius: 4px; border: 1px solid #fecaca;">
+              <div style="font-size: 11px; color: #666; margin-bottom: 4px;">Already Billed</div>
+              <div style="font-size: 16px; font-weight: bold; color: #dc2626;">₹{jcBilledAmount.toFixed(2)}</div>
+            </div>
+            <div style="text-align: center; padding: 8px; background: white; border-radius: 4px; border: 1px solid #86efac;">
+              <div style="font-size: 11px; color: #666; margin-bottom: 4px;">Remaining Balance</div>
+              <div style="font-size: 16px; font-weight: bold; color: {jcRemainingBalance > 0 ? '#16a34a' : '#4b5563'};">₹{jcRemainingBalance.toFixed(2)}</div>
+            </div>
+          </div>
         </div>
         {/if}
 
