@@ -50,6 +50,8 @@
   // Actions
   let actionLoading = false;
   let actionError = '';
+  let selectedNewStatus = '';
+  const statusOptions = ['Open', 'In Progress', 'Closed', 'Billed'];
 
   function applyFilters() {
     let result = myJobs;
@@ -326,6 +328,45 @@
     await loadJobDetails(viewingJob.id);
   }
 
+  // ---- Update Status ----
+  async function updateStatus(newStatus: string) {
+    if (!viewingJob || !newStatus || newStatus === viewingJob.status) return;
+    if (!confirm(`Change status from "${viewingJob.status}" to "${newStatus}"?`)) return;
+    
+    const oldStatus = viewingJob.status;
+    actionLoading = true;
+    actionError = '';
+
+    const { error } = await supabase.from('job_cards').update({
+      status: newStatus,
+      updated_by: $authStore.user?.id || null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', viewingJob.id);
+
+    if (error) { 
+      actionError = 'Failed to update status: ' + error.message; 
+      actionLoading = false;
+      selectedNewStatus = '';
+      return; 
+    }
+
+    await supabase.from('job_card_logs').insert({
+      job_card_id: viewingJob.id,
+      action: 'Status Updated',
+      from_status: oldStatus,
+      to_status: newStatus,
+      note: `Status changed to ${newStatus}`,
+      action_by: $authStore.user?.id || null,
+      created_by: $authStore.user?.id || null,
+    });
+
+    viewingJob.status = newStatus;
+    selectedNewStatus = '';
+    actionLoading = false;
+    await loadMyJobs();
+    await loadJobDetails(viewingJob.id);
+  }
+
   // ---- Add Note ----
   async function addNote() {
     if (!newNote.trim() || !viewingJob) return;
@@ -526,6 +567,21 @@
             Close Job
           </button>
         {/if}
+        <div class="status-update-box">
+          <label for="status-select">Change Status:</label>
+          <select 
+            id="status-select"
+            bind:value={selectedNewStatus} 
+            on:change={(e) => updateStatus(e.currentTarget.value)}
+            disabled={actionLoading}
+            class="status-select"
+          >
+            <option value="">-- Select Status --</option>
+            {#each statusOptions.filter(s => s !== viewingJob.status) as status}
+              <option value={status}>{status}</option>
+            {/each}
+          </select>
+        </div>
       </div>
 
       <!-- Photos (Images) -->
@@ -807,4 +863,9 @@
 
   .msg { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin: 8px 20px 0; }
   .msg-error { background: #fef2f2; color: #dc2626; }
+
+  .status-update-box { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+  .status-update-box label { font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .status-select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; cursor: pointer; background: white; min-width: 140px; }
+  .status-select:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

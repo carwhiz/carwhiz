@@ -67,7 +67,7 @@
 
   // ---- Job Card Import ----
   let showJobCardImport = false;
-  let closedJobCards: any[] = [];
+  let availableJobCards: any[] = [];
   let jcLoading = false;
   let selectedJobCard: any = null;
   let jcItems: any[] = [];
@@ -126,15 +126,14 @@
     cashBankLedgers = (data || []).filter((l: any) => typeIds.includes(l.ledger_type_id));
   }
 
-  async function loadClosedJobCards() {
+  async function loadAvailableJobCards() {
     jcLoading = true;
     const { data } = await supabase
       .from('job_cards')
       .select('id, job_card_no, description, customer_id, vehicle_id, customers(name), vehicles(model_name)')
-      .eq('status', 'Closed')
       .is('billed_invoice_id', null)
       .order('created_at', { ascending: false });
-    closedJobCards = (data || []).map((j: any) => ({
+    availableJobCards = (data || []).map((j: any) => ({
       ...j,
       customer_name: j.customers?.name || '—',
       vehicle_name: j.vehicles?.model_name || '—',
@@ -509,7 +508,7 @@
       </div>
     </div>
     <div class="header-right">
-      <button class="btn-import-jc" on:click={() => { showJobCardImport = true; loadClosedJobCards(); }} title="Import from Job Card">
+      <button class="btn-import-jc" on:click={() => { showJobCardImport = true; loadAvailableJobCards(); }} title="Import from Job Card">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
         Import Job Card
       </button>
@@ -547,11 +546,11 @@
         </div>
         <div class="jc-modal-body">
           {#if jcLoading}
-            <div class="jc-loading">Loading closed job cards...</div>
-          {:else if closedJobCards.length === 0}
-            <div class="jc-empty">No closed & unbilled job cards found.</div>
+            <div class="jc-loading">Loading job cards...</div>
+          {:else if availableJobCards.length === 0}
+            <div class="jc-empty">No unbilled job cards found.</div>
           {:else}
-            {#each closedJobCards as jc}
+            {#each availableJobCards as jc}
               <button class="jc-card" on:click={() => importJobCard(jc)}>
                 <div class="jc-card-top"><span class="jc-no">{jc.job_card_no}</span></div>
                 <div class="jc-card-info">{jc.customer_name} — {jc.vehicle_name}</div>

@@ -39,8 +39,10 @@
   let editPriority = '';
   let editAssignedUserId = '';
   let editExpectedDate = '';
+  let editStatus = '';
   let editSaving = false;
   let editError = '';
+  const statusOptions = ['Open', 'In Progress', 'Closed', 'Billed'];
 
   // Add items in edit mode
   let allProducts: any[] = [];
@@ -228,6 +230,7 @@
     editPriority = jc.priority || 'Normal';
     editAssignedUserId = jc.assigned_user_id || '';
     editExpectedDate = jc.expected_date || '';
+    editStatus = jc.status || '';
     editError = '';
     viewMode = 'edit';
     await loadJobCardDetails(jc.id);
@@ -384,22 +387,29 @@
     editSaving = true;
     editError = '';
 
+    const oldStatus = selectedJC.status;
     const { error } = await supabase.from('job_cards').update({
       description: editDescription.trim(),
       details: editDetails.trim() || null,
       priority: editPriority,
       assigned_user_id: editAssignedUserId,
       expected_date: editExpectedDate || null,
+      status: editStatus,
       updated_by: $authStore.user?.id || null,
       updated_at: new Date().toISOString(),
     }).eq('id', selectedJC.id);
 
     if (error) { editError = 'Failed to update: ' + error.message; editSaving = false; return; }
 
+    const logAction = oldStatus !== editStatus ? 'Status & Details Updated' : 'Edited';
+    const logNote = oldStatus !== editStatus ? `Status changed to ${editStatus}, details updated` : 'Job card details updated';
+
     await supabase.from('job_card_logs').insert({
       job_card_id: selectedJC.id,
-      action: 'Edited',
-      note: 'Job card details updated',
+      action: logAction,
+      from_status: oldStatus !== editStatus ? oldStatus : null,
+      to_status: oldStatus !== editStatus ? editStatus : null,
+      note: logNote,
       action_by: $authStore.user?.id || null,
       created_by: $authStore.user?.id || null,
     });
@@ -735,6 +745,14 @@
             <div class="form-field">
               <label>Expected Date</label>
               <input type="date" bind:value={editExpectedDate} />
+            </div>
+            <div class="form-field">
+              <label>Status</label>
+              <select bind:value={editStatus}>
+                {#each statusOptions as status}
+                  <option value={status}>{status}</option>
+                {/each}
+              </select>
             </div>
           </div>
           <div class="form-field">
