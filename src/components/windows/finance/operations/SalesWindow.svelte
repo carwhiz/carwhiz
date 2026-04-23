@@ -177,13 +177,28 @@
 
     if (!items || items.length === 0) { saveError = 'No items in this job card'; return; }
 
+    // Calculate total and remaining balance
+    const totalJobAmount = (items || []).reduce((sum: number, item: any) => sum + (item.total || 0), 0);
+    const remainingBalance = await getJobCardBalance(jc);
+    
+    // If fully paid, don't import
+    if (remainingBalance <= 0) { saveError = 'This job card is fully billed'; return; }
+
+    // Calculate the remaining proportion (e.g., if remaining is 4000 of 5000, proportion is 0.8)
+    const remainingProportion = remainingBalance / totalJobAmount;
+
     // Set customer
     const cust = customers.find(c => c.id === jc.customer_id);
     if (cust) { selectedCustomer = cust; customerSearch = cust.name; }
 
-    // Set line items
+    // Set line items - scale them to remaining balance
     lines = items.map((it: any) => {
       const prod = allProducts.find(p => p.id === it.item_id);
+      // Scale item values by remaining proportion
+      const scaledPrice = (it.price || 0) * remainingProportion;
+      const scaledDiscount = (it.discount || 0) * remainingProportion;
+      const scaledTotal = (it.total || 0) * remainingProportion;
+      
       return {
         product_id: it.item_id || '',
         product_name: it.name,
@@ -193,9 +208,9 @@
         unit_name: prod?.unit_name || '',
         unit_qty: prod?.unit_qty || 1,
         qty: it.qty || 1,
-        rate: it.price || 0,
-        discount: it.discount || 0,
-        line_total: it.total || ((it.qty || 1) * (it.price || 0) - (it.discount || 0)),
+        rate: scaledPrice,
+        discount: scaledDiscount,
+        line_total: scaledTotal,
       };
     });
 
