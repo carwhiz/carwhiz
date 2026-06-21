@@ -343,7 +343,7 @@
     if (lines.length === 0) { saveError = 'Add at least one product'; return; }
     const paidAmt = parseFloat(paidAmount) || 0;
     if (saleType === 'cash' && !payment_mode_id) { saveError = 'Please select a Payment Mode for cash sale'; return; }
-    if (saleType === 'cash' && !cash_bank_ledger_id) { saveError = 'Please select a Cash / Bank Ledger for cash sale'; return; }
+    if (saleType === 'cash' && !cash_bank_ledger_id) { saveError = 'Please select a Receiving Account for cash sale'; return; }
 
     saving = true;
     saveError = '';
@@ -742,7 +742,7 @@
           </select>
         </div>
         <div class="pay-field">
-          <label>Cash / Bank Ledger</label>
+          <label>Receiving Account</label>
           <select bind:value={cash_bank_ledger_id}>
             <option value="">Select...</option>
             {#each cashBankLedgers as cb (cb.id)}
